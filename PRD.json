@@ -6,20 +6,21 @@
     "organization": "io.github.canardlapin",
     "version": "0.1.0",
     "documentStatus": "canonical",
-    "documentDate": "2026-07-25",
+    "documentDate": "2026-07-26",
     "supersedes": ["notes1.md", "notes2.md"],
-    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), and three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility."
+    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility, plus the reviewed Scala 3.7.4 baseline amendment."
   },
 
   "review": {
     "status": "approvedForImplementationWithGates",
-    "date": "2026-07-25",
-    "evidence": "docs/reviews/prd-2026-07-25.md; the ratified SHA-256 and implementation issue graph are recorded in mote.",
+    "date": "2026-07-26",
+    "evidence": "docs/reviews/prd-2026-07-25.md and docs/reviews/scala-3.7.4-amendment-2026-07-26.md; the ratified SHA-256 and implementation issue graph are recorded in mote.",
     "corrections": [
       "FeatureMap.crossFitted is implemented in alder-data as an extension on FeatureMap.type, beside the Resampler protocol and implementations; alder-kernel never depends on alder-data.",
       "FoldEncoder.fit preserves the caller's U <: Use.Fit role so cross-fitted refit workflows do not require an illicit Refit-to-Train retag.",
       "Seed-allocation associativity is a Transform-composition law, not a Pipe law.",
       "ArtifactCodec uses immutable IArray[Byte] payloads so the immutable-artifact contract is not undermined by mutable array aliases.",
+      "Scala 3.7.4 is the publication baseline; Alder 0.1 deliberately does not promise that Scala 3.3.x consumers can read its TASTy.",
       "Cross-fitting requires CompleteResampler, whose assessment partitions cover every input row exactly once; rolling-origin remains an evaluation-only Resampler because its initial analysis window is never assessed.",
       "FoldEncoder states are Trained and encode failures retain Failure stage provenance; FoldEncoder.andThen exposes analysis-row encode failures in its FitError union. FeatureMap rowwise postprocessing is total mapOutput in 0.1 rather than an unaudited arbitrary fitted Pipe."
     ],
@@ -74,11 +75,11 @@
   ],
 
   "buildAndCompatibility": {
-    "scalaVersion": "3.3.8",
-    "rationale": "TASTy compatibility is one-directional: newer compilers read older minor-version TASTy, not the reverse. Publishing the kernel from 3.7.x would exclude LTS-pinned plugin authors. Gale and linop4s both publish from 3.3.8. No post-3.3 language feature is needed anywhere in the public API.",
+    "scalaVersion": "3.7.4",
+    "rationale": "Alder publishes and tests from one current Scala baseline across its platform matrix. Scala 3.7.4 can consume the 3.3.8 TASTy published by Gale and linop4s; the reverse is not promised, so Alder 0.1 consumers and plugin authors must use a compiler capable of reading 3.7.4 TASTy. This compatibility tradeoff is explicit rather than hidden behind an untested cross-minor promise.",
     "ci": {
-      "required": "Scala 3.3.8 on JVM and Scala.js; Scala Native is additionally required for kernel and laws",
-      "advisory": "current Scala Next (continue-on-error); Scala Native for pure modules beyond kernel and laws"
+      "required": "Scala 3.7.4 on JVM and Scala.js; Scala Native is additionally required for kernel and laws",
+      "advisory": "future Scala versions (continue-on-error); Scala Native for pure modules beyond kernel and laws"
     },
     "compatibilityGates": {
       "mima": "from the first published release (0.1), not deferred",
@@ -525,7 +526,7 @@
   ],
 
   "decisionLog": [
-    { "id": "D1", "decision": "Publish from Scala 3.3.8 LTS; advisory CI on Scala Next.", "rationale": "TASTy reads old-from-new only; gale/linop4s are 3.3.8; no post-3.3 feature needed. Original notes1 target of 3.7.4 rejected." },
+    { "id": "D1", "decision": "Publish from Scala 3.7.4; advisory CI on future Scala versions.", "rationale": "A single current baseline keeps Alder's compiler and platform evidence coherent. Scala 3.7.4 reads the 3.3.8 TASTy of Gale and linop4s; Alder deliberately does not promise that 3.3.x consumers can read Alder 0.1 artifacts." },
     { "id": "D2", "decision": "Pipe error is a covariant type parameter; FitError/RunError stay associated members on unfitted traits; unions compose; Failure[E] carries StagePath.", "rationale": "Refinement-type bounds are hostile to plugin authors and agents; naked unions lose stage provenance." },
     { "id": "D3", "decision": "No Workflow abstraction; composition closes over Transform/FeatureMap/Learner; a workflow IS a composed Learner.", "rationale": "Smaller surface; terminality preserved; combinators own protocol concerns." },
     { "id": "D4", "decision": "Adopt the transitive leakage law; FeatureMap∘Transform and FeatureMap∘FeatureMap are excluded from the safe API; Preparation scopes with Reusable <: LearnerReady.", "rationale": "Pooled statistics on OOF rows reintroduce own-target dependence through other rows; the rowwise law is insufficient. Reusable is strictly stronger, hence a subtype." },

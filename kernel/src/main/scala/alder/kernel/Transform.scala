@@ -105,7 +105,15 @@ final class ThenTransform[
 
   type FitError = left.FitError | right.FitError
   type RunError = left.RunError | right.RunError
-  type Fitted = Pipe.Chain[X, left.RunError, Z, right.RunError, W]
+  type Fitted = Pipe.Chain[
+    X,
+    left.RunError,
+    Z,
+    right.RunError,
+    W,
+    left.Fitted,
+    right.Fitted
+  ]
 
   override private[alder] def stageCount: Int =
     left.stageCount + right.stageCount

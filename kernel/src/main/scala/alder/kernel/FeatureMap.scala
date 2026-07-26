@@ -233,7 +233,15 @@ final class ThenFeatureMap[
     transform.FitError | PreparationError | featureMap.FitError
   type RunError = transform.RunError | featureMap.RunError
   type Fitted =
-    Pipe.Chain[X, transform.RunError, Z, featureMap.RunError, W]
+    Pipe.Chain[
+      X,
+      transform.RunError,
+      Z,
+      featureMap.RunError,
+      W,
+      transform.Fitted,
+      featureMap.Fitted
+    ]
 
   override private[alder] def stageCount: Int =
     transform.stageCount + featureMap.stageCount

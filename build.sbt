@@ -1,9 +1,9 @@
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
-// Canonical spec: PRD.json. Scala 3.3.8 LTS is the publication baseline (D1);
+// Canonical spec: PRD.json. Scala 3.7.4 is the publication baseline (D1);
 // pure modules cross-build JVM + JS + Native (D16).
 ThisBuild / organization := "io.github.canardlapin"
-ThisBuild / scalaVersion := "3.3.8"
+ThisBuild / scalaVersion := "3.7.4"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / licenses     := Seq(License.Apache2)
 
@@ -259,6 +259,61 @@ lazy val ridgeLinop4sJS =
 lazy val ridgeLinop4sNative =
   ridgeLinop4s.native.dependsOn(linop4sKrylovNative)
 
+/** Valid-by-construction search spaces, deterministic interpreters, and the
+  * explicit model-erasure boundary used by tuning.
+  */
+lazy val tune = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("tune"))
+  .dependsOn(kernel, data, metrics, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name := "alder-tune",
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val tuneJVM    = tune.jvm
+lazy val tuneJS     = tune.js
+lazy val tuneNative = tune.native
+
+/** Published Discipline laws for spaces, erasure, and study role boundaries. */
+lazy val tuneLaws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("tune-laws"))
+  .dependsOn(tune, laws, testkit)
+  .settings(strictSettings)
+  .settings(
+    name := "alder-tune-laws",
+    libraryDependencies ++= Seq(
+      "org.scalameta"  %%% "munit"            % munitV,
+      "org.typelevel"  %%% "discipline-munit" % disciplineMunitV,
+      "org.scalacheck" %%% "scalacheck"       % scalacheckV
+    )
+  )
+
+lazy val tuneLawsJVM    = tuneLaws.jvm
+lazy val tuneLawsJS     = tuneLaws.js
+lazy val tuneLawsNative = tuneLaws.native
+
+/** Versioned artifact-codec constructors and structural codec derivation. */
+lazy val codec = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("codec"))
+  .dependsOn(
+    kernel,
+    laws % "test->compile",
+    testkit % "test->compile"
+  )
+  .settings(strictSettings)
+  .settings(
+    name := "alder-codec",
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val codecJVM    = codec.jvm
+lazy val codecJS     = codec.js
+lazy val codecNative = codec.native
+
 lazy val root = project
   .in(file("."))
   .aggregate(
@@ -290,7 +345,16 @@ lazy val root = project
     ridgeGaleJS,
     ridgeLinop4sJVM,
     ridgeLinop4sJS,
-    ridgeLinop4sNative
+    ridgeLinop4sNative,
+    tuneJVM,
+    tuneJS,
+    tuneNative,
+    tuneLawsJVM,
+    tuneLawsJS,
+    tuneLawsNative,
+    codecJVM,
+    codecJS,
+    codecNative
   )
   .settings(
     name           := "alder",

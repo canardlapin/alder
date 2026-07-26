@@ -45,7 +45,15 @@ final class LearnedWith[
 
   type FitError = featureMap.FitError | learner.FitError
   type RunError = featureMap.RunError | learner.RunError
-  type Model = Pipe.Chain[X, featureMap.RunError, Z, learner.RunError, P]
+  type Model = Pipe.Chain[
+    X,
+    featureMap.RunError,
+    Z,
+    learner.RunError,
+    P,
+    featureMap.Fitted,
+    learner.Model
+  ]
 
   override private[alder] def stageCount: Int =
     featureMap.stageCount + learner.stageCount

@@ -235,12 +235,10 @@ class CompositionSuite extends munit.FunSuite:
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(trained) =>
-        trained.artifact.second match
-          case summary: SummaryPipe =>
-            assertEquals(summary.inputSum, 0.0)
-            assertEquals(summary.targetSum, 60.0)
-            assertEquals(summary.metadata, Vector("a", "b", "c"))
-          case other => fail(s"expected SummaryPipe, got $other")
+        val summary = trained.artifact.second
+        assertEquals(summary.inputSum, 0.0)
+        assertEquals(summary.targetSum, 60.0)
+        assertEquals(summary.metadata, Vector("a", "b", "c"))
         assertEquals(trained.artifact.run(4.0), Right(61.0))
         assertEquals(trained.audit.children.length, 2)
   }

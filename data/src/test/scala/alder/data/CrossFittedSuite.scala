@@ -2,7 +2,6 @@ package alder.data
 
 import alder.kernel.*
 import alder.testkit.*
-import cats.Id
 import scala.compiletime.testing.typeCheckErrors
 
 class CrossFittedSuite extends munit.FunSuite:

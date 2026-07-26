@@ -99,9 +99,10 @@ class ProtocolSuite extends munit.FunSuite:
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
         // second stage sees zero-mean rows, so its shift is zero
-        prepared.fitted.artifact.second match
-          case shift: ShiftPipe => assertEquals(shift.shift, 0.0)
-          case other            => fail(s"expected ShiftPipe, got $other")
+        assertEquals(
+          prepared.fitted.artifact.second.shift,
+          0.0
+        )
         // serving accepts the original input and applies both stages
         prepared.fitted.artifact.run(4.0) match
           case Right(value)  => assertEquals(value, 1.0)

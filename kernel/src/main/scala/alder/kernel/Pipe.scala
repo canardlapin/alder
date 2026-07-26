@@ -57,9 +57,17 @@ object Pipe:
   /** Sequential composition. First failure wins; its stage path and cause pass
     * through unchanged.
     */
-  final case class Chain[A, E1, B, E2, C](
-      first: Pipe[A, E1, B],
-      second: Pipe[B, E2, C]
+  final case class Chain[
+      A,
+      E1,
+      B,
+      E2,
+      C,
+      P1 <: Pipe[A, E1, B],
+      P2 <: Pipe[B, E2, C]
+  ](
+      first: P1,
+      second: P2
   ) extends Pipe[A, E1 | E2, C]:
     def run(value: A): Either[Failure[E1 | E2], C] =
       first.run(value) match

@@ -6,6 +6,30 @@ import cats.kernel.Eq
 import munit.DisciplineSuite
 
 class PublishedKernelLawsSuite extends DisciplineSuite:
+  private def format(id: String, version: Int): ArtifactFormat =
+    ArtifactFormat.create(id, version) match
+      case Left(error)  => fail(s"invalid test format: $error")
+      case Right(value) => value
+
+  private def encodeDouble(value: Double): IArray[Byte] =
+    val bits = java.lang.Double.doubleToRawLongBits(value)
+    IArray.tabulate(8)(index =>
+      (bits >>> (56 - index * 8)).toByte
+    )
+
+  private def decodeDouble(
+      bytes: IArray[Byte]
+  ): Either[CodecError, Double] =
+    if bytes.length != 8 then
+      Left(CodecError.Malformed("unexpected double payload"))
+    else
+      var bits = 0L
+      var index = 0
+      while index < bytes.length do
+        bits = (bits << 8) | (bytes(index).toLong & 0xffL)
+        index += 1
+      Right(java.lang.Double.longBitsToDouble(bits))
+
   private def rootContext: FitContext =
     FitContext.root(
       seed = Seed(31L),
@@ -121,17 +145,23 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
       case Right(prepared) => prepared.fitted
 
   private val codec = new ArtifactCodec[ShiftPipe]:
-    def encode(
-        trained: Trained[ShiftPipe]
-    ): Either[CodecError, IArray[Byte]] =
-      val _ = trained
-      Right(IArray(1.toByte))
+    val format: ArtifactFormat = PublishedKernelLawsSuite.this
+      .format("alder.test.shift", 1)
 
-    def decode(
+    def encodeArtifact(
+        value: ShiftPipe
+    ): Either[CodecError, IArray[Byte]] =
+      Right(encodeDouble(value.shift))
+
+    def decodeArtifact(
         bytes: IArray[Byte]
-    ): Either[CodecError, Trained[ShiftPipe]] =
-      if bytes.length == 1 && bytes(0) == 1.toByte then Right(trainedShift)
-      else Left(CodecError.Malformed("unexpected test payload"))
+    ): Either[CodecError, ShiftPipe] =
+      decodeDouble(bytes).map(shift =>
+        new ShiftPipe(
+          shift,
+          StagePath.root
+        )
+      )
 
   checkAll(
     "ShiftPipe ArtifactCodec",
@@ -146,6 +176,78 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
       Vector(-1.0, 0.0, 4.0)
     ).all
   )
+
+  test("artifact envelopes reject an unsupported codec version") {
+    val versionTwo = new ArtifactCodec[ShiftPipe]:
+      val format: ArtifactFormat =
+        PublishedKernelLawsSuite.this
+          .format("alder.test.shift", 2)
+      def encodeArtifact(
+          value: ShiftPipe
+      ): Either[CodecError, IArray[Byte]] =
+        codec.encodeArtifact(value)
+      def decodeArtifact(
+          bytes: IArray[Byte]
+      ): Either[CodecError, ShiftPipe] =
+        codec.decodeArtifact(bytes)
+
+    val bytes = codec.encode(trainedShift) match
+      case Left(error)  => fail(s"unexpected encode error: $error")
+      case Right(value) => value
+    versionTwo.decode(bytes) match
+      case Left(CodecError.UnsupportedVersion(_, supported)) =>
+        assertEquals(supported, Vector("alder.test.shift@2"))
+      case other =>
+        fail(s"expected unsupported-version failure, got $other")
+  }
+
+  test("artifact formats reject blank ids and non-positive versions") {
+    assert(
+      ArtifactFormat.create("   ", 1).isLeft
+    )
+    assert(
+      ArtifactFormat.create("alder.test,ambiguous", 1).isLeft
+    )
+    assert(
+      ArtifactFormat.create("alder.test", 0).isLeft
+    )
+  }
+
+  test("artifact envelopes take ownership of plugin payload bytes") {
+    var pluginArray = Array.emptyByteArray
+    val aliasingCodec = new ArtifactCodec[ShiftPipe]:
+      val format: ArtifactFormat =
+        PublishedKernelLawsSuite.this
+          .format("alder.test.aliasing-shift", 1)
+      def encodeArtifact(
+          value: ShiftPipe
+      ): Either[CodecError, IArray[Byte]] =
+        val immutable = encodeDouble(value.shift)
+        pluginArray =
+          Array.tabulate(immutable.length)(immutable(_))
+        Right(IArray.unsafeFromArray(pluginArray))
+      def decodeArtifact(
+          bytes: IArray[Byte]
+      ): Either[CodecError, ShiftPipe] =
+        decodeDouble(bytes).map(shift =>
+          new ShiftPipe(shift, StagePath.root)
+        )
+
+    val encoded = aliasingCodec.encode(trainedShift) match
+      case Left(error)  => fail(s"unexpected encode error: $error")
+      case Right(value) => value
+    var index = 0
+    while index < pluginArray.length do
+      pluginArray(index) = 0.toByte
+      index += 1
+    val decoded = aliasingCodec.decode(encoded) match
+      case Left(error)  => fail(s"unexpected decode error: $error")
+      case Right(value) => value
+    assertEquals(
+      decoded.artifact.run(4.0),
+      trainedShift.artifact.run(4.0)
+    )
+  }
 
   private final case class Visibility(
       fittedOn: Set[RowId]
