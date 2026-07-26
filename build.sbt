@@ -12,6 +12,17 @@ val munitV           = "1.3.4"
 val disciplineMunitV = "2.0.0"
 val scalacheckV      = "1.18.1"
 
+// Development composite for the zero-runtime-dependency resampling protocol.
+// Stable Alder releases pin a published tessera-core version instead.
+lazy val tesseraBuild      = file("../tessera").toURI
+lazy val tesseraCoreJVM    = ProjectRef(tesseraBuild, "coreJVM")
+lazy val tesseraCoreJS     = ProjectRef(tesseraBuild, "coreJS")
+lazy val tesseraCoreNative = ProjectRef(tesseraBuild, "coreNative")
+lazy val tesseraDesignsJVM = ProjectRef(tesseraBuild, "designsJVM")
+lazy val tesseraDesignsJS  = ProjectRef(tesseraBuild, "designsJS")
+lazy val tesseraDesignsNative =
+  ProjectRef(tesseraBuild, "designsNative")
+
 // Alder's own source-quality policy (PRD buildAndCompatibility.compilerFlags),
 // never a consumer requirement.
 lazy val strictSettings = Seq(
@@ -105,9 +116,21 @@ lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val dataJVM    = data.jvm
-lazy val dataJS     = data.js
-lazy val dataNative = data.native
+lazy val dataJVM =
+  data.jvm.dependsOn(
+    tesseraCoreJVM,
+    tesseraDesignsJVM % "test->compile"
+  )
+lazy val dataJS =
+  data.js.dependsOn(
+    tesseraCoreJS,
+    tesseraDesignsJS % "test->compile"
+  )
+lazy val dataNative =
+  data.native.dependsOn(
+    tesseraCoreNative,
+    tesseraDesignsNative % "test->compile"
+  )
 
 /** Target-blind preprocessing with representation-branded outputs. */
 lazy val preprocess = crossProject(JVMPlatform, JSPlatform, NativePlatform)

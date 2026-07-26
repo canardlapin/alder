@@ -118,7 +118,8 @@ object RollingOrigin:
                     data.fingerprint,
                     seed,
                     assignments
-                  )
+                  ),
+                  None
                 )
               }
       )

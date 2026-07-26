@@ -79,7 +79,8 @@ final class CrossFittedFeatureMap[
         seed = context.seed,
         assignment = plan.assignment,
         folds = encoded.map(_.lineage),
-        serving = serving.audit.preparation
+        serving = serving.audit.preparation,
+        tessera = plan.tessera
       )
       val lineage =
         PreparationLineage.crossFitted(context.stagePath, receipt)

@@ -18,7 +18,8 @@ final class ResamplingFold[+U <: Use.Fit, +A] private[alder] (
 final class ResamplingPlan[+U <: Use.Fit, +A] private[alder] (
     private[alder] val folds: Vector[ResamplingFold[U, A]],
     val resampler: ResamplerFingerprint,
-    val assignment: DataFingerprint
+    val assignment: DataFingerprint,
+    private[alder] val tessera: Option[TesseraPlanReceipt]
 ):
   def foldCount: Int = folds.length
 
@@ -104,5 +105,10 @@ private[data] object ResamplingPlans:
           value <- fold
         yield accepted :+ value
       ).map(values =>
-        new ResamplingPlan(values, resampler, assignmentFingerprint)
+        new ResamplingPlan(
+          values,
+          resampler,
+          assignmentFingerprint,
+          None
+        )
       )
