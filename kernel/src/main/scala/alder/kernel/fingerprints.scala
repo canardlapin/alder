@@ -24,12 +24,24 @@ object PlanFingerprint:
   def apply(value: String): PlanFingerprint = value
   extension (fingerprint: PlanFingerprint) def render: String = fingerprint
 
-/** Fingerprint of the observation schema. */
-opaque type SchemaFingerprint = String
+/** Policy-tagged fingerprint of an observation schema. */
+final case class SchemaFingerprint(
+    val policy: FingerprintPolicy,
+    val digest: String
+) derives CanEqual
 
 object SchemaFingerprint:
-  def apply(value: String): SchemaFingerprint = value
-  extension (fingerprint: SchemaFingerprint) def render: String = fingerprint
+  /** Compatibility constructor for callers supplying an externally managed
+    * schema identity. Even this shorthand remains explicitly policy tagged.
+    */
+  def apply(value: String): SchemaFingerprint =
+    new SchemaFingerprint(
+      FingerprintPolicy.Summary("alder.external-schema-identity"),
+      value
+    )
+
+  extension (fingerprint: SchemaFingerprint)
+    def render: String = fingerprint.digest
 
 /** Identity of the numerical backend a component actually used. Backends must
   * capture their configuration at construction and fingerprint it at exactly
