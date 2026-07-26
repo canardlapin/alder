@@ -109,6 +109,64 @@ lazy val dataJVM    = data.jvm
 lazy val dataJS     = data.js
 lazy val dataNative = data.native
 
+/** Target-blind preprocessing with representation-branded outputs. */
+lazy val preprocess = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("preprocess"))
+  .dependsOn(kernel, data, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name := "alder-preprocess",
+    libraryDependencies ++= Seq(
+      "org.scalameta"  %%% "munit"      % munitV      % Test,
+      "org.scalacheck" %%% "scalacheck" % scalacheckV % Test
+    )
+  )
+
+lazy val preprocessJVM    = preprocess.jvm
+lazy val preprocessJS     = preprocess.js
+lazy val preprocessNative = preprocess.native
+
+/** Typed streaming metrics with reproducible mergeable accumulators. */
+lazy val metrics = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("metrics"))
+  .dependsOn(kernel)
+  .settings(strictSettings)
+  .settings(
+    name := "alder-metrics",
+    libraryDependencies ++= Seq(
+      "org.typelevel"  %%% "cats-kernel" % catsV,
+      "org.scalameta"  %%% "munit"       % munitV      % Test,
+      "org.scalacheck" %%% "scalacheck"  % scalacheckV % Test
+    )
+  )
+
+lazy val metricsJVM    = metrics.jvm
+lazy val metricsJS     = metrics.js
+lazy val metricsNative = metrics.native
+
+/** Published Metric Discipline suites. The downstream law artifact preserves
+  * the one-way kernel -> metrics -> metrics-laws dependency (D22).
+  */
+lazy val metricsLaws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("metrics-laws"))
+  .dependsOn(metrics, testkit)
+  .settings(strictSettings)
+  .settings(
+    name := "alder-metrics-laws",
+    libraryDependencies ++= Seq(
+      "org.scalameta"  %%% "munit"            % munitV,
+      "org.typelevel"  %%% "discipline-munit" % disciplineMunitV,
+      "org.scalacheck" %%% "scalacheck"       % scalacheckV
+    )
+  )
+
+lazy val metricsLawsJVM    = metricsLaws.jvm
+lazy val metricsLawsJS     = metricsLaws.js
+lazy val metricsLawsNative = metricsLaws.native
+
 lazy val root = project
   .in(file("."))
   .aggregate(
@@ -123,7 +181,16 @@ lazy val root = project
     testkitNative,
     dataJVM,
     dataJS,
-    dataNative
+    dataNative,
+    preprocessJVM,
+    preprocessJS,
+    preprocessNative,
+    metricsJVM,
+    metricsJS,
+    metricsNative,
+    metricsLawsJVM,
+    metricsLawsJS,
+    metricsLawsNative
   )
   .settings(
     name           := "alder",
