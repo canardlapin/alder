@@ -4,23 +4,28 @@ import alder.kernel.*
 import cats.Monad
 import cats.syntax.all.*
 
+/** Search procedure recorded in a completed study audit. */
 enum SearchStrategy derives CanEqual:
   case Grid(continuousPoints: PositiveInt)
   case Random(trials: PositiveInt)
 
+/** Whether a smaller or larger finite objective is preferred. */
 enum ObjectiveDirection derives CanEqual:
   case Minimize
   case Maximize
 
+/** Failure of one candidate evaluation. */
 enum TrialFailure derives CanEqual:
   case Evaluation(description: String)
   case NonFiniteObjective(value: Double)
 
+/** One configuration and either its finite objective or evaluation failure. */
 final case class Trial[C](
     config: C,
     objective: Either[TrialFailure, Double]
 )
 
+/** Reproducibility and completion summary for a study. */
 final case class StudyAudit(
     strategy: SearchStrategy,
     objectiveDirection: ObjectiveDirection,
@@ -29,12 +34,18 @@ final case class StudyAudit(
     successfulTrials: Int
 )
 
+/** Successful study result, including every attempted trial.
+  *
+  * Ties preserve candidate order: the first candidate with the best objective
+  * is selected.
+  */
 final class Selection[C] private[tune] (
     val best: C,
     val trials: Vector[Trial[C]],
     val audit: StudyAudit
 )
 
+/** Failure to select a configuration. */
 enum StudyError derives CanEqual:
   case NoSuccessfulTrial(failures: Vector[TrialFailure])
 
@@ -52,6 +63,9 @@ final class Study[F[_], C, A] private (
       F[Either[TrialFailure, Double]]
 )(using monad: Monad[F]):
 
+  /** Evaluates every candidate on the supplied training data and selects the
+    * best finite objective.
+    */
   def run(
       data: NonEmptyData[Use.Train, A]
   ): F[Either[StudyError, Selection[C]]] =
@@ -107,6 +121,11 @@ final class Study[F[_], C, A] private (
         )
 
 object Study:
+  /** Builds a deterministic grid study.
+    *
+    * The evaluation callback can inspect only `Use.Train` data. Candidate
+    * failures are retained and do not prevent later candidates from running.
+    */
   def grid[F[_], C, A](
       space: Space[C],
       strategy: GridStrategy,
@@ -123,6 +142,11 @@ object Study:
       evaluate
     )
 
+  /** Builds a reproducible random-search study.
+    *
+    * The explicit seed determines candidate generation and is recorded in the
+    * resulting audit.
+    */
   def random[F[_], C, A](
       space: Space[C],
       trials: PositiveInt,

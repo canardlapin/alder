@@ -5,6 +5,11 @@ import alder.kernel.*
 import cats.Monad
 import cats.data.EitherT
 
+/** Immutable fitted ridge predictor.
+  *
+  * Prediction reads features through the same `Coordinates` representation
+  * used at fit time and attributes failures to the learner's stage path.
+  */
 final class RidgeModel[X] private[linear] (
     val solution: RidgeSolution,
     coordinates: Coordinates[X],
@@ -44,6 +49,7 @@ final class RidgeModel[X] private[linear] (
         }
       }
 
+/** Unweighted ridge learner for a numeric product input. */
 final class RidgeRegression[F[_], X, M](
     val config: RidgeConfig,
     val backend: RidgeBackend[F]
@@ -83,6 +89,9 @@ final class RidgeRegression[F[_], X, M](
       backend.fingerprint
     )
 
+/** Ridge learner using non-negative weights obtained from observation
+  * metadata through `WeightOf`.
+  */
 final class WeightedRidgeRegression[F[_], X, M](
     val config: RidgeConfig,
     val backend: RidgeBackend[F]

@@ -7,6 +7,12 @@ import alder.kernel.*
   * type from codecs for both concrete stages.
   */
 object ArtifactCodecs:
+  /** Builds a codec for one exact artifact payload format.
+    *
+    * Alder defensively copies payload bytes at both boundaries. Envelope
+    * validation, including format identity and audit decoding, remains the
+    * responsibility of `ArtifactCodec.encode` and `ArtifactCodec.decode`.
+    */
   def versioned[A](
       artifactFormat: ArtifactFormat
   )(
@@ -26,6 +32,11 @@ object ArtifactCodecs:
       ): Either[CodecError, A] =
         decodePayload(IArray.from(bytes))
 
+  /** Derives a structural codec for two concrete stages in a `Pipe.Chain`.
+    *
+    * Both stage codecs retain their exact types and formats. Decoding rejects
+    * trailing or truncated stage payloads.
+    */
   def chain[
       A,
       E1,

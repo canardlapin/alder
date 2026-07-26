@@ -66,6 +66,11 @@ object WeightedRmseAccumulator:
       )
 
 object RegressionMetrics:
+  /** Reproducible, unweighted root mean squared error.
+    *
+    * The accumulator is commutative and uses an exact superaccumulator, so
+    * repartitioning or changing the reduction tree does not change the result.
+    */
   def rmse[M]: Metric[
     Scored[Double, Double, M],
     RootMeanSquaredError
@@ -93,6 +98,12 @@ object RegressionMetrics:
                 accumulated.count.toDouble
               )
 
+  /** Reproducible root mean squared error weighted from observation metadata.
+    *
+    * Weights must be finite and non-negative, and their total must be
+    * positive. A zero-weight observation is valid and contributes no squared
+    * error.
+    */
   def weightedRmse[M](using
       weightOf: WeightOf[M]
   ): Metric[

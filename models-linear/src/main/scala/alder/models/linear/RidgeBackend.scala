@@ -3,7 +3,14 @@ package alder.models.linear
 import alder.data.Coordinates
 import alder.kernel.*
 
+/** Numerical backend boundary for ridge fitting.
+  *
+  * Implementations receive validated application coordinates, explicit row
+  * weights, and the framework's numerical mode. They must return a solution
+  * carrying solver evidence and their exact backend fingerprint.
+  */
 trait RidgeBackend[F[_]]:
+  /** Solves one ridge problem on fitting-authorized data. */
   def solve[X, M, U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]],
       coordinates: Coordinates[X],
@@ -12,6 +19,7 @@ trait RidgeBackend[F[_]]:
       context: BackendContext
   ): FitResult[F, RidgeBackendError, RidgeSolution]
 
+  /** Identity and configuration of the backend used for audit records. */
   def fingerprint: BackendFingerprint
 
 private[alder] final class RidgeProblem(

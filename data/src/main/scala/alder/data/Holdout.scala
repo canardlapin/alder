@@ -11,6 +11,11 @@ final class Holdout[+A] private[data] (
 )
 
 object Holdout:
+  /** Splits unsplit data into non-empty training data and held-out test data.
+    *
+    * Selection is deterministic for a given seed and row IDs. `testSize` must
+    * leave at least one row in each partition.
+    */
   def split[A](
       data: Data[Use.Unsplit, A],
       testSize: Int,

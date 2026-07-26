@@ -2,6 +2,11 @@ package alder.metrics
 
 import cats.kernel.CommutativeMonoid
 
+/** A rejected metric input or an unusable aggregate result.
+  *
+  * Invalid observations are accumulated deterministically, so combining
+  * partitions in a different shape reports the same first error.
+  */
 enum MetricError derives CanEqual:
   case Empty
   case NonFiniteTruth(value: Double)
@@ -19,34 +24,47 @@ enum MetricError derives CanEqual:
   */
 trait Metric[-A, +S]:
   type Acc
+
+  /** Laws for empty, associative, and commutative accumulator combination. */
   given accumulator: CommutativeMonoid[Acc]
 
+  /** Converts one observation into an independently combinable accumulator. */
   def observe(value: A): Acc
+
+  /** Validates and converts a complete accumulator into the result type. */
   def finish(accumulated: Acc): Either[MetricError, S]
 
+  /** Accumulates observations in their current traversal order. */
   final def accumulate(values: IterableOnce[A]): Acc =
     values.iterator.foldLeft(accumulator.empty) { (accumulated, value) =>
       accumulator.combine(accumulated, observe(value))
     }
 
+  /** Accumulates and finishes a collection in one call. */
   final def evaluate(values: IterableOnce[A]): Either[MetricError, S] =
     finish(accumulate(values))
 
+/** Root mean squared error, branded to prevent accidental interchange with a
+  * raw objective or another metric.
+  */
 opaque type RootMeanSquaredError = Double
 
 object RootMeanSquaredError:
   private[metrics] def apply(value: Double): RootMeanSquaredError = value
 
+  /** Extracts the non-negative RMSE value. */
   extension (value: RootMeanSquaredError) def value: Double = value
 
   given CanEqual[RootMeanSquaredError, RootMeanSquaredError] =
     CanEqual.derived
 
+/** Classification accuracy in the closed interval from zero to one. */
 opaque type Accuracy = Double
 
 object Accuracy:
   private[metrics] def apply(value: Double): Accuracy = value
 
+  /** Extracts the accuracy proportion. */
   extension (value: Accuracy) def value: Double = value
 
   given CanEqual[Accuracy, Accuracy] = CanEqual.derived

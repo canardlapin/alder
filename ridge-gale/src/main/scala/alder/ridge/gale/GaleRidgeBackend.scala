@@ -8,10 +8,18 @@ import cats.data.EitherT
 import gale.backend.{Backend, BackendReport}
 import gale.linalg.{DMat, DVec}
 
+/** Dense direct-solver strategy used by the Gale backend. */
 enum GaleRidgeStrategy derives CanEqual:
   case AugmentedQR
   case NormalCholesky
 
+/** Gale-backed dense ridge solver.
+  *
+  * `AugmentedQR` solves the weighted, damped least-squares system directly.
+  * `NormalCholesky` is faster for suitable problems but squares the condition
+  * number. The selected Gale backend and its capabilities are captured in the
+  * solver fingerprint.
+  */
 final class GaleRidgeBackend[F[_]](
     val galeBackend: Backend,
     val strategy: GaleRidgeStrategy,

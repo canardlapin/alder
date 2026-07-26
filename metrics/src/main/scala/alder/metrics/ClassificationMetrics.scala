@@ -53,6 +53,7 @@ object WeightedAccuracyAccumulator:
       )
 
 object ClassificationMetrics:
+  /** Exact classification accuracy using the supplied Cats equality. */
   def accuracy[C: Eq, M]: Metric[Scored[C, C, M], Accuracy] =
     new Metric[Scored[C, C, M], Accuracy]:
       type Acc = AccuracyAccumulator
@@ -76,6 +77,11 @@ object ClassificationMetrics:
           if result.isFinite then Right(Accuracy(result))
           else Left(MetricError.NonFiniteResult)
 
+  /** Classification accuracy weighted from observation metadata.
+    *
+    * Weights must be finite and non-negative, and their total must be
+    * positive. Summation is reproducible across partition shapes.
+    */
   def weightedAccuracy[C: Eq, M](using
       weightOf: WeightOf[M]
   ): Metric[Scored[C, C, M], Accuracy] =

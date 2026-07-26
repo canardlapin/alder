@@ -2,10 +2,27 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 // Canonical spec: PRD.json. Scala 3.7.4 is the publication baseline (D1);
 // pure modules cross-build JVM + JS + Native (D16).
-ThisBuild / organization := "io.github.canardlapin"
-ThisBuild / scalaVersion := "3.7.4"
-ThisBuild / version      := "0.1.0-SNAPSHOT"
-ThisBuild / licenses     := Seq(License.Apache2)
+ThisBuild / organization  := "io.github.canardlapin"
+ThisBuild / scalaVersion  := "3.7.4"
+ThisBuild / version       := "0.1.0-SNAPSHOT"
+ThisBuild / licenses      := Seq(License.Apache2)
+ThisBuild / versionScheme := Some("early-semver")
+
+lazy val alderCompatibilityBaseline =
+  settingKey[Option[String]](
+    "Published Alder version used by MiMa and TASTy-MiMa."
+  )
+
+ThisBuild / alderCompatibilityBaseline :=
+  sys.props
+    .get("alder.compatibility.previous")
+    .map(_.trim)
+    .filter(_.nonEmpty)
+
+// MiMa is a JVM classfile checker. Platform projections and non-publishable
+// aggregate projects are explicit no-ops unless compatibilitySettings
+// overrides them below.
+ThisBuild / mimaPreviousArtifacts := Set.empty
 
 val catsV            = "2.13.0"
 val munitV           = "1.3.4"
@@ -47,7 +64,43 @@ lazy val strictSettings = Seq(
     "-Yexplicit-nulls",
     "-language:strictEquality",
     "-Werror"
+  ),
+  Compile / doc / scalacOptions ++= Seq(
+    "-project-version",
+    version.value,
+    "-groups",
+    "-snippet-compiler:compile",
+    "-doc-root-content",
+    (
+      (ThisBuild / baseDirectory).value /
+        "site" /
+        "scaladoc-root.md"
+    ).getAbsolutePath
   )
+)
+
+/** The first 0.1.0 release has no previous Alder artifact, so compatibility
+  * tasks intentionally compare an empty set. After publishing 0.1.0, release
+  * and CI invocations set `-Dalder.compatibility.previous=0.1.0`. Applying
+  * these settings to JVM projections checks JVM binary compatibility and the
+  * shared Scala 3 public surface. Pure cross-projects compile that same source
+  * for Scala.js and Scala Native in the aggregate test gate.
+  */
+lazy val compatibilitySettings = Seq(
+  mimaPreviousArtifacts :=
+    alderCompatibilityBaseline.value
+      .map(baseline =>
+        (organization.value % moduleName.value % baseline)
+          .cross(crossVersion.value)
+      )
+      .toSet,
+  tastyMiMaPreviousArtifacts :=
+    alderCompatibilityBaseline.value
+      .map(baseline =>
+        (organization.value % moduleName.value % baseline)
+          .cross(crossVersion.value)
+      )
+      .toSet
 )
 
 /** The compatibility-sensitive core protocol: Pipe, Failure, data roles,
@@ -64,7 +117,7 @@ lazy val kernel = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.typelevel" %%% "cats-core" % catsV
   )
 
-lazy val kernelJVM    = kernel.jvm
+lazy val kernelJVM    = kernel.jvm.settings(compatibilitySettings)
 lazy val kernelJS     = kernel.js
 lazy val kernelNative = kernel.native
 
@@ -87,7 +140,7 @@ lazy val laws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val lawsJVM    = laws.jvm
+lazy val lawsJVM    = laws.jvm.settings(compatibilitySettings)
 lazy val lawsJS     = laws.js
 lazy val lawsNative = laws.native
 
@@ -107,7 +160,7 @@ lazy val testkit = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val testkitJVM    = testkit.jvm
+lazy val testkitJVM    = testkit.jvm.settings(compatibilitySettings)
 lazy val testkitJS     = testkit.js
 lazy val testkitNative = testkit.native
 
@@ -132,7 +185,7 @@ lazy val dataJVM =
   data.jvm.dependsOn(
     tesseraCoreJVM,
     tesseraDesignsJVM % "test->compile"
-  )
+  ).settings(compatibilitySettings)
 lazy val dataJS =
   data.js.dependsOn(
     tesseraCoreJS,
@@ -158,7 +211,7 @@ lazy val preprocess = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val preprocessJVM    = preprocess.jvm
+lazy val preprocessJVM    = preprocess.jvm.settings(compatibilitySettings)
 lazy val preprocessJS     = preprocess.js
 lazy val preprocessNative = preprocess.native
 
@@ -177,7 +230,7 @@ lazy val metrics = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val metricsJVM    = metrics.jvm
+lazy val metricsJVM    = metrics.jvm.settings(compatibilitySettings)
 lazy val metricsJS     = metrics.js
 lazy val metricsNative = metrics.native
 
@@ -198,7 +251,7 @@ lazy val metricsLaws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val metricsLawsJVM    = metricsLaws.jvm
+lazy val metricsLawsJVM    = metricsLaws.jvm.settings(compatibilitySettings)
 lazy val metricsLawsJS     = metricsLaws.js
 lazy val metricsLawsNative = metricsLaws.native
 
@@ -213,7 +266,8 @@ lazy val modelsLinear = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
-lazy val modelsLinearJVM    = modelsLinear.jvm
+lazy val modelsLinearJVM =
+  modelsLinear.jvm.settings(compatibilitySettings)
 lazy val modelsLinearJS     = modelsLinear.js
 lazy val modelsLinearNative = modelsLinear.native
 
@@ -253,7 +307,9 @@ lazy val ridgeLinop4s =
     )
 
 lazy val ridgeLinop4sJVM =
-  ridgeLinop4s.jvm.dependsOn(linop4sKrylovJVM)
+  ridgeLinop4s.jvm
+    .dependsOn(linop4sKrylovJVM)
+    .settings(compatibilitySettings)
 lazy val ridgeLinop4sJS =
   ridgeLinop4s.js.dependsOn(linop4sKrylovJS)
 lazy val ridgeLinop4sNative =
@@ -272,7 +328,7 @@ lazy val tune = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
-lazy val tuneJVM    = tune.jvm
+lazy val tuneJVM    = tune.jvm.settings(compatibilitySettings)
 lazy val tuneJS     = tune.js
 lazy val tuneNative = tune.native
 
@@ -291,7 +347,7 @@ lazy val tuneLaws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val tuneLawsJVM    = tuneLaws.jvm
+lazy val tuneLawsJVM    = tuneLaws.jvm.settings(compatibilitySettings)
 lazy val tuneLawsJS     = tuneLaws.js
 lazy val tuneLawsNative = tuneLaws.native
 
@@ -310,9 +366,39 @@ lazy val codec = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
-lazy val codecJVM    = codec.jvm
+lazy val codecJVM    = codec.jvm.settings(compatibilitySettings)
 lazy val codecJS     = codec.js
 lazy val codecNative = codec.native
+
+/** Curated public guide site. Its input is deliberately separate from docs/,
+  * which contains internal reviews and release evidence.
+  */
+lazy val docs = project
+  .in(file("site"))
+  .dependsOn(
+    kernelJVM,
+    lawsJVM,
+    testkitJVM,
+    dataJVM,
+    preprocessJVM,
+    metricsJVM,
+    metricsLawsJVM,
+    modelsLinearJVM,
+    ridgeGaleJVM,
+    ridgeLinop4sJVM,
+    tuneJVM,
+    tuneLawsJVM,
+    codecJVM
+  )
+  .enablePlugins(TypelevelSitePlugin)
+  .settings(
+    name           := "alder-docs",
+    publish / skip := true,
+    mdocIn         := (ThisBuild / baseDirectory).value / "site-docs",
+    // Laika validates links against the rendered site tree. mdoc's link hygiene
+    // assumes its default source root and reports false positives for mdocIn.
+    mdocExtraArguments += "--no-link-hygiene"
+  )
 
 lazy val root = project
   .in(file("."))
@@ -360,3 +446,48 @@ lazy val root = project
     name           := "alder",
     publish / skip := true
   )
+
+addCommandAlias(
+  "compatibilityCheck",
+  """;kernelJVM/mimaReportBinaryIssues
+     |;lawsJVM/mimaReportBinaryIssues
+     |;testkitJVM/mimaReportBinaryIssues
+     |;dataJVM/mimaReportBinaryIssues
+     |;preprocessJVM/mimaReportBinaryIssues
+     |;metricsJVM/mimaReportBinaryIssues
+     |;metricsLawsJVM/mimaReportBinaryIssues
+     |;modelsLinearJVM/mimaReportBinaryIssues
+     |;ridgeLinop4sJVM/mimaReportBinaryIssues
+     |;tuneJVM/mimaReportBinaryIssues
+     |;tuneLawsJVM/mimaReportBinaryIssues
+     |;codecJVM/mimaReportBinaryIssues
+     |;kernelJVM/tastyMiMaReportIssues
+     |;lawsJVM/tastyMiMaReportIssues
+     |;testkitJVM/tastyMiMaReportIssues
+     |;dataJVM/tastyMiMaReportIssues
+     |;preprocessJVM/tastyMiMaReportIssues
+     |;metricsJVM/tastyMiMaReportIssues
+     |;metricsLawsJVM/tastyMiMaReportIssues
+     |;modelsLinearJVM/tastyMiMaReportIssues
+     |;ridgeLinop4sJVM/tastyMiMaReportIssues
+     |;tuneJVM/tastyMiMaReportIssues
+     |;tuneLawsJVM/tastyMiMaReportIssues
+     |;codecJVM/tastyMiMaReportIssues""".stripMargin
+)
+
+addCommandAlias(
+  "apiDocs",
+  """;kernelJVM/Compile/doc
+     |;lawsJVM/Compile/doc
+     |;testkitJVM/Compile/doc
+     |;dataJVM/Compile/doc
+     |;preprocessJVM/Compile/doc
+     |;metricsJVM/Compile/doc
+     |;metricsLawsJVM/Compile/doc
+     |;modelsLinearJVM/Compile/doc
+     |;ridgeGaleJVM/Compile/doc
+     |;ridgeLinop4sJVM/Compile/doc
+     |;tuneJVM/Compile/doc
+     |;tuneLawsJVM/Compile/doc
+     |;codecJVM/Compile/doc""".stripMargin
+)

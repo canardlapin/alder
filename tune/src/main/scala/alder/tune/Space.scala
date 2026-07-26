@@ -3,15 +3,18 @@ package alder.tune
 import alder.kernel.Seed
 import cats.Applicative
 
+/** Invalid bounds for a numeric search space. */
 enum NumericSpaceError derives CanEqual:
   case NonPositiveDouble(value: Double)
   case NonPositiveInt(value: Int)
   case ReversedBounds(minimum: Double, maximum: Double)
   case ReversedIntBounds(minimum: Int, maximum: Int)
 
+/** A finite `Double` strictly greater than zero. */
 opaque type PositiveDouble = Double
 
 object PositiveDouble:
+  /** Validates a finite, strictly positive value. */
   def create(value: Double): Either[NumericSpaceError, PositiveDouble] =
     if value.isFinite && value > 0.0 then Right(value)
     else Left(NumericSpaceError.NonPositiveDouble(value))
@@ -23,9 +26,11 @@ object PositiveDouble:
 
   given CanEqual[PositiveDouble, PositiveDouble] = CanEqual.derived
 
+/** An `Int` strictly greater than zero. */
 opaque type PositiveInt = Int
 
 object PositiveInt:
+  /** Validates a strictly positive value. */
   def create(value: Int): Either[NumericSpaceError, PositiveInt] =
     if value > 0 then Right(value)
     else Left(NumericSpaceError.NonPositiveInt(value))
@@ -39,7 +44,14 @@ object PositiveInt:
 
   given CanEqual[PositiveInt, PositiveInt] = CanEqual.derived
 
+/** A typed, compositional search space.
+  *
+  * Its `Applicative` instance forms Cartesian products, allowing related
+  * parameters to be assembled into a domain configuration without maps or
+  * stringly typed parameter names.
+  */
 sealed trait Space[+A]:
+  /** Transforms every candidate while preserving the underlying search shape. */
   final def map[B](f: A => B): Space[B] =
     Space.Mapped(this, f)
 
@@ -63,11 +75,14 @@ object Space:
       f: A => B
   ) extends Space[B]
 
+  /** A search space containing exactly one value. */
   def constant[A](value: A): Space[A] = Constant(value)
 
+  /** A non-empty finite set of candidates in declaration order. */
   def choice[A](head: A, tail: A*): Space[A] =
     Choice(head +: tail.toVector)
 
+  /** Inclusive integer range with validated positive bounds. */
   def intRange(
       minimum: PositiveInt,
       maximum: PositiveInt
@@ -82,6 +97,7 @@ object Space:
         )
       )
 
+  /** Positive continuous interval sampled uniformly in log space. */
   def logUniform(
       minimum: PositiveDouble,
       maximum: PositiveDouble
@@ -168,11 +184,13 @@ object Space:
         val (next, value) = draw(source, random)
         (next, f(value))
 
+/** Grid discretization policy for continuous dimensions. */
 final case class GridStrategy(
     continuousPoints: PositiveInt
 )
 
 object Grid:
+  /** Enumerates the deterministic Cartesian grid for a space. */
   def candidates[A](
       space: Space[A],
       strategy: GridStrategy
@@ -180,6 +198,10 @@ object Grid:
     Space.grid(space, strategy.continuousPoints)
 
 object RandomSearch:
+  /** Draws a reproducible candidate sequence from a space.
+    *
+    * The generator is platform-independent and seeded explicitly.
+    */
   def candidates[A](
       space: Space[A],
       trials: PositiveInt,

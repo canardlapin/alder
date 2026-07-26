@@ -3,6 +3,7 @@ package alder.data
 import scala.compiletime.{constValue, erasedValue, summonInline}
 import scala.deriving.Mirror
 
+/** Storage kind used when reporting a numeric coordinate conversion failure. */
 enum CoordinateKind derives CanEqual:
   case Float32
   case Int64
@@ -10,6 +11,7 @@ enum CoordinateKind derives CanEqual:
   case Int16
   case Int8
 
+/** A structural or numeric failure while reading or rebuilding coordinates. */
 enum CoordinateError derives CanEqual:
   case ArityMismatch(expected: Int, actual: Int)
   case DestinationArityMismatch(expected: Int, actual: Int)
@@ -42,7 +44,10 @@ enum CoordinateError derives CanEqual:
   * into their own storage; Alder never requires an intermediate row array.
   */
 trait CoordinateWriter:
+  /** Number of coordinates accepted by this destination. */
   def size: Int
+
+  /** Writes one named coordinate at its stable, zero-based position. */
   def write(
       index: Int,
       name: String,
@@ -51,15 +56,25 @@ trait CoordinateWriter:
 
 /** Complete, ordered numeric coordinates for an application value. */
 trait Coordinates[A]:
+  /** Coordinate names in the same order used by every read and write. */
   def names: IArray[String]
+
+  /** Number of coordinates in this representation. */
   def size: Int
+
+  /** Reads all coordinates into an immutable, ordered array. */
   def read(value: A): Either[CoordinateError, IArray[Double]]
+
+  /** Writes coordinates directly into backend-owned storage. */
   def writeTo(
       value: A,
       destination: CoordinateWriter
   ): Either[CoordinateError, Unit]
+
+  /** Rebuilds an application value from coordinates in `names` order. */
   def build(values: IArray[Double]): Either[CoordinateError, A]
 
+  /** Reuses this coordinate representation through an isomorphism. */
   final def imap[B](to: A => B)(from: B => A): Coordinates[B] =
     val underlying = this
     new Coordinates[B]:
@@ -76,8 +91,16 @@ trait Coordinates[A]:
         underlying.build(values).map(to)
 
 object Coordinates:
+  /** Summons the coordinate representation for `A`. */
   def apply[A](using coordinates: Coordinates[A]): Coordinates[A] = coordinates
 
+  /** Derives coordinates for a product whose fields all have supported
+    * numeric types.
+    *
+    * Field labels become coordinate names and constructor order determines
+    * coordinate order. Supported fields are `Double`, `Float`, `Long`, `Int`,
+    * `Short`, and `Byte`; narrowing conversions reject loss or overflow.
+    */
   inline def derived[A <: Product](
       using mirror: Mirror.ProductOf[A]
   ): Coordinates[A] =

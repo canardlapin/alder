@@ -2,6 +2,12 @@ package alder.data
 
 import alder.kernel.*
 
+/** Complete K-fold resampling with deterministic optional shuffling.
+  *
+  * Each input row occurs in exactly one assessment partition. When shuffling
+  * is enabled, assignment is a stable function of the row ID and supplied
+  * seed, so input traversal order does not affect the plan.
+  */
 final class KFold[A] private (
     val folds: Int,
     val shuffle: Boolean,
@@ -26,6 +32,11 @@ final class KFold[A] private (
       ResamplingPlans.complete(data, seed, fingerprint, folds, assignments)
 
 object KFold:
+  /** Creates a K-fold resampler.
+    *
+    * @return
+    *   `InvalidFoldCount` when `folds` is less than two
+    */
   def apply[A](
       folds: Int,
       shuffle: Boolean = true

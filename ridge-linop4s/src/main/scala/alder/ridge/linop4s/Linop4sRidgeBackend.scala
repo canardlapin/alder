@@ -10,10 +10,18 @@ import linop4s.array.Dense
 import linop4s.array.given
 import linop4s.krylov.*
 
+/** Matrix-free iterative strategy used by the linop4s backend. */
 enum Linop4sRidgeStrategy derives CanEqual:
   case LSQR
   case NormalCG
 
+/** linop4s-backed matrix-free ridge solver.
+  *
+  * `LSQR` solves the weighted, damped least-squares operator. `NormalCG`
+  * solves normal equations and therefore requires a strictly positive ridge
+  * penalty. The iteration limit and numerical mode are validated at fit time
+  * and recorded in the backend fingerprint.
+  */
 final class Linop4sRidgeBackend[F[_]](
     val strategy: Linop4sRidgeStrategy,
     val maxIterations: Int,
