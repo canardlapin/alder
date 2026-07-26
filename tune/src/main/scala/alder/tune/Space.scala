@@ -2,6 +2,7 @@ package alder.tune
 
 import alder.kernel.Seed
 import cats.Applicative
+import scala.annotation.targetName
 
 /** Invalid bounds for a numeric search space. */
 enum NumericSpaceError derives CanEqual:
@@ -19,6 +20,11 @@ object PositiveDouble:
     if value.isFinite && value > 0.0 then Right(value)
     else Left(NumericSpaceError.NonPositiveDouble(value))
 
+  /** Constructs a positive literal or rejects the program at compile time. */
+  inline def const(inline value: Double): PositiveDouble =
+    inline if value > 0.0 then value
+    else compiletime.error("PositiveDouble must be a positive literal")
+
   extension (value: PositiveDouble)
     def toDouble: Double = value
 
@@ -34,6 +40,11 @@ object PositiveInt:
   def create(value: Int): Either[NumericSpaceError, PositiveInt] =
     if value > 0 then Right(value)
     else Left(NumericSpaceError.NonPositiveInt(value))
+
+  /** Constructs a positive literal or rejects the program at compile time. */
+  inline def const(inline value: Int): PositiveInt =
+    inline if value > 0 then value
+    else compiletime.error("PositiveInt must be a positive literal")
 
   val one: PositiveInt = 1
 
@@ -87,6 +98,24 @@ object Space:
       minimum: PositiveInt,
       maximum: PositiveInt
   ): Either[NumericSpaceError, Space[PositiveInt]] =
+    validatedIntRange(minimum, maximum)
+
+  /** Inclusive integer range with runtime validation of primitive bounds. */
+  @targetName("intRangeFromInt")
+  def intRange(
+      minimum: Int,
+      maximum: Int
+  ): Either[NumericSpaceError, Space[PositiveInt]] =
+    for
+      validatedMinimum <- PositiveInt.create(minimum)
+      validatedMaximum <- PositiveInt.create(maximum)
+      space <- validatedIntRange(validatedMinimum, validatedMaximum)
+    yield space
+
+  private def validatedIntRange(
+      minimum: PositiveInt,
+      maximum: PositiveInt
+  ): Either[NumericSpaceError, Space[PositiveInt]] =
     if minimum.toInt <= maximum.toInt then
       Right(IntegerRange(minimum, maximum))
     else
@@ -99,6 +128,26 @@ object Space:
 
   /** Positive continuous interval sampled uniformly in log space. */
   def logUniform(
+      minimum: PositiveDouble,
+      maximum: PositiveDouble
+  ): Either[NumericSpaceError, Space[PositiveDouble]] =
+    validatedLogUniform(minimum, maximum)
+
+  /** Positive log-uniform interval with runtime validation of primitive
+    * bounds.
+    */
+  @targetName("logUniformFromDouble")
+  def logUniform(
+      minimum: Double,
+      maximum: Double
+  ): Either[NumericSpaceError, Space[PositiveDouble]] =
+    for
+      validatedMinimum <- PositiveDouble.create(minimum)
+      validatedMaximum <- PositiveDouble.create(maximum)
+      space <- validatedLogUniform(validatedMinimum, validatedMaximum)
+    yield space
+
+  private def validatedLogUniform(
       minimum: PositiveDouble,
       maximum: PositiveDouble
   ): Either[NumericSpaceError, Space[PositiveDouble]] =
@@ -197,6 +246,15 @@ object Grid:
   ): Vector[A] =
     Space.grid(space, strategy.continuousPoints)
 
+  /** Enumerates a grid after validating a primitive point count. */
+  def candidates[A](
+      space: Space[A],
+      continuousPoints: Int
+  ): Either[NumericSpaceError, Vector[A]] =
+    PositiveInt
+      .create(continuousPoints)
+      .map(points => Space.grid(space, points))
+
 object RandomSearch:
   /** Draws a reproducible candidate sequence from a space.
     *
@@ -216,6 +274,17 @@ object RandomSearch:
       random = next
       index += 1
     output.result()
+
+  /** Draws candidates after validating a primitive trial count. */
+  @targetName("candidatesFromInt")
+  def candidates[A](
+      space: Space[A],
+      trials: Int,
+      seed: Seed
+  ): Either[NumericSpaceError, Vector[A]] =
+    PositiveInt
+      .create(trials)
+      .map(validated => candidates(space, validated, seed))
 
 private[tune] final class StableRandom private (private val state: Long):
   def nextLong: (StableRandom, Long) =

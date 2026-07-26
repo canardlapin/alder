@@ -7,5 +7,5 @@ These guides complete concrete tasks:
 - [Build deterministic tuning spaces](tuning.md)
 - [Write an Alder extension](extensions.md)
 
-Read [Core concepts](../concepts/README.md) first if dataset roles or preparation
-scope are unfamiliar.
+The [core concepts](../concepts/README.md) explain the type boundaries when a
+composition is rejected.

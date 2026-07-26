@@ -12,6 +12,9 @@ trait Schema[A]:
 object Schema:
   private val fingerprintAlgorithm = "alder-schema-fnv1a64-v1"
 
+  /** Summons the schema for `A`. */
+  def apply[A](using schema: Schema[A]): Schema[A] = schema
+
   given Schema[Double] = primitive("scala.Double")
   given Schema[Float] = primitive("scala.Float")
   given Schema[Long] = primitive("scala.Long")

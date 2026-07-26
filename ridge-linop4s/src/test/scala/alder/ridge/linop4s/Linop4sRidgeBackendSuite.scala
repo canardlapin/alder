@@ -1,12 +1,15 @@
 package alder.ridge.linop4s
 
-import alder.data.Coordinates
+import alder.data.{Coordinates, Fit, Schema}
 import alder.kernel.*
 import alder.models.linear.*
 import alder.testkit.TestData
 import cats.Id
 
-final case class NativePoint(x: Double) derives Coordinates, CanEqual
+final case class NativePoint(x: Double)
+    derives Coordinates,
+      Schema,
+      CanEqual
 
 class Linop4sRidgeBackendSuite extends munit.FunSuite:
   private val context =
@@ -68,4 +71,29 @@ class Linop4sRidgeBackendSuite extends munit.FunSuite:
         case ("operatorApplications", AuditValue.Integer(value)) => value
       }
     assert(operatorApplications.exists(value => value > 0L && value <= 20L))
+  }
+
+  test("synchronous factories preserve the typed ridge boundary") {
+    val config = RidgeConfig.create(0.5) match
+      case Left(error)  => fail(s"invalid config: $error")
+      case Right(value) => value
+    val backend = Linop4sRidgeBackend.lsqr[Id](maxIterations = 500)
+    val learner =
+      RidgeRegression.sync[NativePoint, Unit](config, backend)
+
+    Fit
+      .learner(
+        learner,
+        training,
+        seed = Seed(17L),
+        plan = "linop4s-ridge-factory"
+      )
+      .left
+      .map(_.toString)
+      .flatMap(
+        _.run(NativePoint(4.0)).left.map(_.toString)
+      ) match
+      case Left(error) => fail(s"unexpected fit failure: $error")
+      case Right(prediction) =>
+        assert(prediction.isFinite)
   }

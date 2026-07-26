@@ -9,6 +9,19 @@ enum FingerprintPolicy derives CanEqual:
 /** Fingerprint of a dataset's contents under a declared policy. */
 final class DataFingerprint(val policy: FingerprintPolicy, val digest: String)
 
+object DataFingerprint:
+  /** Records an externally managed data identity.
+    *
+    * This is a convenience for applications that already version their input
+    * data but do not compute a content digest inside Alder. The audit records
+    * that the value is an external identity, not a content hash.
+    */
+  def external(identity: String): DataFingerprint =
+    new DataFingerprint(
+      FingerprintPolicy.Summary("alder.external-data-identity"),
+      identity
+    )
+
 /** Policy-tagged identity of a protocol configuration, such as a resampler. */
 final class ProtocolFingerprint(
     val policy: FingerprintPolicy,

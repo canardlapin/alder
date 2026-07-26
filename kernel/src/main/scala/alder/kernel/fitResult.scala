@@ -1,6 +1,6 @@
 package alder.kernel
 
-import cats.Functor
+import cats.{Functor, Id}
 import cats.data.EitherT
 
 /** The result of fitting: an effect around either a stage-attributed failure
@@ -14,3 +14,9 @@ extension [F[_], E, A](result: FitResult[F, E, A])
     */
   def widenFailure[E2 >: E](using Functor[F]): FitResult[F, E2, A] =
     result.leftMap(failure => failure.widen[E2])
+
+extension [E, A](result: FitResult[Id, E, A])
+  /** Exposes the `Either` produced by a synchronous fit without requiring
+    * callers to know that `FitResult` is implemented with `EitherT`.
+    */
+  def toEither: Either[Failure[E], A] = result.value

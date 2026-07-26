@@ -16,37 +16,38 @@ final case class Config(
   iterations: PositiveInt
 )
 
-val minimumPenalty = PositiveDouble.create(1.0e-4).toOption.get
-val maximumPenalty = PositiveDouble.create(1.0e2).toOption.get
-val minimumIterations = PositiveInt.create(50).toOption.get
-val maximumIterations = PositiveInt.create(52).toOption.get
-val continuousPoints = PositiveInt.create(4).toOption.get
-
-val configSpace = (
-  Space.logUniform(minimumPenalty, maximumPenalty).toOption.get,
-  Space.intRange(minimumIterations, maximumIterations).toOption.get
-).mapN(Config.apply)
+val configSpace =
+  for
+    penalties <- Space.logUniform(1.0e-4, 1.0e2)
+    iterations <- Space.intRange(50, 52)
+  yield (penalties, iterations).mapN(Config.apply)
 ```
 
 Grid enumeration is deterministic:
 
 ```scala mdoc
-val grid = Grid.candidates(
-  configSpace,
-  GridStrategy(continuousPoints)
-)
+val grid =
+  configSpace.flatMap(space =>
+    Grid.candidates(space, continuousPoints = 4)
+  )
 
-grid.size
-grid.head.penalty.toDouble
+grid.map(_.size)
+grid.map(_.head.penalty.toDouble)
 ```
 
 Random search is deterministic for the same seed:
 
 ```scala mdoc
-val trials = PositiveInt.create(3).toOption.get
+val first =
+  configSpace.flatMap(space =>
+    RandomSearch.candidates(space, trials = 3, seed = Seed(42L))
+  )
+val second =
+  configSpace.flatMap(space =>
+    RandomSearch.candidates(space, trials = 3, seed = Seed(42L))
+  )
 
-RandomSearch.candidates(configSpace, trials, Seed(42L)) ==
-  RandomSearch.candidates(configSpace, trials, Seed(42L))
+first == second
 ```
 
 ## Keep studies on Train data

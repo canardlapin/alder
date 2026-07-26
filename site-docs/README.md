@@ -1,45 +1,31 @@
 # Alder
 
-Alder is a typed fitting and evaluation protocol for Scala 3. It helps library
-authors build preprocessing and learning workflows without hiding when targets
-were observed, which rows trained a stage, or why a computation failed.
+Alder helps Scala programs fit preprocessing and models without accidentally
+training on held-out data or letting a row's own target leak into its features.
+It is useful for libraries and applications that want those mistakes rejected
+by the compiler instead of discovered after evaluation.
 
-Alder distinguishes three component roles:
+With Alder:
 
-- a `Transform` fits without seeing targets;
-- a `FeatureMap` may use targets but must prepare each training row without its
-  own target; and
-- a `Learner` is terminal, so its in-sample predictions cannot train a later
-  stage.
+- training, validation, and test data have different types;
+- preprocessing that sees targets must prepare training rows out of fold;
+- a fitted model keeps the seed, data identity, backend, and fitting steps that
+  produced it; and
+- a failure identifies the stage that caused it.
 
-The types enforce the legal compositions. Fitted values also retain their data
-fingerprint, stage path, derived seed, numerical mode, backend, and preparation
-lineage in an immutable audit.
+The ordinary path is still familiar: define data, split it, compose a workflow,
+fit, and predict.
 
-## A first result
+## Start here
 
-Metrics are a small entry point because they need no fitting context. This
-example computes root mean squared error with Alder's deterministic
-superaccumulator:
+[Fit your first workflow](getting-started.md) standardizes numeric inputs, fits
+a ridge model, and predicts from the original input type. The example uses the
+application-facing conveniences while preserving Alder's typed errors and
+audit.
 
-```scala mdoc
-import alder.kernel.Scored
-import alder.metrics.*
-
-val scored = Vector(
-  Scored(3.0, 2.5, ()),
-  Scored(4.0, 4.5, ())
-)
-
-RegressionMetrics
-  .rmse[Unit]
-  .evaluate(scored)
-  .map(_.value)
-```
-
-Continue with [Getting started](getting-started.md) to build the current
-pre-release source tree. Then read [Core concepts](concepts/README.md) before
-composing fitted stages.
+After that, choose a task in [Guides](guides/README.md). Read
+[How Alder prevents leakage](concepts/data-roles.md) when you want the reason
+behind the type boundaries.
 
 ## Current status
 
@@ -49,4 +35,6 @@ not substitute for the repository's cross-platform test gate.
 
 Alder 0.1.0 is not published yet. The source build currently uses sibling
 development checkouts for Tessera, Gale, and linop4s. The guide therefore does
-not present unreleased Maven coordinates as an installation method.
+not present unreleased Maven coordinates as an installation method. See
+[Build Alder from source](reference/building-from-source.md) to try this
+checkout.

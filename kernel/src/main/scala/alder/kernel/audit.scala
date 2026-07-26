@@ -230,3 +230,10 @@ final class Audit private[alder] (
   * framework-level provenance.
   */
 final class Trained[+A] private[alder] (val artifact: A, val audit: Audit)
+
+extension [X, E, B, A <: Pipe[X, E, B]](trained: Trained[A])
+  /** Runs a trained pipe while retaining the audit wrapper for later
+    * inspection or serialization.
+    */
+  def run(input: X): Either[Failure[E], B] =
+    trained.artifact.run(input)

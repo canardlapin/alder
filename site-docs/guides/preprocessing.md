@@ -12,12 +12,10 @@ application type. Product derivation supports numeric case-class fields.
 import alder.data.*
 import alder.kernel.*
 import alder.preprocess.*
-import cats.Id
 
 final case class Features(age: Double, score: Double)
-
-given Coordinates[Features] = Coordinates.derived
-given Schema[Features] = Schema.derived
+    derives Coordinates,
+      Schema
 ```
 
 The coordinate names are stable and ordered:
@@ -32,11 +30,6 @@ The input starts as `Use.Unsplit`. `Holdout.split` constructs typed training and
 test roles without exposing a retagging operation.
 
 ```scala mdoc:silent
-val fingerprint = new DataFingerprint(
-  FingerprintPolicy.Summary("guide-input-v1"),
-  "features-4"
-)
-
 val unsplit = InMemoryData.unsplit(
   Vector(
     Features(20.0, 1.0),
@@ -44,56 +37,64 @@ val unsplit = InMemoryData.unsplit(
     Features(40.0, 4.0),
     Features(50.0, 8.0)
   ),
-  fingerprint
+  "features-4"
 )
 
-val holdout = Holdout
-  .split(unsplit, testSize = 1, Seed(17L))
-  .toOption
-  .get
+val holdout =
+  Holdout.split(unsplit, testSize = 1, Seed(17L))
 ```
 
-## Fit with an explicit context
+## Fit the transform
 
-The root context fixes the plan identity, schema identity, seed, and numerical
-mode recorded in the audit.
+The plan name and seed identify this fit. `Fit.transform` derives the schema and
+uses deterministic numerics by default.
 
 ```scala mdoc:silent
-given FitContext = FitContext.root(
-  seed = Seed(101L),
-  plan = PlanFingerprint("standardize-features-v1"),
-  schema = summon[Schema[Features]].fingerprint,
-  numericMode = NumericMode.Deterministic
-)
-
-val prepared = StandardScaler[Id, Features](ZeroVariance.Reject)
-  .fit(holdout.train)
-  .value
-  .toOption
-  .get
+val prepared =
+  holdout
+    .left
+    .map(_.toString)
+    .flatMap(partitions =>
+      Fit
+        .transform(
+          StandardScaler.sync[Features](ZeroVariance.Reject),
+          partitions.train,
+          seed = Seed(101L),
+          plan = "standardize-features-v1"
+        )
+        .left
+        .map(_.toString)
+    )
 ```
 
 `prepared.rows` is intentionally unavailable to application code. Alder owns
 those rows for safe composition. Application code uses the fitted pipe:
 
 ```scala mdoc
-val standardized = prepared.fitted.artifact
-  .run(Features(35.0, 3.0))
-  .toOption
-  .get
+val standardized =
+  prepared.flatMap(
+    _.artifact
+      .run(Features(35.0, 3.0))
+      .left
+      .map(_.toString)
+  )
 
-Coordinates[Standardized[Features]]
-  .read(standardized)
-  .map(_.toVector)
+standardized.flatMap(value =>
+  Coordinates[Standardized[Features]]
+    .read(value)
+    .left
+    .map(_.toString)
+    .map(_.toVector)
+)
 ```
 
 The audit identifies the fitting data, component, backend, numerical mode, and
 stage:
 
 ```scala mdoc
-prepared.fitted.audit.component.id.render
-prepared.fitted.audit.numerics
-prepared.fitted.audit.preparation.stage
+prepared.map(_.fitted.audit.component.id.render)
+prepared.map(_.fitted.audit.numerics)
+prepared.map(_.fitted.audit.preparation.stage)
 ```
 
 Choose `ScaleOnlyScaler` when structural zeros must remain zero. It exposes a

@@ -2,7 +2,7 @@ package alder.preprocess
 
 import alder.data.{CoordinateError, Coordinates}
 import alder.kernel.*
-import cats.Applicative
+import cats.{Applicative, Id}
 import cats.data.EitherT
 
 /** Centered-and-scaled representation of `A`. */
@@ -93,6 +93,15 @@ final class StandardScaler[F[_], A](
     yield prepared
     EitherT.fromEither(result)
 
+object StandardScaler:
+  /** Creates a synchronous scaler for applications that do not need an
+    * effectful fitting implementation.
+    */
+  def sync[A](
+      zeroVariance: ZeroVariance
+  )(using Coordinates[A]): StandardScaler[Id, A] =
+    new StandardScaler[Id, A](zeroVariance)
+
 /** Stable population-moment scaling without centering.
   *
   * There is intentionally no centering parameter: `0 * invStd` remains zero,
@@ -147,6 +156,13 @@ final class ScaleOnlyScaler[F[_], A](
         .map(_.widen[FitError])
     yield prepared
     EitherT.fromEither(result)
+
+object ScaleOnlyScaler:
+  /** Creates a synchronous scale-only scaler. */
+  def sync[A](
+      zeroVariance: ZeroVariance
+  )(using Coordinates[A]): ScaleOnlyScaler[Id, A] =
+    new ScaleOnlyScaler[Id, A](zeroVariance)
 
 /** Immutable fitted centered standardizer. */
 final class Standardizer[A] private[alder] (

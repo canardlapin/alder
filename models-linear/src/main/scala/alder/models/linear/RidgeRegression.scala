@@ -2,7 +2,7 @@ package alder.models.linear
 
 import alder.data.Coordinates
 import alder.kernel.*
-import cats.Monad
+import cats.{Id, Monad}
 import cats.data.EitherT
 
 /** Immutable fitted ridge predictor.
@@ -89,6 +89,14 @@ final class RidgeRegression[F[_], X, M](
       backend.fingerprint
     )
 
+object RidgeRegression:
+  /** Creates a synchronous ridge learner. */
+  def sync[X, M](
+      config: RidgeConfig,
+      backend: RidgeBackend[Id]
+  )(using Coordinates[X]): RidgeRegression[Id, X, M] =
+    new RidgeRegression[Id, X, M](config, backend)
+
 /** Ridge learner using non-negative weights obtained from observation
   * metadata through `WeightOf`.
   */
@@ -148,3 +156,14 @@ final class WeightedRidgeRegression[F[_], X, M](
             )
           )
         }
+
+object WeightedRidgeRegression:
+  /** Creates a synchronous weighted ridge learner. */
+  def sync[X, M](
+      config: RidgeConfig,
+      backend: RidgeBackend[Id]
+  )(using
+      Coordinates[X],
+      WeightOf[M]
+  ): WeightedRidgeRegression[Id, X, M] =
+    new WeightedRidgeRegression[Id, X, M](config, backend)

@@ -24,7 +24,12 @@ final class Prepared[+S <: Preparation, +U <: Use.Fit, +A, +B] private[alder] (
     val fitted: Trained[A],
     private[alder] val rows: NonEmptyData[U, B],
     val lineage: PreparationLineage
-)
+):
+  /** The fitted artifact applications use for serving.
+    *
+    * The full `fitted` value remains available when its audit is also needed.
+    */
+  def artifact: A = fitted.artifact
 
 object Prepared:
 

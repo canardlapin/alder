@@ -1,16 +1,15 @@
 # Alder API
 
-Alder is a typed fitting and evaluation protocol for Scala 3. Its public API
-separates target-blind transforms, leakage-aware feature maps, and terminal
-learners. Dataset roles, row identity, preparation scope, failures, seeds, and
-audit records remain explicit through composition.
+Alder helps Scala programs fit preprocessing and models without training on
+held-out data or leaking a row's own target into its features. The API uses
+different data types for fitting and evaluation, and every fitted model carries
+an audit of the run that produced it.
 
 Start with these packages:
 
-- `alder.kernel` defines fitting, composition, data roles, failures, and audit
-  contracts.
-- `alder.data` provides immutable data, typed splits, resampling, cross-fitting,
-  and receipt-gated refitting.
+- `alder.data` provides application-facing fit setup, immutable data, typed
+  splits, resampling, and cross-fitting.
+- `alder.kernel` defines composition, data roles, failures, and audit contracts.
 - `alder.preprocess` provides target-blind preprocessing.
 - `alder.metrics` provides deterministic streaming metrics.
 - `alder.models.linear` defines backend-neutral ridge contracts.

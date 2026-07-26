@@ -296,3 +296,29 @@ final class Linop4sRidgeBackend[F[_]](
         SolverId.Linop4sLSQR
       case Linop4sRidgeStrategy.NormalCG =>
         SolverId.Linop4sCG
+
+object Linop4sRidgeBackend:
+  /** Creates an LSQR backend with deterministic numerics by default. */
+  def lsqr[F[_]](
+      maxIterations: Int = 1000,
+      numericMode: NumericMode = NumericMode.Deterministic
+  )(using Applicative[F]): Linop4sRidgeBackend[F] =
+    new Linop4sRidgeBackend(
+      Linop4sRidgeStrategy.LSQR,
+      maxIterations,
+      numericMode
+    )
+
+  /** Creates a conjugate-gradient normal-equation backend.
+    *
+    * This strategy requires a strictly positive ridge penalty.
+    */
+  def normalCG[F[_]](
+      maxIterations: Int = 1000,
+      numericMode: NumericMode = NumericMode.Deterministic
+  )(using Applicative[F]): Linop4sRidgeBackend[F] =
+    new Linop4sRidgeBackend(
+      Linop4sRidgeStrategy.NormalCG,
+      maxIterations,
+      numericMode
+    )

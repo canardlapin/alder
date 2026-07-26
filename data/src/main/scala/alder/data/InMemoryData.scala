@@ -34,6 +34,17 @@ final class InMemoryData[+U <: Use, +A] private[data] (
       offset += batchLength
 
 object InMemoryData:
+  /** Creates unsplit data whose identity is managed outside Alder.
+    *
+    * Use the `DataFingerprint` overload when the application has a content
+    * digest, source version, or another more specific fingerprint policy.
+    */
+  def unsplit[A](
+      values: Vector[A],
+      identity: String
+  ): Data[Use.Unsplit, A] =
+    unsplit(values, DataFingerprint.external(identity))
+
   def unsplit[A](
       values: Vector[A],
       fingerprint: DataFingerprint

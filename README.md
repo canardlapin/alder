@@ -1,14 +1,22 @@
 # Alder
 
-Alder is a typed fitting and evaluation protocol for Scala 3. It separates
-target-blind transforms, leakage-aware feature maps, and terminal learners.
-Data roles, row identities, preparation scope, failures, seeds, and audit
-records remain explicit through composition.
+Alder helps Scala programs fit preprocessing and models without accidentally
+training on held-out data or leaking a row's own target into its features.
+Training, validation, and test data have different types, and every fitted
+model retains an audit of the data identity, seed, backend, and fitting steps
+that produced it.
 
 The project uses Scala 3.7.4 and cross-builds its pure modules for the JVM,
 Scala.js, and Scala Native.
 
-## Repository status
+## Start here
+
+The executable guide begins with
+[a complete standardize-fit-predict workflow](site-docs/getting-started.md).
+It then covers preprocessing, metrics, tuning, safe target-aware feature
+construction, extension authoring, and troubleshooting.
+
+## Pre-release status
 
 The local implementation and its cross-platform tests are working. This
 checkout uses source composites for Tessera, Gale, and linop4s during
@@ -19,7 +27,7 @@ The dense Gale adapter is explicitly non-publishable while Gale remains a
 snapshot dependency. Remote CI and publication are also unverified because
 this repository has no configured remote.
 
-## Build
+## Build the current source
 
 Place the sibling development checkouts at `../tessera`, `../gale`, and
 `../linop4s`, then run:
@@ -44,12 +52,9 @@ is published, select it explicitly:
 sbt -J-Xmx4G -Dalder.compatibility.previous=0.1.0 compatibilityCheck
 ```
 
-## Documentation
+## Documentation development
 
-Start with the [Alder guide](site-docs/README.md). It covers the first fitted
-pipeline, typed data roles, safe composition, preprocessing, metrics, tuning,
-extension authoring, audit behavior, module selection, and troubleshooting.
-All Scala examples in the guide are compiled by mdoc.
+All Scala examples in the public guide are compiled by mdoc.
 
 Generate the guide site and each module's Scala API reference with:
 

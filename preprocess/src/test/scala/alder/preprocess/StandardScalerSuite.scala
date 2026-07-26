@@ -1,6 +1,6 @@
 package alder.preprocess
 
-import alder.data.Coordinates
+import alder.data.{Coordinates, Fit, Schema}
 import alder.kernel.*
 import alder.testkit.TestData
 import cats.Id
@@ -8,6 +8,7 @@ import scala.compiletime.testing.typeCheckErrors
 
 final case class Point(x: Double, y: Double)
     derives Coordinates,
+      Schema,
       CanEqual
 
 class StandardScalerSuite extends munit.FunSuite:
@@ -58,6 +59,26 @@ class StandardScalerSuite extends munit.FunSuite:
       1.0e-15
     )
     assertEquals(y, Vector(0.0, 0.0, 0.0))
+  }
+
+  test("synchronous constructor and prepared artifact accessor preserve behavior") {
+    val original =
+      data(Vector(Point(1.0, 2.0), Point(3.0, 4.0)))
+    val prepared =
+      Fit
+        .transform(
+          StandardScaler.sync[Point](ZeroVariance.Reject),
+          original,
+          seed = Seed(19L),
+          plan = "standard-scaler-factory"
+        ) match
+        case Left(error)  => fail(s"unexpected fit error: $error")
+        case Right(value) => value
+
+    assertEquals(
+      prepared.artifact.run(Point(2.0, 3.0)),
+      prepared.fitted.artifact.run(Point(2.0, 3.0))
+    )
   }
 
   test("Reject reports the named constant coordinate") {

@@ -4,6 +4,8 @@
   direction.
 - [Compatibility](compatibility.md) states the Scala, platform, and release
   policy.
+- [Build Alder from source](building-from-source.md) covers the current
+  pre-release checkout layout and repository gates.
 
 Generate the current module-specific API reference with:
 

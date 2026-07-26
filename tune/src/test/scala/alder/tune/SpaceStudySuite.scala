@@ -59,6 +59,43 @@ class SpaceStudySuite extends munit.FunSuite:
     assertEquals(first.length, 50)
   }
 
+  test("primitive search-space conveniences retain validation") {
+    val grid =
+      for
+        rates <- Space.logUniform(1.0e-4, 1.0)
+        depths <- Space.intRange(1, 4)
+        space = (depths, rates).mapN((depth, rate) => (depth, rate))
+        candidates <- Grid.candidates(space, continuousPoints = 3)
+      yield candidates
+
+    assertEquals(grid.map(_.length), Right(12))
+    assertEquals(
+      Space.intRange(0, 4),
+      Left(NumericSpaceError.NonPositiveInt(0))
+    )
+    assertEquals(
+      RandomSearch.candidates(
+        Space.constant(true),
+        trials = 0,
+        Seed(1L)
+      ),
+      Left(NumericSpaceError.NonPositiveInt(0))
+    )
+  }
+
+  test("positive literal constructors reject invalid programs") {
+    val validInt = PositiveInt.const(3)
+    val validDouble = PositiveDouble.const(0.25)
+    assertEquals(validInt.toInt, 3)
+    assertEquals(validDouble.toDouble, 0.25)
+    assert(
+      typeCheckErrors("alder.tune.PositiveInt.const(0)").nonEmpty
+    )
+    assert(
+      typeCheckErrors("alder.tune.PositiveDouble.const(-1.0)").nonEmpty
+    )
+  }
+
   test("study returns the best configuration rather than a fitted artifact") {
     val training =
       TestData.nonEmpty[Use.Train, Int](

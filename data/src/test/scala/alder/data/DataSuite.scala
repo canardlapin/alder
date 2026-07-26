@@ -58,6 +58,27 @@ class DataSuite extends munit.FunSuite:
     )
   }
 
+  test("external in-memory identity remains explicitly policy tagged") {
+    val data = InMemoryData.unsplit(Vector("a", "b"), "letters-v1")
+    assertEquals(data.fingerprint.digest, "letters-v1")
+    assertEquals(
+      data.fingerprint.policy,
+      FingerprintPolicy.Summary("alder.external-data-identity")
+    )
+  }
+
+  test("fit context derives schema and deterministic defaults") {
+    final case class Input(value: Double) derives Schema
+
+    val context =
+      Fit.context[Input](Seed(23L), "data-suite-fit")
+
+    assertEquals(context.seed.value, 23L)
+    assertEquals(context.plan.render, "data-suite-fit")
+    assertEquals(context.schema, Schema[Input].fingerprint)
+    assertEquals(context.numericMode, NumericMode.Deterministic)
+  }
+
   test("in-memory batched access preserves rows without materialized row copies") {
     val data =
       InMemoryData.unsplit(Vector("a", "b", "c", "d", "e"), fingerprint("batch"))
