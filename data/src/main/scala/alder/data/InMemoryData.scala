@@ -51,7 +51,14 @@ private[data] object DataRows:
 
   def nonEmpty[U <: Use, A](
       rows: Vector[(RowId, A)],
-      fingerprint: DataFingerprint
+      fingerprint: DataFingerprint,
+      refit: Option[RefitAudit] = None
   ): Either[DataError, NonEmptyData[U, A]] =
     if rows.isEmpty then Left(DataError.EmptyData)
-    else Right(new NonEmptyData(new InMemoryData[U, A](rows, fingerprint)))
+    else
+      Right(
+        new NonEmptyData(
+          new InMemoryData[U, A](rows, fingerprint),
+          refit
+        )
+      )

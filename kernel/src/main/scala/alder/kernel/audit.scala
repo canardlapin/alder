@@ -17,6 +17,49 @@ object AuditValue:
   def sequence(values: AuditValue*): AuditValue = Sequence(values.toVector)
   def record(fields: (String, AuditValue)*): AuditValue = Record(fields.toVector)
 
+/** Role of one exact source committed by an evaluation receipt. */
+enum ObservedSourceRole derives CanEqual:
+  case Train
+  case Validation
+  case Test
+
+/** A role on which predictions may be evaluated. Train is intentionally
+  * absent.
+  */
+enum EvaluationRole derives CanEqual:
+  case Validation
+  case Test
+
+/** One source in the ordered manifest authorizing a refit. */
+final case class ObservedSource(
+    role: ObservedSourceRole,
+    fingerprint: DataFingerprint
+)
+
+/** Stable public identity of an evaluation receipt. The authority itself is
+  * private and cannot be reconstructed from this identifier.
+  */
+opaque type EvaluationReceiptId = String
+
+object EvaluationReceiptId:
+  private[alder] def apply(value: String): EvaluationReceiptId = value
+  extension (id: EvaluationReceiptId) def render: String = id
+  given CanEqual[EvaluationReceiptId, EvaluationReceiptId] = CanEqual.derived
+
+/** Explicit audit statement about the artifact produced by a refit. */
+enum RefitEvaluationClaim derives CanEqual:
+  case ArtifactNotEvaluatedOnAuthorizingValidation
+  case ArtifactNotEvaluatedOnAuthorizingTest
+
+/** Receipt-gated authority attached to `Use.Refit` data and copied into every
+  * audit produced from it. Construction remains framework-owned.
+  */
+final class RefitAudit private[alder] (
+    val sources: Vector[ObservedSource],
+    val receipt: EvaluationReceiptId,
+    val claim: RefitEvaluationClaim
+)
+
 opaque type ComponentId = String
 
 object ComponentId:
@@ -148,6 +191,7 @@ final class Audit private[alder] (
     val preparation: PreparationLineage,
     val component: ComponentDescriptor,
     val children: Vector[Audit],
+    val refit: Option[RefitAudit],
     private[alder] val shape: AuditShape
 ):
   private[alder] def flattenedTransformSequence: Vector[Audit] =

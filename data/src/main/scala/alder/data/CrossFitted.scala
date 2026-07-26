@@ -92,7 +92,7 @@ final class CrossFittedFeatureMap[
         )
       val trained = context.composite(
         artifact = pipe,
-        data = data.fingerprint,
+        trainedOn = data,
         component =
           AlderComponents.crossFitted(plan.resampler, plan.foldCount),
         preparation = lineage,
@@ -192,6 +192,7 @@ final class CrossFittedFeatureMap[
         )
         Right(
           new NonEmptyData(
-            new InMemoryData[U, Example[Z, Y, M]](rows, fingerprint)
+            new InMemoryData[U, Example[Z, Y, M]](rows, fingerprint),
+            data.refit
           )
         )

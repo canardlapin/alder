@@ -143,7 +143,7 @@ final class ThenTransform[
       )
       val trained = context.composite(
         artifact = fitted,
-        data = data.fingerprint,
+        trainedOn = data,
         component = AlderComponents.composeTransform,
         preparation = lineage,
         children =

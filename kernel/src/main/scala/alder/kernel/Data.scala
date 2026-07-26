@@ -40,7 +40,10 @@ object RowBatch:
 /** Proof of nonemptiness, required by every fitting signature. Constructed only
   * by Alder's splitting and preparation protocols.
   */
-final class NonEmptyData[+U <: Use, +A] private[alder] (val data: Data[U, A]):
+final class NonEmptyData[+U <: Use, +A] private[alder] (
+    val data: Data[U, A],
+    private[alder] val refit: Option[RefitAudit] = None
+):
   def size: Long = data.size
   def fingerprint: DataFingerprint = data.fingerprint
 
@@ -74,7 +77,7 @@ private[alder] object DataOperations:
   def mapNonEmpty[U <: Use, A, B](
       data: NonEmptyData[U, A]
   )(f: A => B): NonEmptyData[U, B] =
-    new NonEmptyData(new MappedData(data.data, f))
+    new NonEmptyData(new MappedData(data.data, f), data.refit)
 
   def traverseNonEmpty[U <: Use, E, A, B](
       data: NonEmptyData[U, A]
@@ -88,7 +91,7 @@ private[alder] object DataOperations:
           f(id, value).map(result => rows :+ (id, result))
       }
       .map(rows =>
-        new NonEmptyData(RowVectorData(rows, data.fingerprint))
+        new NonEmptyData(RowVectorData(rows, data.fingerprint), data.refit)
       )
 
   def restoreExamples[U <: Use.Fit, X, Y, M, Z](
@@ -139,5 +142,8 @@ private[alder] object DataOperations:
       .left
       .map(stage.failure)
       .map(rows =>
-        new NonEmptyData(RowVectorData(rows, original.fingerprint))
+        new NonEmptyData(
+          RowVectorData(rows, original.fingerprint),
+          original.refit
+        )
       )

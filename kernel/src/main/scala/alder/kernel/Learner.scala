@@ -71,7 +71,7 @@ final class LearnedWith[
         Pipe.Chain(prepared.fitted.artifact, model.artifact)
       context.composite(
         artifact = chained,
-        data = data.fingerprint,
+        trainedOn = data,
         component = AlderComponents.learnedWith,
         preparation = prepared.lineage,
         children =

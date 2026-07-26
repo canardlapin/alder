@@ -56,8 +56,47 @@ private[data] object Fingerprints:
   def rank(seed: Seed, id: RowId): Long =
     splitmix(seed.value ^ id.value)
 
+  def observed(sources: Vector[ObservedSource]): DataFingerprint =
+    val parts = sources.flatMap { source =>
+      Vector(
+        sourceRole(source.role),
+        policy(source.fingerprint.policy),
+        source.fingerprint.digest
+      )
+    }
+    new DataFingerprint(
+      FingerprintPolicy.Summary("alder.observed-sources-fnv1a64-v1"),
+      hex(hashFramed("alder.observed-sources-v1" +: parts))
+    )
+
+  def evaluationReceipt(
+      audit: Audit,
+      observed: DataFingerprint,
+      authorizingRole: EvaluationRole
+  ): EvaluationReceiptId =
+    EvaluationReceiptId(
+      hex(
+        hashFramed(
+          Seq(
+            "alder.evaluation-receipt-v1",
+            audit.plan.render,
+            policy(audit.data.policy),
+            audit.data.digest,
+            audit.component.id.render,
+            audit.component.version.render,
+            evaluationRole(authorizingRole),
+            policy(observed.policy),
+            observed.digest
+          )
+        )
+      )
+    )
+
   private def hashStrings(values: Seq[String]): Long =
     values.foldLeft(offset)(hashString)
+
+  private def hashFramed(values: Seq[String]): Long =
+    hashStrings(values.map(value => s"${value.length}:$value"))
 
   private def hashString(initial: Long, value: String): Long =
     var hash = initial
@@ -74,6 +113,26 @@ private[data] object Fingerprints:
       hash = (hash ^ ((value >>> shift) & 0xffL)) * prime
       shift += 8
     hash
+
+  private def policy(value: FingerprintPolicy): String =
+    value match
+      case FingerprintPolicy.ContentDigest(algorithm) =>
+        s"content:${algorithm.length}:$algorithm"
+      case FingerprintPolicy.SourceIdentity(uri, version) =>
+        s"source:${uri.length}:$uri:${version.length}:$version"
+      case FingerprintPolicy.Summary(policyId) =>
+        s"summary:${policyId.length}:$policyId"
+
+  private def sourceRole(value: ObservedSourceRole): String =
+    value match
+      case ObservedSourceRole.Train      => "train"
+      case ObservedSourceRole.Validation => "validation"
+      case ObservedSourceRole.Test       => "test"
+
+  private def evaluationRole(value: EvaluationRole): String =
+    value match
+      case EvaluationRole.Validation => "validation"
+      case EvaluationRole.Test       => "test"
 
   private def hex(value: Long): String =
     val digits = "0123456789abcdef"

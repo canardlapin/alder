@@ -47,7 +47,10 @@ object Prepared:
     replay.map { rows =>
       new Prepared(
         fitted,
-        new NonEmptyData(RowVectorData(rows, data.fingerprint)),
+        new NonEmptyData(
+          RowVectorData(rows, data.fingerprint),
+          data.refit
+        ),
         lineage
       )
     }

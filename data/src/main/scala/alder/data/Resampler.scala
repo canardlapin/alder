@@ -78,11 +78,13 @@ private[data] object ResamplingPlans:
         for
           analysis <- DataRows.nonEmpty[U, A](
             analysisRows,
-            analysisFingerprint
+            analysisFingerprint,
+            data.refit
           )
           assessment <- DataRows.nonEmpty[U, A](
             assessmentRows,
-            assessmentFingerprint
+            assessmentFingerprint,
+            data.refit
           )
         yield new ResamplingFold(
           foldIndex,

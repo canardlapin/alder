@@ -47,6 +47,7 @@ final class FitContext private (
           PreparationLineage.leaf(stagePath, PreparationScopeTag.Reusable),
         component = component,
         children = Vector.empty,
+        refit = trainedOn.refit,
         shape = AuditShape.Leaf
       )
     )
@@ -54,7 +55,7 @@ final class FitContext private (
   /** Framework-internal: audit for a composed artifact, with child audits. */
   private[alder] def composite[A](
       artifact: A,
-      data: DataFingerprint,
+      trainedOn: NonEmptyData[Use.Fit, ?],
       component: ComponentDescriptor,
       preparation: PreparationLineage,
       children: Vector[Audit],
@@ -64,7 +65,7 @@ final class FitContext private (
       artifact,
       new Audit(
         plan = plan,
-        data = data,
+        data = trainedOn.fingerprint,
         schema = schema,
         seed = seed,
         backend = component.backend,
@@ -72,6 +73,7 @@ final class FitContext private (
         preparation = preparation,
         component = component,
         children = children,
+        refit = trainedOn.refit,
         shape = shape
       )
     )

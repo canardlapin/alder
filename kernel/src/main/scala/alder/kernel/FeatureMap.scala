@@ -178,7 +178,7 @@ final class MappedOutputFeatureMap[
       )
       val trained = context.composite(
         fitted,
-        data.fingerprint,
+        data,
         AlderComponents.mapFeatureOutput,
         lineage,
         Vector(prepared.fitted.audit)
@@ -206,7 +206,7 @@ final class MappedOutputFeatureMap[
       )
       val trained = context.composite(
         fitted,
-        data.fingerprint,
+        data,
         AlderComponents.mapFeatureOutput,
         lineage,
         Vector(prepared.fitted.audit)
@@ -282,7 +282,7 @@ final class ThenFeatureMap[
       )
       val trained = context.composite(
         fitted,
-        data.fingerprint,
+        data,
         AlderComponents.composeFeatureMap,
         lineage,
         first.fitted.audit.flattenedPreparationSequence ++
@@ -380,7 +380,7 @@ final class ThenFoldEncoder[
       )
       context.composite(
         state,
-        data.fingerprint,
+        data,
         AlderComponents.composeFoldEncoder,
         lineage,
         first.audit.flattenedPreparationSequence ++

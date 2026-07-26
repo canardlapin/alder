@@ -33,6 +33,17 @@ final case class LineageSnapshot(
     crossFit: Option[CrossFitSnapshot]
 )
 
+final case class ObservedSourceSnapshot(
+    role: ObservedSourceRole,
+    fingerprint: FingerprintSnapshot
+)
+
+final case class RefitSnapshot(
+    sources: Vector[ObservedSourceSnapshot],
+    receipt: EvaluationReceiptId,
+    claim: RefitEvaluationClaim
+)
+
 final case class AuditSnapshot(
     plan: PlanFingerprint,
     data: FingerprintSnapshot,
@@ -46,7 +57,8 @@ final case class AuditSnapshot(
     backendId: String,
     backendVersion: String,
     backendDetails: AuditValue,
-    children: Vector[AuditSnapshot]
+    children: Vector[AuditSnapshot],
+    refit: Option[RefitSnapshot]
 )
 
 object AuditSnapshot:
@@ -69,7 +81,19 @@ object AuditSnapshot:
       backendId = audit.backend.id,
       backendVersion = audit.backend.version,
       backendDetails = audit.backend.details,
-      children = audit.children.map(apply)
+      children = audit.children.map(apply),
+      refit = audit.refit.map { value =>
+        RefitSnapshot(
+          sources = value.sources.map(source =>
+            ObservedSourceSnapshot(
+              source.role,
+              fingerprint(source.fingerprint)
+            )
+          ),
+          receipt = value.receipt,
+          claim = value.claim
+        )
+      }
     )
 
   private def fingerprint(value: DataFingerprint): FingerprintSnapshot =

@@ -75,7 +75,8 @@ object RollingOrigin:
                       data.fingerprint,
                       s"rolling/$foldIndex/analysis",
                       analysisRows
-                    )
+                    ),
+                    data.refit
                   )
                   assessment <- DataRows.nonEmpty[U, Example[X, Y, M]](
                     assessmentRows,
@@ -83,7 +84,8 @@ object RollingOrigin:
                       data.fingerprint,
                       s"rolling/$foldIndex/assessment",
                       assessmentRows
-                    )
+                    ),
+                    data.refit
                   )
                 yield new ResamplingFold(
                   foldIndex,
