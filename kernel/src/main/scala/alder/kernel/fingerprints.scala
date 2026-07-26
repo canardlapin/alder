@@ -9,6 +9,12 @@ enum FingerprintPolicy derives CanEqual:
 /** Fingerprint of a dataset's contents under a declared policy. */
 final class DataFingerprint(val policy: FingerprintPolicy, val digest: String)
 
+/** Policy-tagged identity of a protocol configuration, such as a resampler. */
+final class ProtocolFingerprint(
+    val policy: FingerprintPolicy,
+    val digest: String
+)
+
 /** Fingerprint of a normalized logical plan. Stage identities and seed
   * derivations key off this, never off runtime combinator nesting.
   */
@@ -53,8 +59,27 @@ object Seed:
 
   extension (seed: Seed)
     def value: Long = seed
-    def child(ordinal: Int): Seed =
-      splitmix(seed + 0x9e3779b97f4a7c15L * (ordinal.toLong + 1L))
+    private[alder] def child(
+        plan: PlanFingerprint,
+        ordinal: Int
+    ): Seed =
+      splitmix(
+        seed ^ stablePlanHash(plan) ^
+          (0x9e3779b97f4a7c15L * (ordinal.toLong + 1L))
+      )
+
+  /** Stable across JVM, Scala.js, and Scala Native. In particular, this does
+    * not delegate to a platform String hash implementation.
+    */
+  private def stablePlanHash(plan: PlanFingerprint): Long =
+    import PlanFingerprint.*
+    val value = plan.render
+    var hash = 0xcbf29ce484222325L
+    var index = 0
+    while index < value.length do
+      hash = (hash ^ value.charAt(index).toLong) * 0x100000001b3L
+      index += 1
+    hash
 
   private def splitmix(input: Long): Long =
     var z = input

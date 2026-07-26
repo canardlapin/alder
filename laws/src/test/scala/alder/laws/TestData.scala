@@ -18,6 +18,25 @@ object TestData:
       )
     )
 
+  def examples(
+      values: (Double, Double, String)*
+  ): NonEmptyData[Use.Train, Example[Double, Double, String]] =
+    val rows = values.toVector.zipWithIndex.map { (value, index) =>
+      (
+        RowId(index.toLong),
+        Example(value._1, value._2, value._3)
+      )
+    }
+    new NonEmptyData(
+      RowVectorData(
+        rows,
+        new DataFingerprint(
+          FingerprintPolicy.Summary("test-examples"),
+          values.mkString(",")
+        )
+      )
+    )
+
   def rowsOf[U <: Use, A](data: NonEmptyData[U, A]): Vector[(Long, A)] =
     data.data.foldRows(Vector.empty[(Long, A)]) { (acc, id, value) =>
       acc :+ (id.value, value)

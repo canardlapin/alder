@@ -13,8 +13,8 @@ enum CodecError derives CanEqual:
   * semantic loss. Java serialization is not an artifact format.
   */
 trait ArtifactCodec[A]:
-  def encode(trained: Trained[A]): Either[CodecError, Array[Byte]]
-  def decode(bytes: Array[Byte]): Either[CodecError, Trained[A]]
+  def encode(trained: Trained[A]): Either[CodecError, IArray[Byte]]
+  def decode(bytes: IArray[Byte]): Either[CodecError, Trained[A]]
 
 enum ExplainError derives CanEqual:
   case NotExplainable(description: String)

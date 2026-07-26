@@ -17,7 +17,7 @@ final class FitContext private (
 
   private[alder] def forChild(ordinal: Int): FitContext =
     new FitContext(
-      seed.child(ordinal),
+      seed.child(plan, ordinal),
       stagePath.child(ordinal),
       plan,
       schema,
@@ -46,7 +46,8 @@ final class FitContext private (
         preparation =
           PreparationLineage.leaf(stagePath, PreparationScopeTag.Reusable),
         component = component,
-        children = Vector.empty
+        children = Vector.empty,
+        shape = AuditShape.Leaf
       )
     )
 
@@ -56,7 +57,8 @@ final class FitContext private (
       data: DataFingerprint,
       component: ComponentDescriptor,
       preparation: PreparationLineage,
-      children: Vector[Audit]
+      children: Vector[Audit],
+      shape: AuditShape = AuditShape.Composite
   ): Trained[A] =
     new Trained(
       artifact,
@@ -69,7 +71,8 @@ final class FitContext private (
         numerics = numericMode,
         preparation = preparation,
         component = component,
-        children = children
+        children = children,
+        shape = shape
       )
     )
 
@@ -98,5 +101,26 @@ private[alder] object AlderComponents:
 
   val composeTransform: ComponentDescriptor =
     descriptor("alder.compose.transform")
+  val composeFeatureMap: ComponentDescriptor =
+    descriptor("alder.compose.feature-map")
+  val mapFeatureOutput: ComponentDescriptor =
+    descriptor("alder.map.feature-output")
+  val composeFoldEncoder: ComponentDescriptor =
+    descriptor("alder.compose.fold-encoder")
   val learnedWith: ComponentDescriptor =
     descriptor("alder.compose.learnedWith")
+
+  def crossFitted(
+      resampler: ProtocolFingerprint,
+      foldCount: Int
+  ): ComponentDescriptor =
+    ComponentDescriptor(
+      id = ComponentId("alder.prepare.cross-fitted"),
+      version = ComponentVersion("0.1.0-SNAPSHOT"),
+      parameters = AuditValue.record(
+        "resamplerPolicy" -> AuditValue.text(resampler.policy.toString),
+        "resamplerDigest" -> AuditValue.text(resampler.digest),
+        "foldCount" -> AuditValue.integer(foldCount.toLong)
+      ),
+      backend = backend
+    )

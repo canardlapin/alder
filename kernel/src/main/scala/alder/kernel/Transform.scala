@@ -19,15 +19,72 @@ trait Transform[F[_], X, Z]:
     Prepared[Preparation.Reusable, U, Fitted, Z]
   ]
 
-extension [F[_], X, Z, L <: Transform[F, X, Z]](left: L)
-  /** Transform composition is closed (composition algebra row 2). Top-level so
-    * `import alder.kernel.*` brings it into scope. The concrete stage types L
-    * and R are retained so composed error members stay precise at call sites.
+  /** Transform composition is closed (composition algebra row 2). The
+    * singleton receiver type retains this stage's precise error members.
     */
-  def andThen[W, R <: Transform[F, Z, W]](right: R)(using
+  final def andThen[W, R <: Transform[F, Z, W]](right: R)(using
       Monad[F]
-  ): ThenTransform[F, X, Z, W, L, R] =
-    ThenTransform(left, right)
+  ): ThenTransform[F, X, Z, W, this.type, R] =
+    ThenTransform(this, right)
+
+  /** Target-blind preparation may lawfully precede target-aware preparation. */
+  final def andThen[
+      Y,
+      M,
+      W,
+      FM <: FeatureMap[F, Z, Y, M, W]
+  ](featureMap: FM)(using
+      Monad[F]
+  ): ThenFeatureMap[F, X, Y, M, Z, W, this.type, FM] =
+    ThenFeatureMap(this, featureMap)
+
+  /** Target-blind preparation may feed a terminal learner directly. */
+  final def learnWith[
+      Y,
+      M,
+      P,
+      L <: Learner[F, Z, Y, M, P]
+  ](learner: L)(using
+      Monad[F]
+  ): LearnedWith[
+    F,
+    X,
+    Y,
+    M,
+    Z,
+    P,
+    InputOnlyFeatureMap[F, X, Y, M, Z, this.type],
+    L
+  ] =
+    new LearnedWith[
+      F,
+      X,
+      Y,
+      M,
+      Z,
+      P,
+      InputOnlyFeatureMap[F, X, Y, M, Z, this.type],
+      L
+    ](
+      FeatureMap.inputOnly[F, X, Y, M, Z, this.type](this),
+      learner
+    )
+
+  /** Internal normalized-plan interpreter hook. Third-party transforms are
+    * leaves by default; Alder's composition values override it to distribute
+    * absolute stable ordinals without exposing layout machinery publicly.
+    */
+  private[alder] def fitFrom[U <: Use.Fit](
+      data: NonEmptyData[U, X],
+      startOrdinal: Int
+  )(using context: FitContext): FitResult[
+    F,
+    FitError,
+    Prepared[Preparation.Reusable, U, Fitted, Z]
+  ] =
+    fit(data)(using context.forChild(startOrdinal))
+
+  private[alder] def stageCount: Int = 1
 
 /** Sequential composition of two target-blind transforms. Knows nothing
   * algorithm-specific: only preparation scope, row identity, audit
@@ -50,8 +107,20 @@ final class ThenTransform[
   type RunError = left.RunError | right.RunError
   type Fitted = Pipe.Chain[X, left.RunError, Z, right.RunError, W]
 
+  override private[alder] def stageCount: Int =
+    left.stageCount + right.stageCount
+
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, X]
+  )(using context: FitContext): FitResult[
+    F,
+    FitError,
+    Prepared[Preparation.Reusable, U, Fitted, W]
+  ] = fitFrom(data, 0)
+
+  override private[alder] def fitFrom[U <: Use.Fit](
+      data: NonEmptyData[U, X],
+      startOrdinal: Int
   )(using context: FitContext): FitResult[
     F,
     FitError,
@@ -59,10 +128,10 @@ final class ThenTransform[
   ] =
     for
       first <- left
-        .fit(data)(using context.forChild(0))
+        .fitFrom(data, startOrdinal)
         .widenFailure[FitError]
       second <- right
-        .fit(first.rows)(using context.forChild(1))
+        .fitFrom(first.rows, startOrdinal + left.stageCount)
         .widenFailure[FitError]
     yield
       val fitted: Fitted =
@@ -77,6 +146,9 @@ final class ThenTransform[
         data = data.fingerprint,
         component = AlderComponents.composeTransform,
         preparation = lineage,
-        children = Vector(first.fitted.audit, second.fitted.audit)
+        children =
+          first.fitted.audit.flattenedTransformSequence ++
+            second.fitted.audit.flattenedTransformSequence,
+        shape = AuditShape.TransformSequence
       )
       new Prepared(trained, second.rows, lineage)

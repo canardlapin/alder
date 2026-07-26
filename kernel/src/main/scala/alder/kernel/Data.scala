@@ -54,3 +54,90 @@ private[alder] final class RowVectorData[U <: Use, A](
   def size: Long = rows.length.toLong
   def foldRows[B](initial: B)(step: (B, RowId, A) => B): B =
     rows.foldLeft(initial)((acc, row) => step(acc, row._1, row._2))
+
+enum PreparationError derives CanEqual:
+  case DuplicateInputRow(id: RowId)
+  case DuplicatePreparedRow(id: RowId)
+  case UnknownPreparedRow(id: RowId)
+  case MissingPreparedRows(count: Int)
+
+private[alder] final class MappedData[U <: Use, A, B](
+    source: Data[U, A],
+    f: A => B
+) extends Data[U, B]:
+  def size: Long = source.size
+  def fingerprint: DataFingerprint = source.fingerprint
+  def foldRows[C](initial: C)(step: (C, RowId, B) => C): C =
+    source.foldRows(initial)((acc, id, value) => step(acc, id, f(value)))
+
+private[alder] object DataOperations:
+  def mapNonEmpty[U <: Use, A, B](
+      data: NonEmptyData[U, A]
+  )(f: A => B): NonEmptyData[U, B] =
+    new NonEmptyData(new MappedData(data.data, f))
+
+  def traverseNonEmpty[U <: Use, E, A, B](
+      data: NonEmptyData[U, A]
+  )(
+      f: (RowId, A) => Either[Failure[E], B]
+  ): Either[Failure[E], NonEmptyData[U, B]] =
+    data.data
+      .foldRows[Either[Failure[E], Vector[(RowId, B)]]](Right(Vector.empty)) {
+        case (Left(failure), _, _) => Left(failure)
+        case (Right(rows), id, value) =>
+          f(id, value).map(result => rows :+ (id, result))
+      }
+      .map(rows =>
+        new NonEmptyData(RowVectorData(rows, data.fingerprint))
+      )
+
+  def restoreExamples[U <: Use.Fit, X, Y, M, Z](
+      original: NonEmptyData[U, Example[X, Y, M]],
+      prepared: NonEmptyData[U, Z],
+      stage: StagePath
+  ): Either[
+    Failure[PreparationError],
+    NonEmptyData[U, Example[Z, Y, M]]
+  ] =
+    val originals = original.data.foldRows[
+      Either[PreparationError, Map[RowId, (Y, M)]]
+    ](Right(Map.empty)) {
+      case (Left(error), _, _) => Left(error)
+      case (Right(rows), id, example) =>
+        if rows.contains(id) then
+          Left(PreparationError.DuplicateInputRow(id))
+        else Right(rows.updated(id, (example.target, example.meta)))
+    }
+    val restored = originals.flatMap { available =>
+      prepared.data.foldRows[
+        Either[
+          PreparationError,
+          (Map[RowId, (Y, M)], Set[RowId], Vector[(RowId, Example[Z, Y, M])])
+        ]
+      ](Right((available, Set.empty, Vector.empty))) {
+        case (Left(error), _, _) => Left(error)
+        case (Right((remaining, seen, rows)), id, value) =>
+          if seen.contains(id) then
+            Left(PreparationError.DuplicatePreparedRow(id))
+          else
+            remaining.get(id) match
+              case None => Left(PreparationError.UnknownPreparedRow(id))
+              case Some((target, meta)) =>
+                Right(
+                  (
+                    remaining.removed(id),
+                    seen + id,
+                    rows :+ (id, Example(value, target, meta))
+                  )
+                )
+      }.flatMap { (remaining, _, rows) =>
+        if remaining.isEmpty then Right(rows)
+        else Left(PreparationError.MissingPreparedRows(remaining.size))
+      }
+    }
+    restored
+      .left
+      .map(stage.failure)
+      .map(rows =>
+        new NonEmptyData(RowVectorData(rows, original.fingerprint))
+      )

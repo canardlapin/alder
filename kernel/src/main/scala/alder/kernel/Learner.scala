@@ -16,15 +16,13 @@ trait Learner[F[_], X, Y, M, P]:
       data: NonEmptyData[U, Example[X, Y, M]]
   )(using FitContext): FitResult[F, FitError, Trained[Model]]
 
-extension [F[_], X, Y, M, Z, FM <: FeatureMap[F, X, Y, M, Z]](featureMap: FM)
-  /** FeatureMap ∘ Learner = Learner (terminal). A workflow IS this value;
-    * there is no Workflow abstraction (D3). Top-level so
-    * `import alder.kernel.*` brings it into scope.
-    */
-  def learnWith[P, L <: Learner[F, Z, Y, M, P]](learner: L)(using
-      Monad[F]
-  ): LearnedWith[F, X, Y, M, Z, P, FM, L] =
-    LearnedWith(featureMap, learner)
+  private[alder] def fitFrom[U <: Use.Fit](
+      data: NonEmptyData[U, Example[X, Y, M]],
+      startOrdinal: Int
+  )(using context: FitContext): FitResult[F, FitError, Trained[Model]] =
+    fit(data)(using context.forChild(startOrdinal))
+
+  private[alder] def stageCount: Int = 1
 
 /** FeatureMap composed with a terminal learner: fits the feature map, fits the
   * learner on the LearnerReady rows, and serves through the chained pipe. The
@@ -49,15 +47,24 @@ final class LearnedWith[
   type RunError = featureMap.RunError | learner.RunError
   type Model = Pipe.Chain[X, featureMap.RunError, Z, learner.RunError, P]
 
+  override private[alder] def stageCount: Int =
+    featureMap.stageCount + learner.stageCount
+
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Y, M]]
   )(using context: FitContext): FitResult[F, FitError, Trained[Model]] =
+    fitFrom(data, 0)
+
+  override private[alder] def fitFrom[U <: Use.Fit](
+      data: NonEmptyData[U, Example[X, Y, M]],
+      startOrdinal: Int
+  )(using context: FitContext): FitResult[F, FitError, Trained[Model]] =
     for
       prepared <- featureMap
-        .fit(data)(using context.forChild(0))
+        .fitFrom(data, startOrdinal)
         .widenFailure[FitError]
       model <- learner
-        .fit(prepared.rows)(using context.forChild(1))
+        .fitFrom(prepared.rows, startOrdinal + featureMap.stageCount)
         .widenFailure[FitError]
     yield
       val chained: Model =
@@ -67,5 +74,8 @@ final class LearnedWith[
         data = data.fingerprint,
         component = AlderComponents.learnedWith,
         preparation = prepared.lineage,
-        children = Vector(prepared.fitted.audit, model.audit)
+        children =
+          prepared.fitted.audit.flattenedPreparationSequence ++
+            model.audit.flattenedPreparationSequence,
+        shape = AuditShape.WorkflowSequence
       )

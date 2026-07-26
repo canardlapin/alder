@@ -68,17 +68,19 @@ object MeanShift:
 
 class ProtocolSuite extends munit.FunSuite:
 
-  private def rootContext: FitContext =
+  private def rootContext(
+      plan: PlanFingerprint = PlanFingerprint("test-plan")
+  ): FitContext =
     FitContext.root(
       seed = Seed(7L),
-      plan = PlanFingerprint("test-plan"),
+      plan = plan,
       schema = SchemaFingerprint("double"),
       numericMode = NumericMode.Deterministic
     )
 
   test("leaf fit: prepared rows are the replay of the fitted pipe") {
     val data = TestData.train(1.0, 2.0, 3.0, 6.0)
-    val result = MeanShift[Id]().fit(data)(using rootContext).value
+    val result = MeanShift[Id]().fit(data)(using rootContext()).value
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
@@ -92,7 +94,7 @@ class ProtocolSuite extends munit.FunSuite:
   test("composed transform: chained pipe, chained audit, distinct stages") {
     val data = TestData.train(1.0, 2.0, 3.0, 6.0)
     val composed = MeanShift[Id]().andThen(MeanShift[Id]())
-    val result = composed.fit(data)(using rootContext).value
+    val result = composed.fit(data)(using rootContext()).value
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
@@ -117,7 +119,7 @@ class ProtocolSuite extends munit.FunSuite:
   test("run failure carries the failing stage's path") {
     val data = TestData.train(1.0, 2.0, 3.0, 6.0)
     val composed = MeanShift[Id]().andThen(MeanShift[Id]())
-    val result = composed.fit(data)(using rootContext).value
+    val result = composed.fit(data)(using rootContext()).value
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
@@ -127,4 +129,67 @@ class ProtocolSuite extends munit.FunSuite:
             // NaN fails in the first stage, at child path /0
             assertEquals(failure.stage, StagePath.root.child(0))
             assertEquals(failure.cause, ToyRunError.NonFinite)
+  }
+
+  test("transform association preserves flat audit, lineage, seeds, and output") {
+    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val a = MeanShift[Id]()
+    val b = MeanShift[Id]()
+    val c = MeanShift[Id]()
+    val leftAssociated = a.andThen(b).andThen(c)
+    val rightAssociated = a.andThen(b.andThen(c))
+
+    val left = leftAssociated.fit(data)(using rootContext()).value
+    val right = rightAssociated.fit(data)(using rootContext()).value
+
+    (left, right) match
+      case (Right(leftPrepared), Right(rightPrepared)) =>
+        val leftAudit = leftPrepared.fitted.audit
+        val rightAudit = rightPrepared.fitted.audit
+        assertEquals(leftAudit.children.length, 3)
+        assertEquals(rightAudit.children.length, 3)
+        assertEquals(
+          leftAudit.children.map(_.preparation.stage),
+          rightAudit.children.map(_.preparation.stage)
+        )
+        assertEquals(
+          leftAudit.children.map(_.seed),
+          rightAudit.children.map(_.seed)
+        )
+        assertEquals(
+          leftPrepared.lineage.children.map(_.stage),
+          rightPrepared.lineage.children.map(_.stage)
+        )
+        assertEquals(
+          TestData.rowsOf(leftPrepared.rows),
+          TestData.rowsOf(rightPrepared.rows)
+        )
+        assertEquals(
+          leftPrepared.fitted.artifact.run(4.0),
+          rightPrepared.fitted.artifact.run(4.0)
+        )
+      case (Left(failure), _) => fail(s"unexpected left failure: $failure")
+      case (_, Left(failure)) => fail(s"unexpected right failure: $failure")
+  }
+
+  test("derived stage seeds include the normalized plan fingerprint") {
+    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val transform = MeanShift[Id]().andThen(MeanShift[Id]())
+    val first =
+      transform
+        .fit(data)(using rootContext(PlanFingerprint("first-plan")))
+        .value
+    val second =
+      transform
+        .fit(data)(using rootContext(PlanFingerprint("second-plan")))
+        .value
+
+    (first, second) match
+      case (Right(firstPrepared), Right(secondPrepared)) =>
+        assertNotEquals(
+          firstPrepared.fitted.audit.children.map(_.seed),
+          secondPrepared.fitted.audit.children.map(_.seed)
+        )
+      case (Left(failure), _) => fail(s"unexpected first failure: $failure")
+      case (_, Left(failure)) => fail(s"unexpected second failure: $failure")
   }

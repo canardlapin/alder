@@ -45,6 +45,30 @@ enum PreparationScopeTag derives CanEqual:
   case Reusable
   case LearnerReady
 
+private[alder] enum PreparationLineageShape derives CanEqual:
+  case Leaf
+  case Sequence
+  case CrossFitted
+
+/** One compact cross-fitting fold receipt. Membership is committed by the
+  * parent assignment digest; production audits contain no RowId lists.
+  */
+final class CrossFitFoldLineage private[alder] (
+    val index: Int,
+    val analysis: DataFingerprint,
+    val assessment: DataFingerprint,
+    val fittedState: PreparationLineage
+)
+
+/** Reproducible, privacy-bounded cross-fitting protocol receipt (D21). */
+final class CrossFitLineage private[alder] (
+    val resampler: ProtocolFingerprint,
+    val seed: Seed,
+    val assignment: DataFingerprint,
+    val folds: Vector[CrossFitFoldLineage],
+    val serving: PreparationLineage
+)
+
 /** How prepared training rows were produced. Plan-shaped and per-fold in
   * production — never per-row (D15). Full schema is deliberately deferred
   * until FeatureMap.crossFitted forces it (O6); this type is a final class so
@@ -53,22 +77,62 @@ enum PreparationScopeTag derives CanEqual:
 final class PreparationLineage private[alder] (
     val stage: StagePath,
     val scope: PreparationScopeTag,
-    val children: Vector[PreparationLineage]
-)
+    val children: Vector[PreparationLineage],
+    val crossFit: Option[CrossFitLineage],
+    private[alder] val shape: PreparationLineageShape
+):
+  private[alder] def flattenedSequence: Vector[PreparationLineage] =
+    shape match
+      case PreparationLineageShape.Leaf     => Vector(this)
+      case PreparationLineageShape.Sequence =>
+        children.flatMap(_.flattenedSequence)
+      case PreparationLineageShape.CrossFitted => Vector(this)
 
 object PreparationLineage:
   private[alder] def leaf(
       stage: StagePath,
       scope: PreparationScopeTag
   ): PreparationLineage =
-    new PreparationLineage(stage, scope, Vector.empty)
+    new PreparationLineage(
+      stage,
+      scope,
+      Vector.empty,
+      None,
+      PreparationLineageShape.Leaf
+    )
 
   private[alder] def sequence(
       stage: StagePath,
       scope: PreparationScopeTag,
       children: Vector[PreparationLineage]
   ): PreparationLineage =
-    new PreparationLineage(stage, scope, children)
+    new PreparationLineage(
+      stage,
+      scope,
+      children.flatMap(_.flattenedSequence),
+      None,
+      PreparationLineageShape.Sequence
+    )
+
+  private[alder] def crossFitted(
+      stage: StagePath,
+      receipt: CrossFitLineage
+  ): PreparationLineage =
+    new PreparationLineage(
+      stage,
+      PreparationScopeTag.LearnerReady,
+      receipt.folds.map(_.fittedState) :+ receipt.serving,
+      Some(receipt),
+      PreparationLineageShape.CrossFitted
+    )
+
+private[alder] enum AuditShape derives CanEqual:
+  case Leaf
+  case Composite
+  case TransformSequence
+  case FeatureMapSequence
+  case FoldEncoderSequence
+  case WorkflowSequence
 
 /** Mandatory provenance, part of the result of fitting — not an
   * experiment-tracker side channel. Final class, not a case class: it sits on
@@ -83,8 +147,24 @@ final class Audit private[alder] (
     val numerics: NumericMode,
     val preparation: PreparationLineage,
     val component: ComponentDescriptor,
-    val children: Vector[Audit]
-)
+    val children: Vector[Audit],
+    private[alder] val shape: AuditShape
+):
+  private[alder] def flattenedTransformSequence: Vector[Audit] =
+    shape match
+      case AuditShape.TransformSequence =>
+        children.flatMap(_.flattenedTransformSequence)
+      case AuditShape.Leaf | AuditShape.Composite |
+          AuditShape.FeatureMapSequence | AuditShape.FoldEncoderSequence |
+          AuditShape.WorkflowSequence =>
+        Vector(this)
+
+  private[alder] def flattenedPreparationSequence: Vector[Audit] =
+    shape match
+      case AuditShape.TransformSequence | AuditShape.FeatureMapSequence |
+          AuditShape.FoldEncoderSequence | AuditShape.WorkflowSequence =>
+        children.flatMap(_.flattenedPreparationSequence)
+      case AuditShape.Leaf | AuditShape.Composite => Vector(this)
 
 /** A fitted artifact paired with its mandatory audit. Constructed only through
   * [[FitContext.complete]] (D11): the framework, not the plugin, supplies
