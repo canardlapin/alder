@@ -8,7 +8,26 @@
     "documentStatus": "canonical",
     "documentDate": "2026-07-25",
     "supersedes": ["notes1.md", "notes2.md"],
-    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), and two review rounds that corrected the composition algebra, error model, data-role hierarchy, and numerical-backend boundary."
+    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), and three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility."
+  },
+
+  "review": {
+    "status": "approvedForImplementationWithGates",
+    "date": "2026-07-25",
+    "evidence": "docs/reviews/prd-2026-07-25.md; the ratified SHA-256 and implementation issue graph are recorded in mote.",
+    "corrections": [
+      "FeatureMap.crossFitted is implemented in alder-data as an extension on FeatureMap.type, beside the Resampler protocol and implementations; alder-kernel never depends on alder-data.",
+      "FoldEncoder.fit preserves the caller's U <: Use.Fit role so cross-fitted refit workflows do not require an illicit Refit-to-Train retag.",
+      "Seed-allocation associativity is a Transform-composition law, not a Pipe law.",
+      "ArtifactCodec uses immutable IArray[Byte] payloads so the immutable-artifact contract is not undermined by mutable array aliases.",
+      "Cross-fitting requires CompleteResampler, whose assessment partitions cover every input row exactly once; rolling-origin remains an evaluation-only Resampler because its initial analysis window is never assessed.",
+      "FoldEncoder states are Trained and encode failures retain Failure stage provenance; FoldEncoder.andThen exposes analysis-row encode failures in its FitError union. FeatureMap rowwise postprocessing is total mapOutput in 0.1 rather than an unaudited arbitrary fitted Pipe."
+    ],
+    "implementationGates": [
+      "Before downstream modules, repair and law-test normalized stage ordinals: composed Transform stage paths, derived seeds, lineage, and audit children must be parenthesization-invariant and seed derivation must include the plan fingerprint.",
+      "Resolve O6 and extend the final-class PreparationLineage schema before implementing FeatureMap.crossFitted.",
+      "Every v0.1 composition-algebra row marked safe must have an implementation slice plus compile/runtime laws; the initial scaffold is not the complete kernel."
+    ]
   },
 
   "vision": {
@@ -58,8 +77,8 @@
     "scalaVersion": "3.3.8",
     "rationale": "TASTy compatibility is one-directional: newer compilers read older minor-version TASTy, not the reverse. Publishing the kernel from 3.7.x would exclude LTS-pinned plugin authors. Gale and linop4s both publish from 3.3.8. No post-3.3 language feature is needed anywhere in the public API.",
     "ci": {
-      "required": "Scala 3.3.8 on JVM and Scala.js",
-      "advisory": "current Scala Next (continue-on-error)"
+      "required": "Scala 3.3.8 on JVM and Scala.js; Scala Native is additionally required for kernel and laws",
+      "advisory": "current Scala Next (continue-on-error); Scala Native for pure modules beyond kernel and laws"
     },
     "compatibilityGates": {
       "mima": "from the first published release (0.1), not deferred",
@@ -176,7 +195,7 @@
     },
     "fitResult": "type FitResult[F[_], E, A] = EitherT[F, Failure[E], A]",
     "unionSemantics": "Scala 3 unions are associative and commutative ((A | (B | C)) =:= ((A | B) | C)), so the cause set is parenthesization-invariant. Fit errors remain associated type members (chosen once per implementation); combinators expose unions (left.FitError | right.FitError). Applications collapse growing unions deliberately via mapFitError/mapRunError — information loss is explicit, never automatic.",
-    "replayErrors": "Because Transform.fit owns its training replay, replay failure surfaces inside that transform's FitError (e.g. case ReplayFailed(error: RunError)). Composed FitError is exactly left.FitError | right.FitError — no hidden third channel."
+    "replayErrors": "Because Transform.fit owns its training replay, replay failure surfaces inside that transform's FitError (e.g. case ReplayFailed(error: RunError)). Transform.andThen(Transform) FitError is exactly left.FitError | right.FitError. Other combinators that must execute a fitted component over training rows expose that component's RunError explicitly in their FitError union; protocol/alignment validation uses the typed PreparationError channel. No fit-time execution failure is hidden or discarded."
   },
 
   "abstractions": {
@@ -223,15 +242,16 @@
       "role": "Leakage-aware supervised preprocessing.",
       "definition": [
         "trait FeatureMap[F[_], X, Y, M, Z]:",
+        "  type Scope <: Preparation.LearnerReady",
         "  type FitError",
         "  type RunError",
         "  type Fitted <: Pipe[X, RunError, Z]",
         "  def fit[U <: Use.Fit](data: NonEmptyData[U, Example[X, Y, M]])(using FitContext)",
-        "    : FitResult[F, FitError, Prepared[Preparation.LearnerReady, U, Fitted, Example[Z, Y, M]]]"
+        "    : FitResult[F, FitError, Prepared[Scope, U, Fitted, Example[Z, Y, M]]]"
       ],
       "safeConstructors": {
         "inputOnly": "FeatureMap.inputOnly(transform) — lifts a Transform; library preserves targets, metadata, row identities; result scope is Reusable.",
-        "crossFitted": "FeatureMap.crossFitted(encoder: FoldEncoder, resampler) — owns the protocol: split; fit each analysis partition; encode only its held-out assessment partition; reassemble OOF rows in original order; fit one final serving state on all rows; record both lineages. There is deliberately no public encoder.fit(all).encode(all) shortcut."
+        "crossFitted": "FeatureMap.crossFitted(encoder: FoldEncoder, resampler: CompleteResampler) — provided by alder-data as an extension on FeatureMap.type, beside the Resampler protocol, so the kernel/data dependency remains one-way. CompleteResampler certifies that assessment partitions cover every input RowId exactly once; KFold and grouped KFold qualify, rolling-origin does not. The constructor owns the protocol: split; fit each analysis partition; encode only its held-out assessment partition; reassemble OOF rows in original order; fit one final serving state on all rows; record both lineages. There is deliberately no safe convenience constructor for encoder.fit(all).encode(all)."
       }
     },
     "foldEncoder": {
@@ -240,12 +260,13 @@
         "  type State",
         "  type FitError",
         "  type RunError",
-        "  def fit(data: NonEmptyData[Use.Train, Example[X, Y, M]])(using FitContext): FitResult[F, FitError, State]",
-        "  def encode(state: State, input: X): Either[RunError, Z]"
+        "  def fit[U <: Use.Fit](data: NonEmptyData[U, Example[X, Y, M]])(using FitContext): FitResult[F, FitError, Trained[State]]",
+        "  def encode(state: State, input: X): Either[Failure[RunError], Z]"
       ],
       "composition": {
         "law": "FoldEncoder[F, X, Y, M, Z] ∘ Transform[F, Z, W] = FoldEncoder[F, X, Y, M, W] (encoder.andThen(transform))",
         "semantics": "The inner transform is fitted per-fold on analysis rows only — whole-chain cross-fitting for the two-stage case, true by construction, at the cost of k+1 inner fits instead of 1.",
+        "errors": "The composed FitError is encoder.FitError | encoder.RunError | transform.FitError because encoder output must be computed on analysis rows before fitting the transform. State is Trained and child audits are retained. encode keeps Failure stage provenance from both stages.",
         "motivation": "Restores the flagship pattern (target-encode then standardize then learn) inside the safe API, which the composition table otherwise outlaws: crossFitted(targetEncoder.andThen(standardizer), folds).learnWith(lr). REQUIRED for 0.1."
       }
     },
@@ -271,7 +292,7 @@
       { "first": "Pipe", "next": "Pipe", "result": "Pipe", "safe": true },
       { "first": "Transform", "next": "Transform", "result": "Transform", "safe": true },
       { "first": "Transform", "next": "FeatureMap", "result": "FeatureMap", "safe": true },
-      { "first": "FeatureMap", "next": "pure fitted Pipe (rowwise)", "result": "FeatureMap", "safe": true, "note": "a pure already-fitted pipe was not fitted on these rows; scope is preserved" },
+      { "first": "FeatureMap", "next": "total rowwise function via mapOutput", "result": "FeatureMap", "safe": true, "note": "the function has no fitted state or training dependency; preparation scope is preserved" },
       { "first": "Transform", "next": "Learner", "result": "Learner", "safe": true },
       { "first": "FeatureMap", "next": "Learner", "result": "Learner (terminal)", "safe": true },
       { "first": "FoldEncoder", "next": "Transform", "result": "FoldEncoder", "safe": true, "note": "inner transform fitted per-fold on analysis rows; the 0.1 route to target-encode-then-standardize" },
@@ -333,7 +354,8 @@
       "fields": ["plan: PlanFingerprint", "data: DataFingerprint", "schema: SchemaFingerprint", "seed: Seed", "backend: BackendFingerprint", "numerics: NumericMode", "preparation: PreparationLineage", "children: Vector[Audit]"],
       "rules": [
         "Part of the result of fitting, not an experiment-tracker side channel.",
-        "Raw data need not be embedded; the fingerprinting policy (digest, source identity, privacy-preserving summary) must itself be recorded."
+        "Raw data need not be embedded; the fingerprinting policy (digest, source identity, privacy-preserving summary) must itself be recorded.",
+        "Cross-fitted lineage is a compact plan receipt: policy-tagged resampler fingerprint, seed, policy-tagged assignment digest, ordered per-fold analysis/assessment fingerprints plus fitted-state lineage, and final all-row serving lineage. Production lineage never embeds RowId lists."
       ]
     },
     "fitContext": {
@@ -359,7 +381,7 @@
   },
 
   "capabilities": {
-    "rule": "A model exposes only typed prediction. Everything else is typeclass evidence: ArtifactCodec[A], Explain[A, X], Incremental[L], PrincipalComponents[A], InverseTransform[A]. Missing evidence means the operation does not compile — there is no runtime 'unsupported'.",
+    "rule": "A model exposes only typed prediction. Everything else is typeclass evidence: ArtifactCodec[A], Explain[A, X], Incremental[L], PrincipalComponents[A], InverseTransform[A]. Missing evidence means the operation does not compile — there is no runtime 'unsupported'. ArtifactCodec encodes and decodes immutable IArray[Byte] payloads; mutable Array aliases are not part of the public artifact contract.",
     "codecLaws": [
       "decode(encode(model)).predict(x) == model.predict(x) for all valid x; audit round-trips without semantic loss.",
       "Chain codec: ArtifactCodec derivation for Pipe.Chain given codecs of the parts — REQUIRED, or no composed workflow can ever be saved.",
@@ -409,15 +431,17 @@
 
   "modules": [
     { "name": "alder-kernel", "contents": "Pipe, Failure, StagePath, Use roles, Data/NonEmptyData/RowId, Example/Scored, Prepared + Preparation scopes, Trained, Transform, FeatureMap, FoldEncoder, Learner, FitContext, audit contracts, capability typeclass definitions", "dependencies": ["cats-core"] },
-    { "name": "alder-laws", "contents": "Discipline/ScalaCheck law suites (PipeTests, TransformTests, FeatureMapTests, LearnerTests, MetricTests, SpaceTests, ArtifactCodecTests), leakage-tracing instrumentation, compile-negative documentation tests", "dependencies": ["alder-kernel", "discipline", "scalacheck"], "scope": "test-only for consumers" },
+    { "name": "alder-laws", "contents": "Discipline/ScalaCheck law suites for kernel-owned contracts (PipeTests, TransformTests, FeatureMapTests, LearnerTests, ArtifactCodecTests), leakage-tracing instrumentation, compile-negative documentation tests", "dependencies": ["alder-kernel", "discipline", "scalacheck"], "scope": "test-only for consumers" },
     { "name": "alder-testkit", "contents": "Generators, numerical equality, instrumented datasets/encoders recording visible RowIds", "dependencies": ["alder-kernel"] },
-    { "name": "alder-data", "contents": "In-memory Data implementations, RowBatch, splitting (Holdout, KFold, grouped, rolling-origin), Refit constructors, Coordinates + derivation, CoordinateWriter, schema fingerprints", "dependencies": ["alder-kernel"] },
+    { "name": "alder-data", "contents": "In-memory Data implementations, RowBatch, Resampler and CompleteResampler protocols, FeatureMap.crossFitted extension requiring CompleteResampler, splitting (Holdout, KFold, grouped, rolling-origin), Refit constructors, Coordinates + derivation, CoordinateWriter, schema fingerprints", "dependencies": ["alder-kernel"] },
     { "name": "alder-preprocess", "contents": "StandardScaler (Welford/pairwise moments, ZeroVariance policy, Standardized[A] brand), basic target-blind transforms", "dependencies": ["alder-kernel", "alder-data"] },
     { "name": "alder-metrics", "contents": "Typed metrics, reproducible mergeable accumulators, weighted variants", "dependencies": ["alder-kernel", "cats-kernel"] },
+    { "name": "alder-metrics-laws", "contents": "Published Metric Discipline suites and adversarial accumulator generators", "dependencies": ["alder-metrics", "alder-testkit", "discipline", "scalacheck"], "scope": "test-only for consumers" },
     { "name": "alder-models-linear", "contents": "RidgeConfig, RidgeSolution, RidgeBackend, RidgeRegression, SolverReceipt vocabulary", "dependencies": ["alder-kernel", "alder-data"] },
     { "name": "alder-ridge-gale", "contents": "GaleRidgeBackend (AugmentedQR | NormalCholesky), DMatBuilder materialization via CoordinateWriter, gale fingerprinting", "dependencies": ["alder-models-linear", "gale-core"] },
     { "name": "alder-ridge-linop4s", "contents": "Matrix-free LSQR/CG backend, Termination→SolverReceipt mapping", "dependencies": ["alder-models-linear", "linop4s-core", "linop4s-krylov"] },
     { "name": "alder-tune", "contents": "Applicative Space, grid and random interpreters, LearnerView/eraseModel, Selection, StudyAudit", "dependencies": ["alder-kernel", "alder-data", "alder-metrics"] },
+    { "name": "alder-tune-laws", "contents": "Published Space, tuning-erasure, and study-role Discipline suites", "dependencies": ["alder-tune", "alder-laws", "alder-testkit", "discipline", "scalacheck"], "scope": "test-only for consumers" },
     { "name": "alder-codec", "contents": "Versioned artifact formats, chain codec derivation, codec laws", "dependencies": ["alder-kernel"] },
     { "name": "alder-sparse-pca (separate repo)", "contents": "Published reference plugin: the notes2 sparse-PCA walkthrough as a real, compiling, law-tested third-party example with core + solver-backend artifacts", "dependencies": ["alder-kernel", "alder-data (optional)"] }
   ],
@@ -429,14 +453,14 @@
   },
 
   "laws": {
-    "pipe": ["identity", "associativity (output, first failure, stage path, seed allocation all parenthesization-invariant)", "first-failure preservation", "stage-path preservation", "error-map identity and composition"],
+    "pipe": ["identity", "associativity (output, first failure, and stage path all parenthesization-invariant)", "first-failure preservation", "stage-path preservation", "error-map identity and composition"],
     "transform": ["training replay: prepared rows equal the fitted pipe applied to original fitting inputs (true by construction via the Reusable factory)", "row-identity preservation", "target independence", "composition associativity", "audit and seed associativity"],
     "featureMap": ["row-identity preservation", "target and metadata preservation (only input may change)", "direct own-target exclusion", "complete fold coverage", "single production of every prepared row", "full-data serving fit", "lineage honesty"],
     "preparationConsumption": [
       "Reusable preparation may feed another fitted preprocessor.",
       "LearnerReady preparation may feed a terminal learner.",
       "LearnerReady preparation cannot feed a Transform or FeatureMap through the safe API.",
-      "A pure fitted Pipe applied rowwise preserves preparation scope."
+      "A total mapOutput function applied rowwise preserves preparation scope."
     ],
     "crossFitExclusion": "For every out-of-fold prepared row, that RowId is absent from the fitting lineage of the state that produced its output. Tested with instrumented datasets/encoders recording every visible RowId — the actual protocol is tested, not the implementation's declaration.",
     "futureTransitiveLaw": "For every prepared output row r: r is absent from the transitive closure of target dependencies of every fitted state contributing to that output. (Activated with whole-chain cross-fitting.)",
@@ -483,6 +507,7 @@
     "excludes": [
       "Whole-chain cross-fitting (CrossFit.whole / nestedWith) — one target-aware boundary per workflow is the principled 0.1 restriction",
       "CrossFit.predictions stacking/calibration (protocol named, implementation deferred)",
+      "Fallible or pre-fitted FeatureMap rowwise postprocessing until its FitContext rebasing, audit composition, and training-independence receipt contract is specified; 0.1 mapOutput is total",
       "Bayesian tuning",
       "public Sparse[S]",
       "dynamic DataFrame DSL, AutoML, distributed execution, deep-learning graphs, model registries, dashboards",
@@ -492,7 +517,7 @@
   },
 
   "openDecisions": [
-    { "id": "O6", "question": "Full PreparationLineage schema details — deliberately deferred until FeatureMap.crossFitted implementation forces them; the three binding commitments are recorded in D15." }
+    { "id": "O7", "question": "Whether fallible or pre-fitted rowwise postprocessing should be admitted after defining FitContext stage rebasing, audit composition, and a training-independence receipt. The 0.1 safe surface is total FeatureMap.mapOutput only." }
   ],
 
   "decisionLog": [
@@ -513,6 +538,10 @@
     { "id": "D15", "decision": "PreparationLineage: three binding commitments now — (1) plan-shaped and per-fold in production audits (fold membership as resampler fingerprint + seed + assignment digest; per-row RowId lists only in the instrumented testkit), (2) every fingerprint carries its policy tag (ContentDigest(algo) | SourceIdentity(uri, version) | Summary(policyId)), (3) Audit/lineage types are final classes with accessors, not case classes. Full schema deferred to crossFitted implementation (O6).", "rationale": "Per-row lineage in production is a size and privacy hazard; final classes on the frozen surface can gain fields compatibly where case classes cannot. Resolves O3." },
     { "id": "D16", "decision": "Pure modules cross-build JVM + JS + Native from day one (Native required in CI for kernel+laws, advisory elsewhere); backend adapters follow their libraries.", "rationale": "Dependencies are cats-only and linop4s proves the 3.3.8 Native toolchain; removing a platform is a break while continuous Native CI is the forcing function that keeps the kernel platform-clean; yields a working Native ridge path via the linop4s backend. Resolves O4." },
     { "id": "D17", "decision": "FoldEncoder.andThen admits chains, with a coherence law: encoder.andThen(t1).andThen(t2) is observationally equal to encoder.andThen(t1.andThen(t2)), including stage paths and seeds.", "rationale": "Transform composition is already closed, so forbidding chains would be an unenforceable syntactic distinction; implementation is identical (fit the composed transform per fold). Linear k+1 cost per appended stage is documented and recorded in lineage. Prepending needs no FoldEncoder support: Transform ∘ FeatureMap is already lawful. Resolves O5." },
-    { "id": "D18", "decision": "Sparse preprocessing: no centering constructor exists for Sparse[S] => Sparse[S] transforms (scale-only preserves sparsity); representation changes are explicit audited Densify/Sparsify transforms; model-required centering (ridge intercept) is backend-owned algebra (gale means-correction, linop4s rank-one operator X − 1μᵀ), never a preprocessing stage.", "rationale": "Turns sklearn's runtime error (with_mean on sparse) into a compile-time absence; fit-time densification becomes impossible silently and visible when chosen; the backend boundary already owned intercept centring, so the sparse case falls out of the existing design. See dataProtocol.schemas.sparsePreprocessingPolicy." }
+    { "id": "D18", "decision": "Sparse preprocessing: no centering constructor exists for Sparse[S] => Sparse[S] transforms (scale-only preserves sparsity); representation changes are explicit audited Densify/Sparsify transforms; model-required centering (ridge intercept) is backend-owned algebra (gale means-correction, linop4s rank-one operator X − 1μᵀ), never a preprocessing stage.", "rationale": "Turns sklearn's runtime error (with_mean on sparse) into a compile-time absence; fit-time densification becomes impossible silently and visible when chosen; the backend boundary already owned intercept centring, so the sparse case falls out of the existing design. See dataProtocol.schemas.sparsePreprocessingPolicy." },
+    { "id": "D19", "decision": "Resampler is split into an evaluation protocol and CompleteResampler, which certifies exactly-once assessment coverage of every input RowId. FeatureMap.crossFitted accepts CompleteResampler only; KFold and grouped KFold qualify, rolling-origin does not.", "rationale": "Cross-fitting must reconstruct one OOF value for every input row. Rolling-origin leaves its initial analysis window unassessed, so accepting an undifferentiated resampler would make the required output impossible or invite an in-sample fill-in. The capability changes which programs are legal and therefore belongs in the type system under P1." },
+    { "id": "D20", "decision": "FeatureMap has an associated Scope <: Preparation.LearnerReady so inputOnly and mapOutput retain Reusable statically. FoldEncoder.fit returns Trained[State], encode returns Either[Failure[RunError], Z], and FoldEncoder.andThen exposes encoder.RunError in its FitError union. FeatureMap rowwise postprocessing in 0.1 is total mapOutput, not an arbitrary bare or pre-fitted Pipe.", "rationale": "Preparation scope changes which downstream programs are legal and cannot be erased by the base trait. Encoder state is fitted state and cannot travel without audit under P4. Per-fold downstream fitting executes encoder output on analysis rows, so those run failures are real fit failures and must remain typed. Stripping Failure.cause would delete stage provenance. A bare Pipe violates mandatory audit, while a Trained Pipe still lacks proof it was independent of the prepared rows; total mapOutput has no training dependency and preserves scope honestly." },
+    { "id": "D21", "decision": "Cross-fitted PreparationLineage stores a compact plan receipt: a policy-tagged resampler fingerprint, the split seed, a policy-tagged assignment digest, ordered fold receipts containing fold index plus analysis/assessment fingerprints and fitted-state lineage, and the final all-row serving-state lineage. No production field contains RowIds.", "rationale": "This is sufficient to reproduce and audit which plan produced every OOF partition without turning production audits into row-level privacy and size liabilities. Explicit fold receipts keep the structure plan-shaped, while the assignment digest commits to exact membership. Resolves O6." },
+    { "id": "D22", "decision": "Published law artifacts follow ownership dependencies: alder-laws covers alder-kernel contracts; alder-metrics-laws depends on alder-metrics; alder-tune-laws depends on alder-tune plus the core laws/testkit.", "rationale": "A kernel-only alder-laws artifact cannot compile laws for Metric or Space because those types are owned by downstream modules. Making downstream implementations depend on a law artifact that itself requires their types creates a module and tracker cycle. Separate law artifacts preserve one-way dependencies and consumer opt-in test scope." }
   ]
 }
