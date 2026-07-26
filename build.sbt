@@ -68,9 +68,63 @@ lazy val lawsJVM    = laws.jvm
 lazy val lawsJS     = laws.js
 lazy val lawsNative = laws.native
 
+/** Published generators and leakage-tracing fixtures for Alder law suites and
+  * downstream plugin tests.
+  */
+lazy val testkit = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("testkit"))
+  .dependsOn(kernel)
+  .settings(strictSettings)
+  .settings(
+    name := "alder-testkit",
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % scalacheckV,
+      "org.scalameta"  %%% "munit"      % munitV % Test
+    )
+  )
+
+lazy val testkitJVM    = testkit.jvm
+lazy val testkitJS     = testkit.js
+lazy val testkitNative = testkit.native
+
+/** Immutable in-memory data, typed splitting, and resampling protocols.
+  * Cross-fitting constructors live here beside CompleteResampler so the
+  * dependency remains alder-data -> alder-kernel.
+  */
+lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("data"))
+  .dependsOn(kernel, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name := "alder-data",
+    libraryDependencies ++= Seq(
+      "org.scalameta"  %%% "munit"      % munitV      % Test,
+      "org.scalacheck" %%% "scalacheck"       % scalacheckV % Test
+    )
+  )
+
+lazy val dataJVM    = data.jvm
+lazy val dataJS     = data.js
+lazy val dataNative = data.native
+
 lazy val root = project
   .in(file("."))
-  .aggregate(kernelJVM, kernelJS, kernelNative, lawsJVM, lawsJS, lawsNative)
+  .aggregate(
+    kernelJVM,
+    kernelJS,
+    kernelNative,
+    lawsJVM,
+    lawsJS,
+    lawsNative,
+    testkitJVM,
+    testkitJS,
+    testkitNative,
+    dataJVM,
+    dataJS,
+    dataNative
+  )
   .settings(
     name           := "alder",
     publish / skip := true
