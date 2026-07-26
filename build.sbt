@@ -23,6 +23,18 @@ lazy val tesseraDesignsJS  = ProjectRef(tesseraBuild, "designsJS")
 lazy val tesseraDesignsNative =
   ProjectRef(tesseraBuild, "designsNative")
 
+// Development composites for the two independent ridge implementations.
+// ridge-gale remains non-publishable until Gale has a released compatible
+// version; source dependencies are deliberately a development-only bridge.
+lazy val galeBuild   = file("../gale").toURI
+lazy val galeCoreJVM = ProjectRef(galeBuild, "coreJVM")
+lazy val galeCoreJS  = ProjectRef(galeBuild, "coreJS")
+
+lazy val linop4sBuild        = file("../linop4s").toURI
+lazy val linop4sKrylovJVM    = ProjectRef(linop4sBuild, "krylovJVM")
+lazy val linop4sKrylovJS     = ProjectRef(linop4sBuild, "krylovJS")
+lazy val linop4sKrylovNative = ProjectRef(linop4sBuild, "krylovNative")
+
 // Alder's own source-quality policy (PRD buildAndCompatibility.compilerFlags),
 // never a consumer requirement.
 lazy val strictSettings = Seq(
@@ -190,6 +202,63 @@ lazy val metricsLawsJVM    = metricsLaws.jvm
 lazy val metricsLawsJS     = metricsLaws.js
 lazy val metricsLawsNative = metricsLaws.native
 
+/** Backend-neutral linear-model contracts and typed ridge learners. */
+lazy val modelsLinear = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("models-linear"))
+  .dependsOn(kernel, data, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name := "alder-models-linear",
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val modelsLinearJVM    = modelsLinear.jvm
+lazy val modelsLinearJS     = modelsLinear.js
+lazy val modelsLinearNative = modelsLinear.native
+
+/** Dense Gale ridge adapter. Publication is blocked on a released Gale. */
+lazy val ridgeGale = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("ridge-gale"))
+  .dependsOn(modelsLinear, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name           := "alder-ridge-gale",
+    publish / skip := true,
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val ridgeGaleJVM =
+  ridgeGale.jvm.dependsOn(
+    galeCoreJVM,
+    ridgeLinop4sJVM % "test->compile"
+  )
+lazy val ridgeGaleJS =
+  ridgeGale.js.dependsOn(
+    galeCoreJS,
+    ridgeLinop4sJS % "test->compile"
+  )
+
+/** Matrix-free linop4s LSQR/CG ridge adapter. */
+lazy val ridgeLinop4s =
+  crossProject(JVMPlatform, JSPlatform, NativePlatform)
+    .crossType(CrossType.Pure)
+    .in(file("ridge-linop4s"))
+    .dependsOn(modelsLinear, testkit % "test->compile")
+    .settings(strictSettings)
+    .settings(
+      name := "alder-ridge-linop4s",
+      libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+    )
+
+lazy val ridgeLinop4sJVM =
+  ridgeLinop4s.jvm.dependsOn(linop4sKrylovJVM)
+lazy val ridgeLinop4sJS =
+  ridgeLinop4s.js.dependsOn(linop4sKrylovJS)
+lazy val ridgeLinop4sNative =
+  ridgeLinop4s.native.dependsOn(linop4sKrylovNative)
+
 lazy val root = project
   .in(file("."))
   .aggregate(
@@ -213,7 +282,15 @@ lazy val root = project
     metricsNative,
     metricsLawsJVM,
     metricsLawsJS,
-    metricsLawsNative
+    metricsLawsNative,
+    modelsLinearJVM,
+    modelsLinearJS,
+    modelsLinearNative,
+    ridgeGaleJVM,
+    ridgeGaleJS,
+    ridgeLinop4sJVM,
+    ridgeLinop4sJS,
+    ridgeLinop4sNative
   )
   .settings(
     name           := "alder",
