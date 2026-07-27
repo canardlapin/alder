@@ -8,13 +8,13 @@
     "documentStatus": "canonical",
     "documentDate": "2026-07-26",
     "supersedes": ["notes1.md", "notes2.md"],
-    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility, plus the reviewed Scala 3.7.4 baseline amendment."
+    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility, the reviewed Scala 3.7.4 baseline amendment, and the reviewed application-layer and experiment-lifecycle amendment."
   },
 
   "review": {
     "status": "approvedForImplementationWithGates",
     "date": "2026-07-26",
-    "evidence": "docs/reviews/prd-2026-07-25.md and docs/reviews/scala-3.7.4-amendment-2026-07-26.md; the ratified SHA-256 and implementation issue graph are recorded in mote.",
+    "evidence": "docs/reviews/prd-2026-07-25.md, docs/reviews/scala-3.7.4-amendment-2026-07-26.md, and docs/reviews/application-dsl-amendment-2026-07-26.md; the superseding canonical PRD SHA-256 and implementation issue graph are recorded in mote.",
     "corrections": [
       "FeatureMap.crossFitted is implemented in alder-data as an extension on FeatureMap.type, beside the Resampler protocol and implementations; alder-kernel never depends on alder-data.",
       "FoldEncoder.fit preserves the caller's U <: Use.Fit role so cross-fitted refit workflows do not require an illicit Refit-to-Train retag.",
@@ -22,12 +22,22 @@
       "ArtifactCodec uses immutable IArray[Byte] payloads so the immutable-artifact contract is not undermined by mutable array aliases.",
       "Scala 3.7.4 is the publication baseline; Alder 0.1 deliberately does not promise that Scala 3.3.x consumers can read its TASTy.",
       "Cross-fitting requires CompleteResampler, whose assessment partitions cover every input row exactly once; rolling-origin remains an evaluation-only Resampler because its initial analysis window is never assessed.",
-      "FoldEncoder states are Trained and encode failures retain Failure stage provenance; FoldEncoder.andThen exposes analysis-row encode failures in its FitError union. FeatureMap rowwise postprocessing is total mapOutput in 0.1 rather than an unaudited arbitrary fitted Pipe."
+      "FoldEncoder states are Trained and encode failures retain Failure stage provenance; FoldEncoder.andThen exposes analysis-row encode failures in its FitError union. FeatureMap rowwise postprocessing is total mapOutput in 0.1 rather than an unaudited arbitrary fitted Pipe.",
+      "The application layer is a staged construction and lifecycle facade over the existing algebra, never a fourth component protocol or an alternative pipeline interpreter.",
+      "The contract now requires non-empty validation and train-validation-test split results, closing the gap between the roles produced by alder-data and the roles consumed by EvaluationSources.",
+      "The contract now requires specialized evaluation to produce Scored observations and metric results before validation selection; role-typed evaluation and selection receipts preserve the exact plan, data, metric, and role evidence.",
+      "Split fractions are exact reduced rationals with fixed total-N apportionment; RankV1 fixes membership, duplicate source RowIds fail before receipt construction, and Experiment derives the sole split seed from its root schedule.",
+      "Experiment retains route and exact metric capability through every shared state, uses explicit selection policy, and expands every transition into the existing core algebra.",
+      "ObjectiveMetric owns its direction and score audit encoding, while every Metric retains unconditional CommutativeMonoid, partition, and permutation laws.",
+      "Base alder-application never depends on alder-tune or reconstructs a tuning family; the caller supplies the concrete learner reconstructed from Study selection.",
+      "Plan fingerprints are policy-tagged like every other fingerprint, and experiment phase seeds are derived by stable domain separation rather than traversal order.",
+      "Tuning erases model capabilities only: trial evaluation failures remain typed rather than being reduced to display strings."
     ],
     "implementationGates": [
-      "Before downstream modules, repair and law-test normalized stage ordinals: composed Transform stage paths, derived seeds, lineage, and audit children must be parenthesization-invariant and seed derivation must include the plan fingerprint.",
-      "Resolve O6 and extend the final-class PreparationLineage schema before implementing FeatureMap.crossFitted.",
-      "Every v0.1 composition-algebra row marked safe must have an implementation slice plus compile/runtime laws; the initial scaffold is not the complete kernel."
+      "Implement and law-test exact split apportionment, RankV1 allocation, duplicate-RowId rejection, non-empty validation and train-validation-test results, the precommitted Train/Test evaluation source, specialized Scored evaluation, lawful metric accumulators and identity, selection receipts, and receipt-gated refit before presenting Experiment as complete.",
+      "Implement Blueprint as exact typed wrappers around concrete Transform, FeatureMap, FoldEncoder, and Learner values; no application-layer operation may introduce a runtime stage registry, widened error channel, or second semantics.",
+      "Implement the synchronous Experiment runner and its phase-error ADT before quickstart presets; effectful execution must interpret the same state machine without unsafe execution.",
+      "The first executable guide, compile-negative diagnostics, compatibility checks, and JVM, Scala.js, and Scala Native gates must pass before the application layer is considered release-ready."
     ]
   },
 
@@ -71,6 +81,24 @@
       "id": "P5",
       "name": "Alder owns statistics, not linear algebra",
       "rule": "Alder owns statistical algorithms and small fused loops (Welford moments, standardization). It owns no general-purpose linear-algebra kernel. Gale is the preferred numerical implementation substrate behind optional adapters — never Alder's public ontology of what a matrix is."
+    },
+    {
+      "id": "P6",
+      "name": "The library carries its own proofs",
+      "rule": "Approachability and type discipline are not opposite ends of a slider. Application authors name consequential data, policy, backend, identity, and ownership decisions; Alder infers or encapsulates evidence that its values already contain. The goal is fewer visible annotations, not fewer guarantees.",
+      "reviewTest": [
+        "Preserve a type when it prevents a real category error, but improve its constructor, inference boundary, staged operation, or diagnostic.",
+        "Infer or encapsulate proof bookkeeping that only transports evidence between Alder components.",
+        "Expose policy as an explicit named and auditable preset with an escape hatch; never as ambient mutable configuration."
+      ],
+      "ergonomicObligations": [
+        "Progressive disclosure uses one algebra: simple and advanced programs differ only in the decisions they make visible.",
+        "Every convenience operation has one canonical expansion into existing primitives and preserves exact values, types, failures, plan identity, stage order, seeds, audit lineage, and finalization.",
+        "Composability is tested by naming, passing, conditionally extending, reusing, and repeatedly executing a program; example line count is a signal, not a soundness override.",
+        "Compiler diagnostics are public interface. An ordinary invalid program reports the caller's field, stage, role, or policy before internal match types or implicit-search machinery.",
+        "Exact overloads and extensions are preferred to broad implicit conversions. Syntax quotas never justify casts, ambient inference, stringly builders, or a second algebra.",
+        "Convenience may hide completed ownership but never an unresolved resource or protocol scope."
+      ]
     }
   ],
 
@@ -100,7 +128,7 @@
       "allowed": ["alder-kernel", "tessera-core"],
       "rationale": "alder-data interprets Tessera's zero-dependency ordinal plans; tessera-designs is a test-only integration dependency and is not on Alder's published runtime graph."
     },
-    "crossBuild": "Pure modules (kernel, laws, data, preprocess, metrics, tune, models-linear) cross-build JVM + Scala.js + Scala Native from day one — Native CI is the forcing function that keeps the kernel platform-clean (required for kernel+laws, advisory for the rest). Backend adapters follow their libraries: alder-ridge-linop4s all three platforms, alder-ridge-gale JVM + JS."
+    "crossBuild": "Pure modules (kernel, laws, data, preprocess, metrics, tune, models-linear, application, and quickstart) cross-build JVM + Scala.js + Scala Native from day one — Native CI is the forcing function that keeps the kernel platform-clean (required for kernel+laws, advisory for the rest). Backend adapters follow their libraries: alder-ridge-linop4s all three platforms, alder-ridge-gale JVM + JS."
   },
 
   "dataProtocol": {
@@ -122,17 +150,88 @@
         "No public asTrain / retag / unsafePromote. Promotion happens through narrow audited constructors only."
       ],
       "refitProtocol": {
-        "afterTuning": "split.refitTrainAndValidation : NonEmptyData[Use.Refit, Example[X, Y, M]]",
-        "afterFinalEvaluation": "Refit.after(finalEvaluationReceipt).from(split.allObserved) — receipt-gated promotion of all labelled observations",
-        "auditObligation": "The refit audit records sources (train+validation[+test]), the authorizing evaluation receipt, and the sentence: this refitted artifact has not itself been evaluated on that test set."
+        "afterTuning": "A Study Selection chooses a configuration but grants no data-role authority. The concrete family(selection.best) may fit the original Train data directly. Adding Validation observations requires a successful typed validation selection receipt and receipt-gated Refit promotion.",
+        "afterValidation": "An alder-application extension on Refit.type accepts SelectionReceipt and consumes its data-owned private PromotionAuthority[Use.Validation] to produce NonEmptyData[Use.Refit, Example[X, Y, M]] containing exactly train+validation. alder-data never names SelectionReceipt. A raw EvaluationReceipt[Use.Validation] proves completed validation scoring but cannot authorize promotion.",
+        "afterFinalEvaluation": "An alder-application extension accepts EvaluationReceipt[Use.Test] and consumes its data-owned private PromotionAuthority[Use.Test] to promote exactly the receipt's all-observed manifest: train+test after a precommitted holdout, or train+validation+test after a selected refit and final test.",
+        "auditObligation": "Every refit audit records its ordered sources, the authorizing evaluation and selection identities where applicable, and the explicit claim that the refitted artifact has not itself been evaluated on the held-out role that authorized it.",
+        "noShortcut": "No split object exposes refitTrainAndValidation or another direct retag. A role-typed evaluation receipt proves that every held-out row was predicted and scored. Only a SelectionReceipt may authorize adding Validation data; only an EvaluationReceipt[Use.Test] may authorize the exact all-observed manifest for deployment refit."
       }
     },
     "data": {
       "types": [
         "trait Data[+U <: Use, +A]",
         "final class NonEmptyData[+U <: Use, +A] private[alder] (val data: Data[U, A])",
-        "final class Holdout[A] private[alder] (val train: NonEmptyData[Use.Train, A], val test: Data[Use.Test, A])"
+        "final class Holdout[A] private[alder] (val train: NonEmptyData[Use.Train, A], val test: NonEmptyData[Use.Test, A], val receipt: SplitReceipt)",
+        "final class ValidationSplit[A] private[alder] (val train: NonEmptyData[Use.Train, A], val validation: NonEmptyData[Use.Validation, A], val receipt: SplitReceipt)",
+        "final class TrainValidationTestSplit[A] private[alder] (val train: NonEmptyData[Use.Train, A], val validation: NonEmptyData[Use.Validation, A], val test: NonEmptyData[Use.Test, A], val receipt: SplitReceipt)",
+        "final class HoldoutSpec private[alder] (...)",
+        "final class ValidationSpec private[alder] (...)",
+        "final class TrainValidationTestSpec private[alder] (...)",
+        "opaque type Rows = Long",
+        "final class Fraction private[alder] (val numerator: Long, val denominator: Long)",
+        "final class PredictionReceipt[U <: Use.Evaluation] private[alder] (...)",
+        "final class PredictionResult[U <: Use.Evaluation, A, B] private[alder] (...)",
+        "final class EvaluationReceipt[U <: Use.Evaluation] private[alder] (...)",
+        "final class PromotionAuthority[U <: Use.Evaluation] private[alder] (...)"
       ],
+      "splitVocabulary": {
+        "constructors": [
+          "Split.holdout(data, spec, seed) — a precommitted train/test evaluation with no model-selection claim",
+          "Split.validation(data, spec, seed) — train plus validation for fitting, scoring, and explicit selection",
+          "Split.trainValidationTest(data, spec, seed) — the complete selection, refit, and final-test lifecycle"
+        ],
+        "sizes": "HoldoutSpec, ValidationSpec, and TrainValidationTestSpec contain checked Rows or Fraction policies but no seed. Rows is a positive Long. Fraction is a reduced exact rational numerator/denominator with 0 < numerator < denominator; binary floating-point is not its semantic representation. Literal and dynamic constructor spelling is provisional, but every constructor has these exact semantics.",
+        "apportionment": "For source size N, a two-way Fraction assigns floor(N * numerator / denominator) rows to its held-out role and the remainder to Train. A three-way specification computes Validation and Test counts independently against the same total N, in that order, and assigns the remainder to Train; its exact rational validation+test sum must be < 1. Rows specifications use their stated held-out counts against total N. Multiplication and comparison are overflow-safe. If any resulting role has zero rows or held-out counts exhaust N, splitting returns a typed EmptySplitRole or ExhaustiveSplit error rather than clamping, rounding up, or silently changing policy.",
+        "seedAuthority": "The core Split constructors require one explicit seed. Direct-core callers supply it. Experiment stores only an unseeded route-compatible specification, derives the split-phase seed from its root schedule, and passes that seed to the same constructor. No application constructor accepts both a root seed and an independently chosen split seed.",
+        "nonEmpty": "Every partition produced by a successful public split is NonEmptyData. Split construction already proves nonemptiness, so callers are never required to transport that proof again.",
+        "algorithm": "SplitAlgorithm.RankV1 first validates every fingerprint-policy and digest text field under the byte contract below, then rejects a duplicate source RowId with DataError.DuplicateSourceRow(id), and only then computes ranks. Two-way splitting assigns the lowest held-out-count ranks to the held-out role. Three-way splitting assigns the lowest Validation count to Validation, the next Test count to Test, and the remainder to Train. Each role is then restored to original source order. This is one total disjoint assignment, not two split calls.",
+        "rankV1Encoding": {
+          "frame": "text(s) = u32be(length(utf8(s))) || utf8(s). Inputs must be well-formed Unicode scalar sequences; an unpaired UTF-16 surrogate fails validation, and no Unicode normalization is applied. The length is the UTF-8 byte count, not character count; u32be is exactly four unsigned big-endian bytes. Text longer than 2^32-1 bytes is not encodable and fails validation.",
+          "domain": "The first field is text(\"alder.split.rank-v1\"), whose payload bytes are exactly 61 6c 64 65 72 2e 73 70 6c 69 74 2e 72 61 6e 6b 2d 76 31.",
+          "policy": [
+            "ContentDigest(algorithm) = text(\"content-digest\") || text(algorithm)",
+            "SourceIdentity(uri, version) = text(\"source-identity\") || text(uri) || text(version)",
+            "Summary(policyId) = text(\"summary\") || text(policyId)"
+          ],
+          "input": "bytes = text(\"alder.split.rank-v1\") || encoded fingerprint policy || text(fingerprint.digest) || i64be(seed.value) || i64be(rowId.value). i64be is the exact eight-byte big-endian two's-complement representation of the signed Long.",
+          "fnv1a64": "Starting h = 0xcbf29ce484222325, for each input byte b interpreted unsigned set h = ((h xor b) * 0x00000100000001b3) mod 2^64.",
+          "splitmix64Finalizer": [
+            "z1 = ((h xor (h >>> 30)) * 0xbf58476d1ce4e5b9) mod 2^64",
+            "z2 = ((z1 xor (z1 >>> 27)) * 0x94d049bb133111eb) mod 2^64",
+            "rank = z2 xor (z2 >>> 31)"
+          ],
+          "integerSemantics": "All arithmetic is modulo 2^64 and >>> is logical right shift. Rank order interprets the final 64 bits as a signed two's-complement Long; equal ranks are ordered by signed RowId.",
+          "goldenRanks": [
+            "ContentDigest(\"sha256\"), digest \"abc\", seed 0, RowId 0 -> 0x638a20c8d8807efc (signed 7172581403538783996)",
+            "SourceIdentity(\"s3://bucket/data\", \"v1\"), digest \"summary-42\", seed 17, RowId -9 -> 0xf7e017886cab140f (signed -585442076852022257)",
+            "Summary(\"privacy-v1\"), digest \"deadbeef\", seed -1, RowId 42 -> 0xc503e121cdeae497 (signed -4250306088002722665)"
+          ],
+          "goldenMembership": "For ContentDigest(\"sha256\"), digest \"abc\", seed 0, and source-order RowIds [0,1,2,3,4], signed rank order is [1,4,2,0,3]. Holdout Rows(2) yields Train [0,2,3] and Test [1,4]. Three-way Validation Rows(1), Test Rows(2) yields Train [0,3], Validation [1], and Test [2,4], with each role shown in restored source order."
+        },
+        "rankTextErrors": [
+          "enum RankTextField: ContentDigestAlgorithm | SourceIdentityUri | SourceIdentityVersion | SummaryPolicyId | FingerprintDigest",
+          "enum RankTextError: UnpairedSurrogate(codeUnitIndex: Int) | Utf8LengthExceedsU32(byteLength: Long)",
+          "DataError.InvalidRankText(field: RankTextField, reason: RankTextError)"
+        ],
+        "receipt": "SplitReceipt records the source fingerprint, split policy fingerprint, explicit seed, ordered role fingerprints, and role counts. Production receipts contain no RowId lists; testkit evidence checks exact membership.",
+        "policyFingerprint": "The split policy fingerprint commits to RankV1, exact reduced fractions or row counts, role order, apportionment rule, and hash/framing versions. A different allocation algorithm or rounding rule is a different policy and fingerprint.",
+        "typedErrors": ["InvalidRankText(field, reason)", "DuplicateSourceRow(id)", "EmptySplitRole(role, availableRows, policy)", "ExhaustiveSplit(availableRows, policy)", "InvalidRows(value)", "InvalidFraction(numerator, denominator)", "InvalidThreeWayFractionSum(validation, test)"],
+        "laws": [
+          "Every input RowId appears in exactly one output role; no row is lost or duplicated.",
+          "Equal source identity, rows, split policy, and seed produce equal membership, role order, fingerprints, and receipt.",
+          "Malformed or oversized RankV1 text returns InvalidRankText naming the field and reason; it is never normalized, replaced, thrown, or widened.",
+          "A duplicate source RowId fails before membership, role fingerprints, or a SplitReceipt is produced.",
+          "Fraction and Rows apportionment follows the fixed total-N rule on boundary-sized and adversarial inputs.",
+          "Role values cannot be publicly constructed, retagged, or exchanged.",
+          "Changing a meaningful split parameter changes the policy fingerprint even when a small dataset happens to receive the same membership."
+        ]
+      },
+      "evaluationSources": {
+        "validation": "EvaluationSources.validation(train, validation) validates nonempty held-out data, RowId disjointness, and a Train+Validation manifest.",
+        "precommittedTest": "EvaluationSources.precommittedTest(train, test) is data-owned and validates nonempty held-out data, RowId disjointness, and a Train+Test manifest. It requires a precommitted Holdout path and does not pretend that Train has a validation-refit audit.",
+        "finalTest": "EvaluationSources.finalTest(refit, test) requires the prior receipt-authorized Train+Validation refit audit, validates the untouched Test partition, and produces the Train+Validation+Test manifest.",
+        "construction": "All constructors are role-specific and return typed RefitError values. alder-application calls them but cannot manufacture EvaluationSources or alter their observed-source manifests."
+      },
       "rowIdentity": "Every logical row carries a stable internal RowId supporting split-disjointness checks, out-of-fold reconstruction in original order, leakage tracing in law tests, and auditable fold lineage.",
       "accessSpi": {
         "semanticPath": "def foldRows[B](initial: B)(step: (B, RowId, A) => B): B",
@@ -318,6 +417,195 @@
     "combinatorObligations": "Combinators (ThenTransform, LearnedWith, ...) know nothing algorithm-specific. They own: preparation scope, row identity, audit composition, child FitContexts (context.forChild(ordinal)), error widening, lineage. Seeds derive from root seed + normalized plan fingerprint + stable stage ordinal; parenthesization must not change stage seeds, audit paths, or fitted behavior."
   },
 
+  "applicationLayer": {
+    "status": "Ratified semantic contract with deliberately provisional source spelling. Blueprint, Experiment, exact desugaring, lifecycle states, and error-preservation obligations are fixed; wrapper class names, method names, and artifact names remain provisional until compile-iteration confirms inference and diagnostics.",
+    "role": "The application layer is an optional entrance to Alder's existing component and evaluation algebra. It constructs concrete composed Learner values and executes the existing split, fit, evaluation, metric, selection, and refit protocols. It defines no fourth component trait, runtime pipeline representation, plugin interface, or alternative semantics.",
+    "moduleBoundary": {
+      "generic": "Provisional artifact alder-application: pure JVM/Scala.js/Scala Native module depending on alder-kernel, alder-data, and alder-metrics. It owns Blueprint, Experiment, scored evaluation integration, and application-facing lifecycle results.",
+      "batteries": "Provisional artifact alder-quickstart: optional pure module depending on alder-application, alder-preprocess, alder-models-linear, and alder-ridge-linop4s. It owns the curated prelude, supervised Unit-metadata constructors, checked split-size syntax, and named standardize/ridge presets.",
+      "evaluationOwnership": "alder-data owns role-typed partitions, EvaluationSources, AllObserved, PredictionResult, PredictionReceipt, and private role-typed PromotionAuthority without depending on metrics. alder-application combines those values with Metric to construct ScoredEvaluation, role-typed EvaluationReceipt, SelectionReceipt, and extensions on Refit.type that consume the private authority. alder-data never names an application-layer type. This keeps the dependency direction alder-kernel -> alder-data/alder-metrics -> alder-application.",
+      "dependencyRule": "Neither module is a dependency of alder-kernel, alder-data, alder-metrics, or a component plugin. Third-party Transform, FeatureMap, FoldEncoder, and Learner implementations work unchanged. Metric is not yet a frozen 0.1 SPI; metric implementations adopt the ratified descriptor contract before publication.",
+      "oneAlgebra": "Application values always expose their exact underlying core value. Advanced callers may leave the facade at any completed construction boundary without conversion, serialization, reinterpretation, or loss of type information."
+    },
+    "apiStability": {
+      "fixed": [
+        "Blueprint is staged construction over exact core values and a completed Blueprint exposes one concrete Learner.",
+        "Experiment is the typed owner of split, candidate fit, validation scoring, selection, refit, final test, and optional deployment refit.",
+        "ExperimentFailure retains exact component FitError and RunError causes plus explicit lifecycle phase.",
+        "Validation and train-validation-test split roles, scored evaluation, selection evidence, and receipt-gated refit are public semantic contracts."
+      ],
+      "provisional": [
+        "The alder-application and alder-quickstart artifact and package names.",
+        "The concrete state-wrapper names and the spelling of via, withFeatureMap, crossFit, insideFolds, mapOutput, learn, score, select, and run.",
+        "Rows/Fraction smart-constructor syntax and exact names of curated model presets."
+      ],
+      "freezeRule": "Provisional spelling becomes public only after positive composition fixtures, compile-negative fixtures, diagnostic snapshots, Scaladoc, and all three platform builds pass. Compile iteration may simplify spelling but may not weaken the fixed semantic contract."
+    },
+    "blueprint": {
+      "definition": "A Blueprint state is a final typed wrapper with a stable val whose value has the concrete component type T, FM, or L. Associated members remain available through that stable term — for example state.transform.FitError and complete.learner.Model — rather than through erased Scala 3 type projections or match-type recovery from T, FM, or L. A FoldEncoder remains concrete while crossFit immediately expands it through FeatureMap.crossFitted. No state stores a trait-typed stage list. The wrapper itself performs no fit and consumes no data; it delegates construction to existing combinators.",
+      "states": [
+        {
+          "state": "Empty",
+          "contains": "Input, target, and metadata type intent only; synchronous quickstart entry points infer F = cats.Id and M = Unit without displaying either.",
+          "allows": ["add a target-blind Transform", "add a FeatureMap", "begin a cross-fitted FoldEncoder boundary", "complete directly with a Learner"]
+        },
+        {
+          "state": "TargetBlind",
+          "contains": "A stable val transform: T containing the exact T <: Transform[F, X, Z]; transform.FitError, transform.RunError, and transform.Fitted remain term-dependent members.",
+          "allows": ["append another Transform", "append one FeatureMap or cross-fitted FoldEncoder boundary", "complete with a Learner"],
+          "forbids": ["erasing T to Transform[F, X, Z]", "extracting prepared rows", "executing fit"]
+        },
+        {
+          "state": "LearnerReady",
+          "contains": "A stable val featureMap: FM containing the exact FM <: FeatureMap[F, X, Y, M, Z]; featureMap.Scope, featureMap.FitError, featureMap.RunError, and featureMap.Fitted remain term-dependent members.",
+          "allows": ["total mapOutput", "complete with a Learner"],
+          "forbids": ["a fitted Transform after target-aware preparation", "a second FeatureMap", "a second cross-fitting boundary in 0.1"]
+        },
+        {
+          "state": "Complete",
+          "contains": "A stable val learner: L containing the exact L <: Learner[F, X, Y, M, P]. Associated members remain available as learner.Model, learner.FitError, and learner.RunError.",
+          "allows": ["pass the learner to core Fit", "supply it to Experiment", "name, reuse, or conditionally choose the completed value"],
+          "forbids": ["further fitted pipeline composition"]
+        }
+      ],
+      "canonicalExpansions": [
+        "Empty.via(t) contains t.",
+        "TargetBlind(t1).via(t2) contains t1.andThen(t2).",
+        "Empty.withFeatureMap(fm) contains fm; TargetBlind(t).withFeatureMap(fm) contains t.andThen(fm).",
+        "Empty.crossFit(e, r) contains FeatureMap.crossFitted(e, r); TargetBlind(t).crossFit(e, r) contains t.andThen(FeatureMap.crossFitted(e, r)).",
+        "Target-aware postprocessing is constructed inside the fold boundary: crossFit(e.insideFolds(t), r) expands to FeatureMap.crossFitted(e.andThen(t), r). It never expands to crossFitted(e, r).andThen(t).",
+        "LearnerReady(fm).mapOutput(f) contains fm.mapOutput(f).",
+        "Empty.learn(l) contains l; TargetBlind(t).learn(l) contains t.learnWith(l); LearnerReady(fm).learn(l) contains fm.learnWith(l)."
+      ],
+      "equivalence": "For every expansion, the facade and direct-core values have equal precise result types and are observationally equal for fitted model behavior, prepared-row behavior where observable to laws, first failure cause and StagePath, normalized stage order, phase and child seeds, audit children, preparation lineage, component descriptors, and refit audit. A wrapper contributes no audit node, stage ordinal, fingerprint input, or seed.",
+      "compositionUsability": "A completed or intermediate Blueprint can be assigned to a val, returned from a function, selected conditionally when branch types agree, extended by another legal operation, and reused for repeated fits. The API is not accepted merely because one inline demo is short.",
+      "banned": [
+        "Vector[Any], List[Stage], reflective registries, string stage names as execution keys, or an interpreter over a new pipeline AST",
+        "trait-typed fields that erase concrete associated errors or model types",
+        "automatic mapFitError or mapRunError to String, Throwable, Any, or a universal application error",
+        "broad implicit conversions from arbitrary values into components, expressions, configs, or Blueprint states",
+        "a facade-only composition that has no lawful core expansion"
+      ]
+    },
+    "experiment": {
+      "definition": "Experiment is a typed state machine over one completed Blueprint, an explicit route R <: ExperimentRoute, an identified non-empty Data[Use.Unsplit, Example[...]], one root Seed, a route-compatible unseeded split specification, a stable exact learner value, a stable exact metric value, and an explicit selection policy where selection occurs. The state notation below omits carried F, X, Y, M, prediction, and metric-result parameters for readability; implementations retain them and use stable-term dependent members rather than erased type projections. Reporting-only Metric values may complete evaluation, but only the retained ObjectiveMetric value may authorize selection. Private constructors and route-constrained methods ensure states arise only from successful legal transitions.",
+      "routesType": [
+        "sealed trait ExperimentRoute",
+        "sealed trait ValidationCapableRoute extends ExperimentRoute",
+        "sealed trait ValidationRoute extends ValidationCapableRoute",
+        "sealed trait TrainValidationTestRoute extends ValidationCapableRoute",
+        "sealed trait PrecommittedHoldoutRoute extends ExperimentRoute"
+      ],
+      "routeStorage": "The implementation may use route-specific final state classes or a private application-owned associated mapping from R to its Spec and split result. Callers never provide route evidence, inspect a public match type, or pattern-match an erased union to recover the partition. Diagnostics name Validation, TrainValidationTest, or PrecommittedHoldout directly.",
+      "states": [
+        "Defined[R, L, Mt, S] — stable vals learner: L and metric: Mt, validated plan and source identities, policy-tagged PlanFingerprint, root Seed, identified NonEmptyData[Use.Unsplit, Example[...]], and the unseeded split specification fixed for R.",
+        "Partitioned[R, L, Mt, S] — the exact route-specific Holdout, ValidationSplit, or TrainValidationTestSplit produced with the framework-derived split-phase seed; the original unsplit source is no longer an execution choice.",
+        "CandidateFitted[R, L, Mt, S] — retains R, learner, metric, split, and Trained[learner.Model] fitted on the split's Use.Train data; no validation or test authority has been consumed.",
+        "Validated[R <: ValidationCapableRoute, L, Mt, S] — retains R and the exact metric Mt, plus non-empty scored validation observations, exact score S, EvaluationReceipt[Use.Validation], and AllObserved(train+validation).",
+        "Selected[R <: ValidationCapableRoute, L, Mt, S] — exists only when the retained Mt is an ObjectiveMetric; it holds a framework-owned SelectionReceipt binding plan, validation evaluation, metric, score, and selection policy.",
+        "Refitted[R <: ValidationCapableRoute, L, Mt, S] — the same stable learner fitted on receipt-authorized Use.Refit train+validation data. Its audit states that the new artifact has not itself been evaluated on the authorizing Validation; for TrainValidationTestRoute it also proves that no Test access preceded this fit.",
+        "Tested[L, Mt, S] — arises only from Refitted[TrainValidationTestRoute, ...] and contains the selected refitted model scored by the retained metric on non-empty Use.Test data, EvaluationReceipt[Use.Test], and AllObserved(train+validation+test).",
+        "PrecommittedTested[L, Mt, S] — a plan fixed before held-out access, fitted on Holdout.train, then scored by the retained metric on Holdout.test without a validation-selection claim.",
+        "DeploymentRefitted[L, Prior] — optional learner.Model fitted on all observed labelled data after either tested route; Prior retains the exact selected or precommitted test report, and the audit states that this new deployment artifact has not itself been evaluated on the authorizing Test."
+      ],
+      "routes": {
+        "validation": "Defined[ValidationRoute, ...] partitions its unsplit source with ValidationSpec, then permits Partitioned -> CandidateFitted -> Validated. An ObjectiveMetric additionally permits Selected and an explicit optional selected refit. No state on this route has a test method or makes an unbiased final-test claim.",
+        "trainValidationTest": "Defined[TrainValidationTestRoute, ...] partitions once with TrainValidationTestSpec, then permits Partitioned -> CandidateFitted -> Validated -> Selected -> Refitted -> Tested. Selection requires the retained ObjectiveMetric. Test is inaccessible before Refitted.",
+        "precommittedHoldout": "Defined[PrecommittedHoldoutRoute, ...] partitions its unsplit source with HoldoutSpec, then permits Partitioned -> CandidateFitted -> PrecommittedTested and optional DeploymentRefitted. It exposes no validation, selection, or selected-refit method and cannot be relabelled as another route.",
+        "tuning": "A Study may choose a config inside Use.Train. Model capability erasure remains confined to Study. The caller reconstructs family(selection.best), completes the concrete Blueprint, and supplies that exact learner to base Experiment. alder-application does not depend on alder-tune or reconstruct a tuning family. A future convenience integration, if needed, belongs in a separate one-way adapter depending on both modules. Any later addition of Validation rows still requires the ordinary validation evaluation and application selection receipt."
+      },
+      "canonicalTransitions": [
+        "Defined.partition derives SeedSchedule.split(root, plan), then calls exactly one matching core constructor: Split.holdout(source, spec, seed), Split.validation(source, spec, seed), or Split.trainValidationTest(source, spec, seed). It adds no second allocation or membership policy.",
+        "Partitioned.fitCandidate calls the retained learner's ordinary fit protocol on the exact split.train with the candidate-fit phase FitContext. CandidateFitted stores the returned Trained value without widening learner.Model, learner.FitError, or learner.RunError.",
+        "CandidateFitted.validate builds EvaluationSources.validation(split.train, split.validation) and calls Evaluation.scored with the retained metric. The precommitted route instead calls data-owned EvaluationSources.precommittedTest(split.train, split.test) and passes that value to the same scored evaluator.",
+        "Validated.select is available only for a retained ObjectiveMetric. It calls that metric's direction and auditScore, applies the explicit SelectionPolicy, and constructs SelectionReceipt from the exact validation EvaluationReceipt and private authority; it neither fits nor retags data.",
+        "Selected.refit consumes the application-owned SelectionReceipt through the narrow Refit extension, producing exactly train+validation Use.Refit data, then invokes the same learner under the selected-refit phase FitContext.",
+        "Refitted.test builds EvaluationSources.finalTest from the receipt-authorized Use.Refit data and the untouched Test partition, then calls Evaluation.scored with the retained metric.",
+        "Tested.deploymentRefit and PrecommittedTested.deploymentRefit consume only their exact Test EvaluationReceipt through the narrow Refit extension, produce all-observed Use.Refit data, and call the same learner under the deployment-refit phase FitContext.",
+        "Each route-specific complete runner is exactly the corresponding sequence above. It contributes no alternative split, fit, evaluation, selection, promotion, fingerprint, seed, audit, or error semantics."
+      ],
+      "scoredEvaluation": {
+        "definition": [
+          "enum ScoredEvaluationError[+RunE]:",
+          "  case Prediction(error: EvaluationError[RunE])",
+          "  case Metric(error: MetricError)",
+          "def scored[U <: Use.Evaluation, X, Y, M, RunE, P0, S, Mt <: Metric[Scored[Y, P0, M], S], P <: Pipe[X, RunE, P0]](",
+          "  trained: Trained[P],",
+          "  sources: EvaluationSources[U, Example[X, Y, M]],",
+          "  metric: Mt",
+          "): Either[ScoredEvaluationError[RunE], ScoredEvaluation[U, X, Y, M, P0, S]]"
+        ],
+        "specialization": "The implementation predicts from Example.input, preserves truth and metadata, and produces NonEmptyData[U, Scored[Y, P0, M]] plus exact S.",
+        "result": "ScoredEvaluation[U, X, Y, M, P0, S] contains scored observations, score, metric descriptor, EvaluationReceipt[U], all observed source data, and the split/evaluation fingerprints. It does not stringify P0, S, RunE, or MetricError.",
+        "streaming": "Metric accumulation folds the role-typed Data directly under the Metric partition law. No public Vector materialization is required.",
+        "atomicity": "Generic prediction may return PredictionResult and PredictionReceipt after every held-out RowId succeeds, but those values grant no refit authority. EvaluationReceipt[U] is emitted only after the declared metric finishes successfully. Selection and refit authority therefore cannot arise from partial prediction or failed scoring."
+      },
+      "selection": {
+        "receipt": "SelectionReceipt[L, Mt, S] is framework-constructed and retains the stable exact learner and ObjectiveMetric values while binding their policy-tagged PlanFingerprint, validation EvaluationReceiptId, source and scored-data fingerprints, MetricDescriptor, exact score S, metric-owned auditable score value, direction, and selection policy.",
+        "singleCandidate": "Selecting the only candidate is an explicit select(SingleCandidate) decision because it authorizes later access to Validation rows for refit. The validation convenience stops at Validated and never applies this policy implicitly. SingleCandidate is a named policy value rather than a proof witness assembled by the caller.",
+        "candidateBoundary": "Base Experiment contains one exact learner and performs no multi-candidate search. Multiple candidates belong to Study, whose deterministic tie policy and complete trial history remain in StudyAudit. Experiment may receive the concrete learner reconstructed from Study.selection.best, but it does not reinterpret the candidate set.",
+        "authority": "The public receipt identifier is reproducible evidence; private authority links the selected state to the exact AllObserved bundle and underlying EvaluationReceipt[Use.Validation]. Identifiers alone cannot mint Refit data."
+      },
+      "failure": {
+        "definition": [
+          "sealed trait ExperimentFailure[+FitE, +RunE]",
+          "ExperimentFailure.Definition(error: ExperimentDefinitionError)",
+          "ExperimentFailure.Data(phase: DataPhase, error: DataError)",
+          "ExperimentFailure.Split(phase: SplitPhase, error: DataError)",
+          "ExperimentFailure.Fit(phase: FitPhase, failure: Failure[FitE])",
+          "ExperimentFailure.Predict(phase: EvaluationPhase, error: EvaluationError[RunE])",
+          "ExperimentFailure.Metric(phase: EvaluationPhase, error: MetricError)",
+          "ExperimentFailure.Select(phase: SelectionPhase, error: SelectionError)",
+          "ExperimentFailure.Refit(phase: RefitPhase, error: RefitError)"
+        ],
+        "rules": [
+          "Each case constructor identifies the broad lifecycle phase. DataPhase, SplitPhase, FitPhase, EvaluationPhase, SelectionPhase, and RefitPhase distinguish source validation, route split, candidate fit, validation/test evaluation, selection, selected promotion, selected refit, deployment promotion, and deployment refit where those distinctions affect recovery.",
+          "Failure retains the exact leaf cause and StagePath. ExperimentFailure adds lifecycle phase rather than replacing component provenance.",
+          "Expected failures are never thrown, converted to display strings, hidden in Option, or widened to Throwable or Any.",
+          "Human rendering is an extension at the application edge and cannot be used as the program's error contract."
+        ]
+      },
+      "identityAndSeeds": {
+        "plan": "PlanFingerprint is policy-tagged. Experiment requires an explicit stable identity or an explicitly supplied fingerprint; it never guesses from a display name, class name, toString, hashCode, runtime stage list, or source location.",
+        "data": "Application constructors require an explicit DataFingerprint or an explicitly tagged external identity. They do not claim to compute a content digest unless a declared digest policy actually reads the relevant content.",
+        "phaseSchedule": "One root Seed is deterministically domain-separated by policy-tagged plan fingerprint and stable phase tag: split, candidate-fit, validation-protocol, selected-refit, test-protocol, and deployment-refit. Component child seeds then derive from the phase fit seed and normalized stage ordinal.",
+        "splitAuthority": "Experiment accepts an unseeded HoldoutSpec, ValidationSpec, or TrainValidationTestSpec. It derives the only split seed from the split phase and passes it to the public core Split constructor. Direct-core use still supplies its seed explicitly.",
+        "stability": "Adding logging, changing wrapper allocation, traversing a collection differently, or reparenthesizing a Blueprint cannot change membership or seeds. The exact schedule is public testkit vocabulary and part of facade/core equivalence.",
+        "backend": "Experiment never summons or chooses a numerical backend. The completed learner already contains an explicitly constructed backend or named preset, and its ComponentDescriptor and BackendFingerprint remain authoritative."
+      },
+      "executionBoundary": {
+        "sync": "The primary 0.1 onboarding methods execute cats.Id components and return Either[ExperimentFailure[experiment.learner.FitError, experiment.learner.RunError], ExactTerminalState] without requiring callers to name Id, EitherT, Monad, or Cats syntax.",
+        "completeMethods": "Distinct route-constrained methods have exact terminal types: validation reporting ends at Validated, validation selection ends at Selected, explicit validation refit ends at Refitted, train-validation-test ends at Tested, and precommitted holdout ends at PrecommittedTested. Deployment refit is a separate operation. There is no single generic runner whose result depends on a runtime optional-refit flag.",
+        "effectful": "Core components remain effect-polymorphic. An effectful Experiment interpreter sequences the identical state transitions in F with an explicit lawful capability; it does not hardcode IO, call unsafeRunSync, or introduce a second lifecycle.",
+        "scope": "Synchronous execution is required for the first application slice. The general effectful interpreter may follow after the synchronous state machine and equivalence laws are stable."
+      }
+    },
+    "quickstart": {
+      "prelude": "One curated import exposes application constructors, checked split specifications, built-in metrics, standardization, ridge presets, and result accessors. It does not re-export every Alder implementation type.",
+      "data": "Supervised.fromPairs or its final spelling constructs Example[X, Y, Unit] without making callers write Unit; explicit fromRows/fromExamples variants preserve metadata and weighted workflows. Every constructor still requires honest source identity.",
+      "presets": [
+        "A standardize preset expands to the existing StandardScaler with an explicit zero-variance policy.",
+        "A ridgeLsqr preset expands to validated RidgeConfig, RidgeRegression, and Linop4sRidgeBackend.lsqr. The engine name is visible in the constructor and backend audit.",
+        "There is no unnamed ambient ridge backend. Gale and other engines use separate named presets with their actual configuration and platform support."
+      ],
+      "validation": "Dynamic invalid values return typed constructor errors. Literal-oriented syntax may reject invalid constants at compile time, but syntax targets never justify throws, casts, or broad implicit conversions.",
+      "escapeHatch": "Every preset exposes or documents its exact generic expansion, and users may substitute any compatible Transform, FeatureMap, FoldEncoder, Learner, Metric, or backend value."
+    },
+    "usabilityContract": {
+      "firstWorkflow": "The executable getting-started guide must construct identified supervised data, declare a ValidationSpec, build standardize plus named LSQR ridge, provide one root seed from which Experiment derives the split seed, fit, predict every validation row, compute a real metric, and stop at a typed Validated result. It must create no unused Test partition and must not silently select or refit the candidate.",
+      "budget": "Target one import and roughly twelve non-data lines for the first successful workflow. This is a regression signal, not a mandate: it cannot override explicit identity, meaningful policy, sound ownership, or useful diagnostics.",
+      "hiddenProof": ["cats.Id", "Unit metadata", "intermediate preparation brands", "concrete composition classes", "EitherT and Cats syntax", "manual widening of exact unions"],
+      "visibleDecisions": ["data identity", "split size or fraction", "root seed", "plan identity", "zero-variance policy or named preset", "backend-bearing model preset", "metric choice", "explicit selection policy when validation authorizes refit"],
+      "diagnostics": "Compile-negative fixtures cover illegal post-target fitting, a second target-aware boundary, fit on Evaluation data, scoring before fit, selected-route test before selected refit, a test method on ValidationRoute, selection with a reporting-only Metric, and missing metadata capabilities. Runtime-negative tests cover same-role receipt substitution and one-shot receipt reuse, including concurrent attempts, because Scala does not provide affine values. The first diagnostic or typed runtime error names the role, stage, receipt, field, or missing capability in application language.",
+      "verification": [
+        "Facade and direct-core programs are observationally equal.",
+        "First failure stage and lifecycle phase are both preserved.",
+        "All convenience values remain nameable, passable, conditionally extensible, reusable, and repeatedly executable.",
+        "JVM, Scala.js, and Scala Native tests, mdoc, Scaladoc snippets, compatibility checks, and the rendered site pass on Scala 3.7.4."
+      ]
+    }
+  },
+
   "predictionSemantics": {
     "rule": "Prediction semantics are the result type, never a string mode. Typical: Double, Distribution[Class], Class, Ranking[Item], SurvivalCurve[Time], Quantiles[Probability, Double], Gaussian.",
     "decisions": "A probabilistic classifier is Learner[F, X, Class, M, Distribution[Class]]; a hard decision is a separate pure pipe (Decision.argmax). Metrics get honest input types: LogLoss requires Distribution[C]; Accuracy requires C. Mixing them without an explicit decision rule does not compile.",
@@ -329,13 +617,22 @@
       "trait Metric[-A, +S]:",
       "  type Acc",
       "  given accumulator: CommutativeMonoid[Acc]",
+      "  def descriptor: MetricDescriptor",
       "  def observe(value: A): Acc",
-      "  def finish(accumulated: Acc): Either[MetricError, S]"
+      "  def finish(accumulated: Acc): Either[MetricError, S]",
+      "trait ObjectiveMetric[-A, S] extends Metric[A, S]:",
+      "  def direction: ObjectiveDirection",
+      "  def auditScore(score: S): AuditValue"
     ],
+    "descriptor": "MetricDescriptor contains a stable metric id, version, validated parameters, reproducible numeric policy, and, for an ObjectiveMetric, the objective direction and score-encoding version. ObjectiveMetric is invariant in S because it consumes S when producing audit evidence. Direction and auditScore are owned by the same stable metric value whose descriptor enters the receipt; a broad or locally substituted encoder cannot change receipt identity behind an unchanged metric descriptor.",
     "rules": [
       "Evaluation streams/parallelizes without changing the public metric (partition law).",
-      "Default numerical metrics use reproducible mergeable accumulators; a FastMath mode may trade bitwise reproducibility for speed but must appear in the audit and applicable law set.",
-      "Weighted metrics are different values with different requirements (weightedRmse[M: WeightOf]), never optional arguments."
+      "Every Metric accumulator is a lawful CommutativeMonoid and every built-in numerical Metric uses a reproducible mergeable representation. The public partition and permutation laws are unconditional for Metric.",
+      "An order- or partition-sensitive fast accumulator is not a Metric and cannot be passed to generic Evaluation. If introduced after 0.1, it uses a separately typed sequential or ordered SPI with visibly weaker execution semantics; a numeric-mode flag cannot retract CommutativeMonoid laws.",
+      "Weighted metrics are different values with different requirements (weightedRmse[M: WeightOf]), never optional arguments.",
+      "Built-in RMSE and accuracy values expose ObjectiveMetric with Minimize and Maximize respectively and own the canonical audit encoding for their branded result types.",
+      "A metric result used only for reporting needs no ordering. A selection API cannot accept a reporting-only Metric or invent an objective direction.",
+      "Metric identity, parameters, direction, exact result, and auditable score value are retained by ScoredEvaluation and SelectionReceipt."
     ]
   },
 
@@ -350,17 +647,39 @@
       "law": "learner.eraseModel.fit(data) is observationally equivalent to learner.fit(data).map(_.widenArtifactToPipe)"
     },
     "study": {
-      "rule": "A study accepts training data only (NonEmptyData[Use.Train, ...]); no overload accepts evaluation data. It returns Selection[C](best config, trials, StudyAudit) — a selected configuration, not an existentially typed fitted artifact. Final refitting uses the concrete family(selection.best) on Use.Refit data, retaining the path-dependent Model."
+      "rule": "A Study[F, C, A, E] accepts training data only (NonEmptyData[Use.Train, A]); no overload accepts evaluation data. It returns Selection[C, E](best config, every typed trial, StudyAudit) — a selected configuration, not an existentially typed fitted artifact. TrialFailure[E] retains the evaluation cause E alongside NonFiniteObjective; no study or application layer reduces candidate failures to description strings. The concrete family(selection.best) may fit the original Train data directly. Adding validation observations requires the ordinary validation receipt and Refit protocol, retaining the stable learner's path-dependent Model.",
+      "definitions": [
+        "enum TrialFailure[+E]:",
+        "  case Evaluation[E](error: E) extends TrialFailure[E]",
+        "  case NonFiniteObjective(value: Double) extends TrialFailure[Nothing]",
+        "final case class Trial[C, +E](config: C, objective: Either[TrialFailure[E], Double])",
+        "final class Selection[C, +E] private[tune] (val best: C, val trials: Vector[Trial[C, E]], val audit: StudyAudit)",
+        "enum StudyError[+E]:",
+        "  case NoSuccessfulTrial[E](failures: Vector[TrialFailure[E]]) extends StudyError[E]",
+        "final class Study[F[_], C, A, E] private (..., evaluate: (C, NonEmptyData[Use.Train, A]) => F[Either[TrialFailure[E], Double]])",
+        "def run(data: NonEmptyData[Use.Train, A]): F[Either[StudyError[E], Selection[C, E]]]"
+      ],
+      "rules": [
+        "The same E appears in TrialFailure, every Trial, Selection history, StudyError, the evaluation callback, and run; there is no unbound or existential error parameter.",
+        "NonFiniteObjective widens from TrialFailure[Nothing] without inventing an E.",
+        "Study uses the shared ObjectiveDirection vocabulary from alder-metrics and records direction, deterministic tie policy, candidate order, seed, and completion counts in StudyAudit."
+      ]
     }
   },
 
   "provenance": {
+    "fingerprints": {
+      "rule": "Every value named Fingerprint records the policy that produced it. ContentDigest, SourceIdentity, and Summary are never interchangeable, even when their rendered digest strings match.",
+      "plan": "PlanFingerprint is a final policy-tagged value, not an opaque bare String. PlanFingerprint.external(identity) records Summary(alder.external-plan-identity); a canonical descriptor digest records its real content algorithm. Seed derivation hashes both policy and digest with a stable cross-platform encoding.",
+      "application": "Experiment requires explicit plan and data identity. Display names may accompany those identities but cannot silently become content-digest claims."
+    },
     "audit": {
       "fields": ["plan: PlanFingerprint", "data: DataFingerprint", "schema: SchemaFingerprint", "seed: Seed", "backend: BackendFingerprint", "numerics: NumericMode", "preparation: PreparationLineage", "children: Vector[Audit]"],
       "rules": [
         "Part of the result of fitting, not an experiment-tracker side channel.",
         "Raw data need not be embedded; the fingerprinting policy (digest, source identity, privacy-preserving summary) must itself be recorded.",
-        "Cross-fitted lineage is a compact plan receipt: policy-tagged resampler fingerprint, seed, policy-tagged assignment digest, ordered per-fold analysis/assessment fingerprints plus fitted-state lineage, and final all-row serving lineage. Production lineage never embeds RowId lists."
+        "Cross-fitted lineage is a compact plan receipt: policy-tagged resampler fingerprint, seed, policy-tagged assignment digest, ordered per-fold analysis/assessment fingerprints plus fitted-state lineage, and final all-row serving lineage. Production lineage never embeds RowId lists.",
+        "Application-level SplitReceipt, ScoredEvaluation, and SelectionReceipt remain separate typed protocol evidence. RefitAudit records the exact receipt identities that authorized a promoted dataset and the resulting unevaluated-artifact claim."
       ]
     },
     "fitContext": {
@@ -382,7 +701,7 @@
       ],
       "rationale": "Alder-owned neutral schema. linop4s Termination/SolveResult/Evidence map into it (Constructed/NumericallyChecked/UserAsserted -> AssumptionEvidence.*); the original library value may ride in an adapter-specific extension. Optional backends never enter the kernel's audit schema."
     },
-    "determinism": "Given equal plan, data fingerprint, seed, backend fingerprint, and deterministic numeric mode, fitting is observationally repeatable. Nondeterministic backends must say so in NumericMode."
+    "determinism": "Given equal actual ordered rows and RowIds, equal component values and policies, equal policy-tagged plan and data fingerprints, root seed, phase tag, backend fingerprint, and deterministic numeric mode, each experiment transition is observationally repeatable. A SourceIdentity or Summary fingerprint scopes an audit claim but does not prove that externally managed content stayed equal. Phase seeds use stable domain separation; component seeds use the normalized stage ordinal. Nondeterministic backends must say so in NumericMode."
   },
 
   "capabilities": {
@@ -438,15 +757,17 @@
     { "name": "alder-kernel", "contents": "Pipe, Failure, StagePath, Use roles, Data/NonEmptyData/RowId, Example/Scored, Prepared + Preparation scopes, Trained, Transform, FeatureMap, FoldEncoder, Learner, FitContext, audit contracts, capability typeclass definitions", "dependencies": ["cats-core"] },
     { "name": "alder-laws", "contents": "Discipline/ScalaCheck law suites for kernel-owned contracts (PipeTests, TransformTests, FeatureMapTests, LearnerTests, ArtifactCodecTests), leakage-tracing instrumentation, compile-negative documentation tests", "dependencies": ["alder-kernel", "discipline", "scalacheck"], "scope": "test-only for consumers" },
     { "name": "alder-testkit", "contents": "Generators, numerical equality, instrumented datasets/encoders recording visible RowIds", "dependencies": ["alder-kernel"] },
-    { "name": "alder-data", "contents": "In-memory Data implementations, RowBatch, Resampler and CompleteResampler protocols, FeatureMap.crossFitted extension requiring CompleteResampler, splitting (Holdout, KFold, grouped, rolling-origin), Refit constructors, Coordinates + derivation, CoordinateWriter, schema fingerprints", "dependencies": ["alder-kernel"] },
+    { "name": "alder-data", "contents": "In-memory Data implementations, RowBatch, Resampler and CompleteResampler protocols, FeatureMap.crossFitted extension requiring CompleteResampler, checked unseeded split specifications, non-empty Holdout/ValidationSplit/TrainValidationTestSplit plus SplitReceipt, KFold, grouped and rolling-origin resampling, role-specific EvaluationSources including precommitted Train+Test, AllObserved, PredictionResult/PredictionReceipt, package-private promotion primitives, Coordinates + derivation, CoordinateWriter, schema fingerprints", "dependencies": ["alder-kernel", "tessera-core"] },
     { "name": "alder-preprocess", "contents": "StandardScaler (Welford/pairwise moments, ZeroVariance policy, Standardized[A] brand), basic target-blind transforms", "dependencies": ["alder-kernel", "alder-data"] },
-    { "name": "alder-metrics", "contents": "Typed metrics, reproducible mergeable accumulators, weighted variants", "dependencies": ["alder-kernel", "cats-kernel"] },
+    { "name": "alder-metrics", "contents": "Typed metrics, MetricDescriptor, ObjectiveMetric with owned direction and score-audit encoding, lawful reproducible mergeable accumulators, weighted variants", "dependencies": ["alder-kernel", "cats-kernel"] },
     { "name": "alder-metrics-laws", "contents": "Published Metric Discipline suites and adversarial accumulator generators", "dependencies": ["alder-metrics", "alder-testkit", "discipline", "scalacheck"], "scope": "test-only for consumers" },
     { "name": "alder-models-linear", "contents": "RidgeConfig, RidgeSolution, RidgeBackend, RidgeRegression, SolverReceipt vocabulary", "dependencies": ["alder-kernel", "alder-data"] },
     { "name": "alder-ridge-gale", "contents": "GaleRidgeBackend (AugmentedQR | NormalCholesky), DMatBuilder materialization via CoordinateWriter, gale fingerprinting", "dependencies": ["alder-models-linear", "gale-core"] },
     { "name": "alder-ridge-linop4s", "contents": "Matrix-free LSQR/CG backend, Termination→SolverReceipt mapping", "dependencies": ["alder-models-linear", "linop4s-core", "linop4s-krylov"] },
-    { "name": "alder-tune", "contents": "Applicative Space, grid and random interpreters, LearnerView/eraseModel, Selection, StudyAudit", "dependencies": ["alder-kernel", "alder-data", "alder-metrics"] },
+    { "name": "alder-tune", "contents": "Applicative Space, grid and random interpreters, LearnerView/eraseModel, typed TrialFailure, Selection, StudyAudit", "dependencies": ["alder-kernel", "alder-data", "alder-metrics"] },
     { "name": "alder-tune-laws", "contents": "Published Space, tuning-erasure, and study-role Discipline suites", "dependencies": ["alder-tune", "alder-laws", "alder-testkit", "discipline", "scalacheck"], "scope": "test-only for consumers" },
+    { "name": "alder-application (provisional name)", "contents": "Exact-value staged Blueprint, metric-aware ScoredEvaluation and role-typed EvaluationReceipt, SelectionReceipt and public refit transitions, typed Experiment states and ExperimentFailure, synchronous runner and lifecycle laws", "dependencies": ["alder-kernel", "alder-data", "alder-metrics"] },
+    { "name": "alder-quickstart (provisional name)", "contents": "Curated one-import prelude, identified supervised-data constructors, checked Rows/Fraction split syntax, standardization preset, explicitly named ridge-linop4s presets", "dependencies": ["alder-application", "alder-preprocess", "alder-models-linear", "alder-ridge-linop4s"] },
     { "name": "alder-codec", "contents": "Versioned artifact formats, chain codec derivation, codec laws", "dependencies": ["alder-kernel"] },
     { "name": "alder-sparse-pca (separate repo)", "contents": "Published reference plugin: the notes2 sparse-PCA walkthrough as a real, compiling, law-tested third-party example with core + solver-backend artifacts", "dependencies": ["alder-kernel", "alder-data (optional)"] }
   ],
@@ -461,6 +782,7 @@
     "pipe": ["identity", "associativity (output, first failure, and stage path all parenthesization-invariant)", "first-failure preservation", "stage-path preservation", "error-map identity and composition"],
     "transform": ["training replay: prepared rows equal the fitted pipe applied to original fitting inputs (true by construction via the Reusable factory)", "row-identity preservation", "target independence", "composition associativity", "audit and seed associativity"],
     "featureMap": ["row-identity preservation", "target and metadata preservation (only input may change)", "direct own-target exclusion", "complete fold coverage", "single production of every prepared row", "full-data serving fit", "lineage honesty"],
+    "split": ["exactly one output role per input RowId", "non-empty successful partitions", "role disjointness", "source-order preservation within each role", "deterministic membership and receipt", "split-policy fingerprint sensitivity", "no public role retagging"],
     "preparationConsumption": [
       "Reusable preparation may feed another fitted preprocessor.",
       "LearnerReady preparation may feed a terminal learner.",
@@ -469,8 +791,11 @@
     ],
     "crossFitExclusion": "For every out-of-fold prepared row, that RowId is absent from the fitting lineage of the state that produced its output. Tested with instrumented datasets/encoders recording every visible RowId — the actual protocol is tested, not the implementation's declaration.",
     "futureTransitiveLaw": "For every prepared output row r: r is absent from the transitive closure of target dependencies of every fitted state contributing to that output. (Activated with whole-chain cross-fitting.)",
-    "learner": ["score coherence: score(model, e) == model(e.input).map(p => Scored(e.target, p, e.meta))", "serving coherence: scoring transforms inputs with the same fitted pipe used by serving", "deterministic fitting under equal plan/data/seed/backend/numeric mode"],
-    "metric": ["partition law: concatenated partitions == merged accumulators finished once", "permutation law: reordering does not change exact results; numerical modes state tolerances"],
+    "learner": ["score coherence: score(model, e) == model(e.input).map(p => Scored(e.target, p, e.meta))", "serving coherence: scoring transforms inputs with the same fitted pipe used by serving", "deterministic fitting under equal actual rows and RowIds, component policies, plan/data identities, seed, backend, and numeric mode"],
+    "evaluation": ["score coherence: every Scored value contains the original truth and metadata plus the model prediction for that input", "prediction atomicity: no PredictionReceipt on partial prediction", "evaluation atomicity: no EvaluationReceipt on failed metric finish", "validation and test role preservation", "receipt source/fingerprint binding", "Validation EvaluationReceipt does not authorize refit", "SelectionReceipt authorizes train+validation refit once", "Test EvaluationReceipt authorizes all-observed deployment refit once"],
+    "metric": ["partition law: every partitioning and merge tree produces the same finished result", "permutation law: reordering observations does not change the finished result", "accumulator CommutativeMonoid laws", "descriptor stability", "objective direction and metric-owned auditScore agree with the branded result semantics"],
+    "blueprint": ["each convenience has one canonical core expansion", "exact concrete learner/model/error preservation", "no wrapper audit stage", "facade/core equality for behavior, first failure, StagePath, ordinal, seeds, audit and lineage", "illegal D4/D20 orderings remain compile-negative"],
+    "experiment": ["state transitions admit only the ratified route-specific role order", "same actual source rows, components, identities, policies, and root seed reproduce phase seeds and results", "TrainValidationTestRoute test is inaccessible before selected refit; PrecommittedHoldoutRoute test is accessible only after its train fit", "route and metric capability evidence remain present through every shared state", "ExperimentFailure retains exact leaf cause and lifecycle phase", "same-role receipt substitution and one-shot reuse fail as typed runtime errors, including concurrent reuse", "each complete-route method equals its canonical sequence of core Split, fit, scored evaluation, selection, promotion, and refit operations"],
     "space": ["validity: every emitted value is a complete valid A", "seed law: equal space, strategy, seed yield identical ordered candidates"],
     "codec": ["round trip preserves audit and prediction behavior", "chain codec round trip for composed models"],
     "tuningErasure": "learner.eraseModel.fit(data) observationally equals learner.fit(data).map(_.widenArtifactToPipe)",
@@ -501,12 +826,13 @@
       "Transform, FeatureMap, FoldEncoder (with andThen), Learner; Prepared with Reusable/LearnerReady scopes",
       "Safe inputOnly and crossFitted constructors; correct-by-construction Reusable replay factory",
       "Typed prediction values and decision pipes",
-      "Splitting, resampling (KFold, grouped, rolling-origin), evaluation",
-      "Applicative Space with grid and random interpreters; eraseModel; Selection",
+      "Non-empty holdout, validation, and train-validation-test splitting with SplitReceipt; resampling (KFold, grouped, rolling-origin); scored evaluation and receipt-gated refit",
+      "Applicative Space with grid and random interpreters; eraseModel; typed TrialFailure; Selection",
       "Mandatory Audit + FitContext.complete; SolverReceipt",
       "ArtifactCodec + capability typeclasses; chain codec derivation",
       "Complete law kit including preparation-consumption and backend-agreement laws",
       "StandardScaler; RidgeRegression; alder-ridge-gale and alder-ridge-linop4s backends",
+      "Optional staged Blueprint and synchronous typed Experiment application layer, plus the curated quickstart prelude and explicit LSQR ridge preset",
       "AGENTS.md and the published sparse-PCA reference plugin"
     ],
     "excludes": [
@@ -528,7 +854,7 @@
   "decisionLog": [
     { "id": "D1", "decision": "Publish from Scala 3.7.4; advisory CI on future Scala versions.", "rationale": "A single current baseline keeps Alder's compiler and platform evidence coherent. Scala 3.7.4 reads the 3.3.8 TASTy of Gale and linop4s; Alder deliberately does not promise that 3.3.x consumers can read Alder 0.1 artifacts." },
     { "id": "D2", "decision": "Pipe error is a covariant type parameter; FitError/RunError stay associated members on unfitted traits; unions compose; Failure[E] carries StagePath.", "rationale": "Refinement-type bounds are hostile to plugin authors and agents; naked unions lose stage provenance." },
-    { "id": "D3", "decision": "No Workflow abstraction; composition closes over Transform/FeatureMap/Learner; a workflow IS a composed Learner.", "rationale": "Smaller surface; terminality preserved; combinators own protocol concerns." },
+    { "id": "D3", "decision": "No Workflow execution or extension abstraction; composition closes over Transform/FeatureMap/Learner and the executable value is a composed Learner. Blueprint is an optional construction facade whose Complete state contains that exact concrete Learner; Experiment interprets the existing data/evaluation lifecycle around it.", "rationale": "The core stays small, terminality and exact associated types are preserved, plugins implement one protocol, and application authors gain progressive disclosure without a second pipeline representation or semantics." },
     { "id": "D4", "decision": "Adopt the transitive leakage law; FeatureMap∘Transform and FeatureMap∘FeatureMap are excluded from the safe API; Preparation scopes with Reusable <: LearnerReady.", "rationale": "Pooled statistics on OOF rows reintroduce own-target dependence through other rows; the rowwise law is insufficient. Reusable is strictly stronger, hence a subtype." },
     { "id": "D5", "decision": "Transform.fit returns Prepared and owns its training replay; the safe Reusable factory performs the replay itself.", "rationale": "Replay can fail (surfaces in FitError); by-construction replay makes the replay law unviolable; score-reuse goes to unsafe SPI." },
     { "id": "D6", "decision": "FoldEncoder.andThen(transform) ships in 0.1.", "rationale": "Restores target-encode→standardize→learn lawfully (per-fold inner fits are whole-chain cross-fitting for the two-stage case); without it the algebra outlaws the flagship example." },
@@ -548,6 +874,12 @@
     { "id": "D20", "decision": "FeatureMap has an associated Scope <: Preparation.LearnerReady so inputOnly and mapOutput retain Reusable statically. FoldEncoder.fit returns Trained[State], encode returns Either[Failure[RunError], Z], and FoldEncoder.andThen exposes encoder.RunError in its FitError union. FeatureMap rowwise postprocessing in 0.1 is total mapOutput, not an arbitrary bare or pre-fitted Pipe.", "rationale": "Preparation scope changes which downstream programs are legal and cannot be erased by the base trait. Encoder state is fitted state and cannot travel without audit under P4. Per-fold downstream fitting executes encoder output on analysis rows, so those run failures are real fit failures and must remain typed. Stripping Failure.cause would delete stage provenance. A bare Pipe violates mandatory audit, while a Trained Pipe still lacks proof it was independent of the prepared rows; total mapOutput has no training dependency and preserves scope honestly." },
     { "id": "D21", "decision": "Cross-fitted PreparationLineage stores a compact plan receipt: a policy-tagged resampler fingerprint, the split seed, a policy-tagged assignment digest, ordered fold receipts containing fold index plus analysis/assessment fingerprints and fitted-state lineage, and the final all-row serving-state lineage. A Tessera-backed plan additionally retains an Alder-owned rendering of the complete Tessera verification receipt (design algorithm, digest algorithm, design/population/labels/assignment fingerprints, and plan seed). No production field contains RowIds.", "rationale": "This is sufficient to reproduce and audit which plan produced every OOF partition without turning production audits into row-level privacy and size liabilities. Explicit fold receipts keep the structure plan-shaped, while the assignment digest commits to exact membership. The dependency-neutral receipt rendering preserves Tessera's policy tags without making alder-kernel depend on tessera-core. Resolves O6." },
     { "id": "D22", "decision": "Published law artifacts follow ownership dependencies: alder-laws covers alder-kernel contracts; alder-metrics-laws depends on alder-metrics; alder-tune-laws depends on alder-tune plus the core laws/testkit.", "rationale": "A kernel-only alder-laws artifact cannot compile laws for Metric or Space because those types are owned by downstream modules. Making downstream implementations depend on a law artifact that itself requires their types creates a module and tracker cycle. Separate law artifacts preserve one-way dependencies and consumer opt-in test scope." },
-    { "id": "D23", "decision": "alder-data may depend on tessera-core and interprets Plan[Split[Selection], Coverage.ExactOnce] through a total CompleteResampler factory. tessera-designs is test-only. The adapter binds Tessera ordinals to Alder RowIds, maps GroupOf metadata to canonical Labels, converts seeds, and retains policy-tagged receipt fields. Runtime checks are limited to binding compatibility (population size, population fingerprint, and seed), never coverage.", "rationale": "The integration spike found that Coverage.Exact is exact once per repeat, while Alder cross-fitting requires exactly once over the entire plan. A repeated K-fold therefore cannot lawfully mint CompleteResampler. Tessera's stronger ExactOnce proof closes that gap and makes Holdout, Bootstrap, and repeated plans compile-negative while preserving runtime validation for facts that depend on the later Alder data value." }
+    { "id": "D23", "decision": "alder-data may depend on tessera-core and interprets Plan[Split[Selection], Coverage.ExactOnce] through a total CompleteResampler factory. tessera-designs is test-only. The adapter binds Tessera ordinals to Alder RowIds, maps GroupOf metadata to canonical Labels, converts seeds, and retains policy-tagged receipt fields. Runtime checks are limited to binding compatibility (population size, population fingerprint, and seed), never coverage.", "rationale": "The integration spike found that Coverage.Exact is exact once per repeat, while Alder cross-fitting requires exactly once over the entire plan. A repeated K-fold therefore cannot lawfully mint CompleteResampler. Tessera's stronger ExactOnce proof closes that gap and makes Holdout, Bootstrap, and repeated plans compile-negative while preserving runtime validation for facts that depend on the later Alder data value." },
+    { "id": "D24", "decision": "Adopt P6: the library carries proof bookkeeping while callers retain meaningful data, policy, backend, identity, and ownership decisions. Convenience uses progressive disclosure over one algebra and must have an exact canonical expansion.", "rationale": "Type discipline and approachability conflict only when callers restate evidence Alder already possesses. Exact expansion and facade/core laws remove ceremony without deleting guarantees or creating a simple API with different semantics." },
+    { "id": "D25", "decision": "Add checked unseeded split specifications, exact rational total-N apportionment, duplicate-RowId rejection, deterministic RankV1 allocation, and non-empty ValidationSplit and TrainValidationTestSplit with SplitReceipt. Add role-specific EvaluationSources.precommittedTest for the existing Train+Test Holdout path. Generic prediction emits only role-typed coverage evidence; specialized evaluation converts held-out Example rows to Scored rows and finishes a typed Metric before emitting EvaluationReceipt. Validation refit requires SelectionReceipt; Test EvaluationReceipt may authorize only its exact all-observed manifest for deployment refit.", "rationale": "The existing Holdout produced Train plus Test while EvaluationSources offered only Validation and post-validation final Test construction, leaving both getting-started validation and honest precommitted holdout scoring incomplete. Exact apportionment and versioned ranking prevent platform or implementation choice from changing a receipt behind one policy. Separating prediction coverage, completed evaluation, and selection prevents a partially completed validation path from acquiring broader data authority. Split construction already proves nonemptiness, so its return types carry that proof." },
+    { "id": "D26", "decision": "Experiment is a private-constructor typed state machine whose shared states retain route, stable learner, and exact metric capability through partition, candidate fit, validation score, selection, receipt-gated refit, final test, and optional deployment refit. Each transition has one canonical expansion into existing core operations. ExperimentFailure adds lifecycle phase while retaining exact stable-term learner errors and Failure stage attribution.", "rationale": "A short runner is honest only if it performs the same core split, fit, evaluation, selection, and promotion operations. Retaining route and metric evidence prevents a validation-only state from acquiring a test method or a reporting metric from acquiring selection authority. Phase context and component context answer different questions and neither should erase the other." },
+    { "id": "D27", "decision": "PlanFingerprint becomes policy-tagged; Experiment requires explicit plan and data identity, stores an unseeded route-specific SplitSpec, derives the sole split and later phase seeds by stable domain separation, and never chooses a backend. Named presets construct and audit a specific backend.", "rationale": "A display string, class name, hashCode, or ambient given cannot support reproducibility claims. A root seed plus an independently supplied split seed would create competing authorities. Phase separation prevents unrelated protocol changes from perturbing fitting randomness, while explicit backend-bearing presets keep convenience auditable." },
+    { "id": "D28", "decision": "Metrics used for selection are stable ObjectiveMetric values that own their MetricDescriptor, objective direction, and canonical score audit encoding. Every Metric accumulator obeys unconditional CommutativeMonoid, partition, and permutation laws; order-sensitive fast accumulation requires a different future SPI. Tuning erases model capabilities only: TrialFailure retains its typed evaluation cause instead of a description String.", "rationale": "Selection receipts must say what was optimized and what failed without allowing a local encoder to change their meaning. A mode flag cannot retract a typeclass law. Model-type erasure is required for iteration; error erasure is not and would contradict Alder's explicit failure algebra." },
+    { "id": "D29", "decision": "Ship the application contract in two optional pure cross-platform layers: a generic Blueprint/Experiment module and a curated quickstart module. Semantic names and laws are ratified; exact artifact, package, state-class, method, and smart-constructor spelling remains provisional until compile and diagnostic fixtures pass.", "rationale": "Separating generic lifecycle machinery from batteries avoids forcing ridge or preprocessing dependencies on every application. Delaying spelling freeze permits inference-driven refinement without reopening the safety contract." }
   ]
 }
