@@ -28,14 +28,70 @@ final class ProtocolFingerprint(
     val digest: String
 )
 
-/** Fingerprint of a normalized logical plan. Stage identities and seed
-  * derivations key off this, never off runtime combinator nesting.
+/** Policy-tagged fingerprint of a normalized logical plan.
+  *
+  * Stage identities and seed derivations key off both the policy and digest,
+  * never off runtime combinator nesting. A summary identity is useful at an
+  * application boundary, but does not claim that Alder hashed the plan.
   */
-opaque type PlanFingerprint = String
+final case class PlanFingerprint(
+    policy: FingerprintPolicy,
+    digest: String
+) derives CanEqual
 
 object PlanFingerprint:
-  def apply(value: String): PlanFingerprint = value
-  extension (fingerprint: PlanFingerprint) def render: String = fingerprint
+  /** Compatibility shorthand for an externally managed plan identity. */
+  def apply(value: String): PlanFingerprint = external(value)
+
+  def external(identity: String): PlanFingerprint =
+    new PlanFingerprint(
+      FingerprintPolicy.Summary("alder.external-plan-identity"),
+      identity
+    )
+
+  def content(algorithm: String, digest: String): PlanFingerprint =
+    new PlanFingerprint(
+      FingerprintPolicy.ContentDigest(algorithm),
+      digest
+    )
+
+  extension (fingerprint: PlanFingerprint)
+    def render: String = fingerprint.digest
+
+/** Canonical identity of a complete fitted audit.
+  *
+  * Prediction receipts use this internal value so a different seed, backend,
+  * numerical mode, component configuration, lineage, or refit authority cannot
+  * hide behind the same plan and source identities.
+  */
+private[alder] object AuditFingerprint:
+  private val offset = 0xcbf29ce484222325L
+  private val prime = 0x100000001b3L
+
+  def apply(audit: Audit): ProtocolFingerprint =
+    val bytes = AuditBinaryCodec.encode(audit)
+    var hash = offset
+    var index = 0
+    while index < bytes.length do
+      hash = (hash ^ (bytes(index).toLong & 0xffL)) * prime
+      index += 1
+    new ProtocolFingerprint(
+      FingerprintPolicy.ContentDigest(
+        "alder-audit-binary-v1-fnv1a64"
+      ),
+      hex(hash)
+    )
+
+  private def hex(value: Long): String =
+    val digits = "0123456789abcdef"
+    val builder = new StringBuilder(16)
+    var shift = 60
+    while shift >= 0 do
+      builder.append(
+        digits.charAt(((value >>> shift) & 0x0fL).toInt)
+      )
+      shift -= 4
+    builder.result()
 
 /** Policy-tagged fingerprint of an observation schema. */
 final case class SchemaFingerprint(
@@ -97,13 +153,38 @@ object Seed:
     * not delegate to a platform String hash implementation.
     */
   private def stablePlanHash(plan: PlanFingerprint): Long =
-    import PlanFingerprint.*
-    val value = plan.render
     var hash = 0xcbf29ce484222325L
+    hash = hashText(hash, "alder.plan-seed-v1")
+    plan.policy match
+      case FingerprintPolicy.ContentDigest(algorithm) =>
+        hash = hashText(hash, "content-digest")
+        hash = hashText(hash, algorithm)
+      case FingerprintPolicy.SourceIdentity(uri, version) =>
+        hash = hashText(hash, "source-identity")
+        hash = hashText(hash, uri)
+        hash = hashText(hash, version)
+      case FingerprintPolicy.Summary(policyId) =>
+        hash = hashText(hash, "summary")
+        hash = hashText(hash, policyId)
+    hashText(hash, plan.digest)
+
+  private def hashText(initial: Long, value: String): Long =
+    var hash = initial
+    hash = hashLong(hash, value.length.toLong)
     var index = 0
     while index < value.length do
-      hash = (hash ^ value.charAt(index).toLong) * 0x100000001b3L
+      val codeUnit = value.charAt(index).toLong
+      hash = (hash ^ ((codeUnit >>> 8) & 0xffL)) * 0x100000001b3L
+      hash = (hash ^ (codeUnit & 0xffL)) * 0x100000001b3L
       index += 1
+    hash
+
+  private def hashLong(initial: Long, value: Long): Long =
+    var hash = initial
+    var shift = 56
+    while shift >= 0 do
+      hash = (hash ^ ((value >>> shift) & 0xffL)) * 0x100000001b3L
+      shift -= 8
     hash
 
   private def splitmix(input: Long): Long =

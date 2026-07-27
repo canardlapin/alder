@@ -28,6 +28,7 @@ val catsV            = "2.13.0"
 val munitV           = "1.3.4"
 val disciplineMunitV = "2.0.0"
 val scalacheckV      = "1.18.1"
+val tesseraV         = "0.1.0-SNAPSHOT"
 
 // Development composite for the zero-runtime-dependency resampling protocol.
 // Stable Alder releases pin a published tessera-core version instead.
@@ -182,20 +183,48 @@ lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 lazy val dataJVM =
-  data.jvm.dependsOn(
-    tesseraCoreJVM,
-    tesseraDesignsJVM % "test->compile"
-  ).settings(compatibilitySettings)
+  if (file("../tessera").isDirectory)
+    data.jvm
+      .dependsOn(
+        tesseraCoreJVM,
+        tesseraDesignsJVM % "test->compile"
+      )
+      .settings(compatibilitySettings)
+  else
+    data.jvm
+      .settings(
+        libraryDependencies ++= Seq(
+          "io.github.canardlapin" %% "tessera-core" % tesseraV,
+          "io.github.canardlapin" %% "tessera-designs" % tesseraV % Test
+        )
+      )
+      .settings(compatibilitySettings)
 lazy val dataJS =
-  data.js.dependsOn(
-    tesseraCoreJS,
-    tesseraDesignsJS % "test->compile"
-  )
+  if (file("../tessera").isDirectory)
+    data.js.dependsOn(
+      tesseraCoreJS,
+      tesseraDesignsJS % "test->compile"
+    )
+  else
+    data.js.settings(
+      libraryDependencies ++= Seq(
+        "io.github.canardlapin" %%% "tessera-core" % tesseraV,
+        "io.github.canardlapin" %%% "tessera-designs" % tesseraV % Test
+      )
+    )
 lazy val dataNative =
-  data.native.dependsOn(
-    tesseraCoreNative,
-    tesseraDesignsNative % "test->compile"
-  )
+  if (file("../tessera").isDirectory)
+    data.native.dependsOn(
+      tesseraCoreNative,
+      tesseraDesignsNative % "test->compile"
+    )
+  else
+    data.native.settings(
+      libraryDependencies ++= Seq(
+        "io.github.canardlapin" %%% "tessera-core" % tesseraV,
+        "io.github.canardlapin" %%% "tessera-designs" % tesseraV % Test
+      )
+    )
 
 /** Target-blind preprocessing with representation-branded outputs. */
 lazy val preprocess = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -254,6 +283,33 @@ lazy val metricsLaws = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 lazy val metricsLawsJVM    = metricsLaws.jvm.settings(compatibilitySettings)
 lazy val metricsLawsJS     = metricsLaws.js
 lazy val metricsLawsNative = metricsLaws.native
+
+/** Scored evaluation, explicit selection evidence, and receipt-gated refit.
+  * This layer combines alder-data and alder-metrics without reversing either
+  * dependency.
+  */
+lazy val application = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("application"))
+  .dependsOn(
+    kernel,
+    data,
+    metrics,
+    testkit % "test->compile"
+  )
+  .settings(strictSettings)
+  .settings(
+    name := "alder-application",
+    libraryDependencies ++= Seq(
+      "org.scalameta"  %%% "munit"      % munitV      % Test,
+      "org.scalacheck" %%% "scalacheck" % scalacheckV % Test
+    )
+  )
+
+lazy val applicationJVM =
+  application.jvm.settings(compatibilitySettings)
+lazy val applicationJS     = application.js
+lazy val applicationNative = application.native
 
 /** Backend-neutral linear-model contracts and typed ridge learners. */
 lazy val modelsLinear = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -383,6 +439,7 @@ lazy val docs = project
     preprocessJVM,
     metricsJVM,
     metricsLawsJVM,
+    applicationJVM,
     modelsLinearJVM,
     ridgeGaleJVM,
     ridgeLinop4sJVM,
@@ -424,6 +481,9 @@ lazy val root = project
     metricsLawsJVM,
     metricsLawsJS,
     metricsLawsNative,
+    applicationJVM,
+    applicationJS,
+    applicationNative,
     modelsLinearJVM,
     modelsLinearJS,
     modelsLinearNative,
@@ -456,6 +516,7 @@ addCommandAlias(
      |;preprocessJVM/mimaReportBinaryIssues
      |;metricsJVM/mimaReportBinaryIssues
      |;metricsLawsJVM/mimaReportBinaryIssues
+     |;applicationJVM/mimaReportBinaryIssues
      |;modelsLinearJVM/mimaReportBinaryIssues
      |;ridgeLinop4sJVM/mimaReportBinaryIssues
      |;tuneJVM/mimaReportBinaryIssues
@@ -468,6 +529,7 @@ addCommandAlias(
      |;preprocessJVM/tastyMiMaReportIssues
      |;metricsJVM/tastyMiMaReportIssues
      |;metricsLawsJVM/tastyMiMaReportIssues
+     |;applicationJVM/tastyMiMaReportIssues
      |;modelsLinearJVM/tastyMiMaReportIssues
      |;ridgeLinop4sJVM/tastyMiMaReportIssues
      |;tuneJVM/tastyMiMaReportIssues
@@ -484,6 +546,7 @@ addCommandAlias(
      |;preprocessJVM/Compile/doc
      |;metricsJVM/Compile/doc
      |;metricsLawsJVM/Compile/doc
+     |;applicationJVM/Compile/doc
      |;modelsLinearJVM/Compile/doc
      |;ridgeGaleJVM/Compile/doc
      |;ridgeLinop4sJVM/Compile/doc

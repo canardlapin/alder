@@ -8,7 +8,9 @@ contributing to the repository.
 - JDK 21 or newer;
 - sbt 1.x;
 - Scala 3.7.4, selected by the build; and
-- sibling checkouts named `tessera`, `gale`, and `linop4s`.
+- sibling checkouts named `gale` and `linop4s`; and
+- either a sibling `tessera` checkout or locally published Tessera
+  `0.1.0-SNAPSHOT` artifacts.
 
 Use this directory layout:
 
@@ -17,7 +19,7 @@ scala/
 ├── alder/
 ├── gale/
 ├── linop4s/
-└── tessera/
+└── tessera/   # optional when the local snapshot is published
 ```
 
 From the Alder checkout, run:
@@ -49,6 +51,7 @@ Start with `alder-kernel`. Add only the modules required by the workflow:
 | Store data, split rows, or cross-fit | `alder-data` |
 | Standardize numeric features | `alder-preprocess` |
 | Compute streaming metrics | `alder-metrics` |
+| Score, select, and authorize refit | `alder-application` |
 | Fit backend-neutral ridge models | `alder-models-linear` plus one backend |
 | Define deterministic search spaces | `alder-tune` |
 | Encode fitted artifacts | `alder-codec` |

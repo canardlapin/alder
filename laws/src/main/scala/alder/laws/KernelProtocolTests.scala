@@ -41,6 +41,7 @@ final case class ObservedSourceSnapshot(
 final case class RefitSnapshot(
     sources: Vector[ObservedSourceSnapshot],
     receipt: EvaluationReceiptId,
+    selection: Option[SelectionReceiptId],
     claim: RefitEvaluationClaim
 )
 
@@ -91,6 +92,7 @@ object AuditSnapshot:
             )
           ),
           receipt = value.receipt,
+          selection = value.selectionReceipt,
           claim = value.claim
         )
       }

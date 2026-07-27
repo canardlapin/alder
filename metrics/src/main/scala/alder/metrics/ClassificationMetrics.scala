@@ -1,6 +1,6 @@
 package alder.metrics
 
-import alder.kernel.{Scored, WeightOf}
+import alder.kernel.{AuditValue, Scored, WeightOf}
 import cats.kernel.{CommutativeMonoid, Eq}
 import cats.syntax.eq.*
 
@@ -54,11 +54,29 @@ object WeightedAccuracyAccumulator:
 
 object ClassificationMetrics:
   /** Exact classification accuracy using the supplied Cats equality. */
-  def accuracy[C: Eq, M]: Metric[Scored[C, C, M], Accuracy] =
-    new Metric[Scored[C, C, M], Accuracy]:
+  def accuracy[C: Eq, M](
+      equalityPolicy: EqualityPolicyId
+  ): ObjectiveMetric[Scored[C, C, M], Accuracy] =
+    new ObjectiveMetric[Scored[C, C, M], Accuracy]:
       type Acc = AccuracyAccumulator
       given accumulator: CommutativeMonoid[AccuracyAccumulator] =
         AccuracyAccumulator.monoid
+
+      val direction: ObjectiveDirection = ObjectiveDirection.Maximize
+
+      val descriptor: MetricDescriptor =
+        MetricDescriptor(
+          MetricId("classification-accuracy"),
+          MetricVersion("1"),
+          AuditValue.record(
+            "equality-policy" -> AuditValue.text(equalityPolicy.value)
+          ),
+          MetricNumericPolicy.Reproducible,
+          Some(ObjectiveDescriptor(direction, "binary64-decimal-v1"))
+        )
+
+      def auditScore(score: Accuracy): AuditValue =
+        AuditValue.decimal(score.value)
 
       def observe(scored: Scored[C, C, M]): AccuracyAccumulator =
         new AccuracyAccumulator(
@@ -82,13 +100,33 @@ object ClassificationMetrics:
     * Weights must be finite and non-negative, and their total must be
     * positive. Summation is reproducible across partition shapes.
     */
-  def weightedAccuracy[C: Eq, M](using
+  def weightedAccuracy[C: Eq, M](
+      equalityPolicy: EqualityPolicyId,
+      weightPolicy: WeightPolicyId
+  )(using
       weightOf: WeightOf[M]
-  ): Metric[Scored[C, C, M], Accuracy] =
-    new Metric[Scored[C, C, M], Accuracy]:
+  ): ObjectiveMetric[Scored[C, C, M], Accuracy] =
+    new ObjectiveMetric[Scored[C, C, M], Accuracy]:
       type Acc = WeightedAccuracyAccumulator
       given accumulator: CommutativeMonoid[WeightedAccuracyAccumulator] =
         WeightedAccuracyAccumulator.monoid
+
+      val direction: ObjectiveDirection = ObjectiveDirection.Maximize
+
+      val descriptor: MetricDescriptor =
+        MetricDescriptor(
+          MetricId("weighted-classification-accuracy"),
+          MetricVersion("1"),
+          AuditValue.record(
+            "equality-policy" -> AuditValue.text(equalityPolicy.value),
+            "weight-policy" -> AuditValue.text(weightPolicy.value)
+          ),
+          MetricNumericPolicy.Reproducible,
+          Some(ObjectiveDescriptor(direction, "binary64-decimal-v1"))
+        )
+
+      def auditScore(score: Accuracy): AuditValue =
+        AuditValue.decimal(score.value)
 
       def observe(
           scored: Scored[C, C, M]

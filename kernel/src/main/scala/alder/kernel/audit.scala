@@ -36,7 +36,15 @@ final case class ObservedSource(
     fingerprint: DataFingerprint
 )
 
-/** Stable public identity of an evaluation receipt. The authority itself is
+/** Stable public identity of a complete prediction pass. */
+opaque type PredictionReceiptId = String
+
+object PredictionReceiptId:
+  private[alder] def apply(value: String): PredictionReceiptId = value
+  extension (id: PredictionReceiptId) def render: String = id
+  given CanEqual[PredictionReceiptId, PredictionReceiptId] = CanEqual.derived
+
+/** Stable public identity of a scored evaluation. The authority itself is
   * private and cannot be reconstructed from this identifier.
   */
 opaque type EvaluationReceiptId = String
@@ -45,6 +53,14 @@ object EvaluationReceiptId:
   private[alder] def apply(value: String): EvaluationReceiptId = value
   extension (id: EvaluationReceiptId) def render: String = id
   given CanEqual[EvaluationReceiptId, EvaluationReceiptId] = CanEqual.derived
+
+/** Stable public identity of an explicit model-selection decision. */
+opaque type SelectionReceiptId = String
+
+object SelectionReceiptId:
+  private[alder] def apply(value: String): SelectionReceiptId = value
+  extension (id: SelectionReceiptId) def render: String = id
+  given CanEqual[SelectionReceiptId, SelectionReceiptId] = CanEqual.derived
 
 /** Explicit audit statement about the artifact produced by a refit. */
 enum RefitEvaluationClaim derives CanEqual:
@@ -56,9 +72,12 @@ enum RefitEvaluationClaim derives CanEqual:
   */
 final class RefitAudit private[alder] (
     val sources: Vector[ObservedSource],
-    val receipt: EvaluationReceiptId,
+    val evaluationReceipt: EvaluationReceiptId,
+    val selectionReceipt: Option[SelectionReceiptId],
     val claim: RefitEvaluationClaim
-)
+):
+  /** Compatibility name for the evaluation evidence in this refit. */
+  def receipt: EvaluationReceiptId = evaluationReceipt
 
 opaque type ComponentId = String
 

@@ -108,7 +108,7 @@ class SpaceStudySuite extends munit.FunSuite:
         case Some(value) => value
         case None        => fail("training fixture must be nonempty")
     val study =
-      Study.grid[Id, Int, Int](
+      Study.grid[Id, Int, Int, Nothing](
         Space.choice(5, 3, 1),
         GridStrategy(positiveInt(2)),
         ObjectiveDirection.Minimize
@@ -136,7 +136,7 @@ class SpaceStudySuite extends munit.FunSuite:
         case Some(value) => value
         case None        => fail("training fixture must be nonempty")
     val study =
-      Study.grid[Id, Int, Int](
+      Study.grid[Id, Int, Int, Nothing](
         Space.choice(1, 2),
         GridStrategy(positiveInt(2)),
         ObjectiveDirection.Minimize
@@ -148,11 +148,52 @@ class SpaceStudySuite extends munit.FunSuite:
           failures.forall {
             case TrialFailure.NonFiniteObjective(value) =>
               value.isNaN
-            case _ => false
           }
         )
       case other =>
         fail(s"expected all-trials-failed result, got $other")
+  }
+
+  test("study retains the typed evaluation cause for each failed candidate") {
+    enum CandidateError derives CanEqual:
+      case Rejected(config: Int)
+
+    val training =
+      TestData.nonEmpty[Use.Train, Int](
+        Vector(RowId(0L) -> 1),
+        new DataFingerprint(
+          FingerprintPolicy.Summary("study-test"),
+          "typed-failure"
+        )
+      ) match
+        case Some(value) => value
+        case None        => fail("training fixture must be nonempty")
+    val study =
+      Study.grid[Id, Int, Int, CandidateError](
+        Space.choice(1, 2),
+        GridStrategy(positiveInt(2)),
+        ObjectiveDirection.Minimize
+      ) { (config, _) =>
+        if config == 1 then
+          Left(TrialFailure.Evaluation(CandidateError.Rejected(config)))
+        else Right(0.0)
+      }
+
+    study.run(training) match
+      case Left(error) => fail(s"unexpected study failure: $error")
+      case Right(selection) =>
+        assertEquals(selection.best, 2)
+        assertEquals(
+          selection.trials.map(_.objective),
+          Vector(
+            Left(
+              TrialFailure.Evaluation(
+                CandidateError.Rejected(1)
+              )
+            ),
+            Right(0.0)
+          )
+        )
   }
 
   test("objective direction is explicit and auditable") {
@@ -167,7 +208,7 @@ class SpaceStudySuite extends munit.FunSuite:
         case Some(value) => value
         case None        => fail("training fixture must be nonempty")
     val study =
-      Study.grid[Id, Int, Int](
+      Study.grid[Id, Int, Int, Nothing](
         Space.choice(1, 2, 3),
         GridStrategy(positiveInt(2)),
         ObjectiveDirection.Maximize
@@ -199,7 +240,7 @@ class SpaceStudySuite extends munit.FunSuite:
         import alder.tune.*
         import cats.Id
         def invalid(
-          study: Study[Id, Int, Int],
+          study: Study[Id, Int, Int, String],
           test: NonEmptyData[Use.Test, Int]
         ) = study.run(test)
       """

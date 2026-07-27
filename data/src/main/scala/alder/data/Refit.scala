@@ -3,10 +3,12 @@ package alder.data
 import alder.kernel.*
 import java.util.concurrent.atomic.AtomicBoolean
 
+/** Invalid evaluation-source or prior-refit provenance. */
 enum RefitError derives CanEqual:
   case EmptyEvaluationSource(role: EvaluationRole)
   case DuplicateObservedRow(id: RowId)
   case MissingPriorRefitAudit
+  case PriorRefitWasNotSelected
   case PriorSourcesMustEndInValidation(
       actual: Vector[ObservedSourceRole]
   )
@@ -14,8 +16,12 @@ enum RefitError derives CanEqual:
       expected: DataFingerprint,
       actual: DataFingerprint
   )
-  case ReceiptMismatch(receipt: EvaluationReceiptId)
-  case ReceiptAlreadyUsed(receipt: EvaluationReceiptId)
+
+/** Exact refit evidence copied into fitted-data and model audits. */
+final case class RefitEvidence(
+    evaluation: EvaluationReceiptId,
+    selection: Option[SelectionReceiptId]
+) derives CanEqual
 
 sealed trait EvaluationError[+E]
 
@@ -26,22 +32,23 @@ object EvaluationError:
   ) extends EvaluationError[Nothing]
 
   final case class FitAuditMismatch(
-      expected: Option[EvaluationReceiptId],
-      actual: Option[EvaluationReceiptId]
+      expected: Option[RefitEvidence],
+      actual: Option[RefitEvidence]
   ) extends EvaluationError[Nothing]
 
   final case class PredictionFailed[E](
       failure: Failure[E]
   ) extends EvaluationError[E]
 
-/** Exact fitting and held-out sources for one evaluation run. Construction is
-  * role-specific and validates nonemptiness, disjoint RowIds, and prior refit
-  * provenance before a model is executed.
+/** Exact fitting and held-out sources for one prediction or evaluation run.
+  *
+  * Construction is role-specific and validates nonemptiness, disjoint RowIds,
+  * and any prior refit provenance before a model is executed.
   */
 final class EvaluationSources[U <: Use.Evaluation, +A] private[data] (
-    private[data] val fitted: NonEmptyData[Use.Fit, A],
-    private[data] val heldOut: NonEmptyData[U, A],
-    private[data] val observedRows: Vector[(RowId, A)],
+    private[alder] val fitted: NonEmptyData[Use.Fit, A],
+    private[alder] val heldOut: NonEmptyData[U, A],
+    private[alder] val observedRows: Vector[(RowId, A)],
     val sources: Vector[ObservedSource],
     val authorizingRole: EvaluationRole,
     val fingerprint: DataFingerprint
@@ -54,15 +61,30 @@ object EvaluationSources:
   ): Either[RefitError, EvaluationSources[Use.Validation, A]] =
     val manifest = Vector(
       ObservedSource(ObservedSourceRole.Train, train.fingerprint),
-      ObservedSource(ObservedSourceRole.Validation, validation.fingerprint)
+      ObservedSource(
+        ObservedSourceRole.Validation,
+        validation.fingerprint
+      )
     )
-    build(
-      train,
-      validation,
-      manifest,
-      EvaluationRole.Validation
-    )
+    build(train, validation, manifest, EvaluationRole.Validation)
 
+  /** Builds the honest Train/Test route for a precommitted holdout.
+    *
+    * This route makes no validation, selection, or final-test claim.
+    */
+  def precommittedTest[A](
+      train: NonEmptyData[Use.Train, A],
+      test: Data[Use.Test, A]
+  ): Either[RefitError, EvaluationSources[Use.Test, A]] =
+    val manifest = Vector(
+      ObservedSource(ObservedSourceRole.Train, train.fingerprint),
+      ObservedSource(ObservedSourceRole.Test, test.fingerprint)
+    )
+    build(train, test, manifest, EvaluationRole.Test)
+
+  /** Builds the final Test route after an explicitly selected validation
+    * candidate was refitted on the exact Train+Validation manifest.
+    */
   def finalTest[A](
       fitted: NonEmptyData[Use.Refit, A],
       test: Data[Use.Test, A]
@@ -75,8 +97,9 @@ object EvaluationSources:
             ObservedSourceRole.Train,
             ObservedSourceRole.Validation
           )
-        then
-          Left(RefitError.PriorSourcesMustEndInValidation(roles))
+        then Left(RefitError.PriorSourcesMustEndInValidation(roles))
+        else if prior.selectionReceipt.isEmpty then
+          Left(RefitError.PriorRefitWasNotSelected)
         else
           val expected = Fingerprints.observed(prior.sources)
           if !sameFingerprint(expected, fitted.fingerprint) then
@@ -111,7 +134,10 @@ object EvaluationSources:
         case None =>
           val nonEmptyHeldOut =
             new NonEmptyData(
-              new InMemoryData[U, A](heldOutRows, heldOut.fingerprint)
+              new InMemoryData[U, A](
+                heldOutRows,
+                heldOut.fingerprint
+              )
             )
           Right(
             new EvaluationSources(
@@ -143,67 +169,64 @@ object EvaluationSources:
   ): Boolean =
     left.policy == right.policy && left.digest == right.digest
 
-/** The exact observations paired with one successful evaluation receipt.
-  * There is deliberately no public constructor or generic retag operation.
+/** The exact observations covered by one successful prediction pass.
+  *
+  * There is no public constructor or generic retag operation. The role
+  * parameter prevents validation and test evidence from being exchanged.
   */
-final class AllObserved[+A] private[data] (
-    private[data] val rows: Vector[(RowId, A)],
+final class AllObserved[
+    U <: Use.Evaluation,
+    +A
+] private[data] (
+    private[alder] val rows: Vector[(RowId, A)],
     val fingerprint: DataFingerprint,
     val sources: Vector[ObservedSource],
-    private[data] val authority: ReceiptAuthority
-) extends Data[Use.Unsplit, A]:
+    private[alder] val authority: PromotionAuthority[U]
+):
   def size: Long = rows.length.toLong
 
+  /** Folds the observed values for reporting without laundering them back
+    * through an `Unsplit` data constructor.
+    */
   def foldRows[B](initial: B)(step: (B, RowId, A) => B): B =
     rows.foldLeft(initial)((acc, row) => step(acc, row._1, row._2))
 
-/** Unforgeable, one-shot authority emitted only after every held-out row was
-  * successfully evaluated. `id` is reproducible audit identity; the private
-  * authority token is what prevents substitution.
+/** Reproducible evidence that every held-out row produced a prediction.
+  *
+  * A prediction receipt grants no refit authority. Scoring in
+  * `alder-application` must finish successfully before stronger evidence can
+  * be minted.
   */
-final class EvaluationReceipt private[data] (
-    val id: EvaluationReceiptId,
+final class PredictionReceipt[
+    U <: Use.Evaluation
+] private[alder] (
+    val id: PredictionReceiptId,
     val sources: Vector[ObservedSource],
-    val authorizingRole: EvaluationRole,
-    private[data] val authority: ReceiptAuthority
-):
-  // Deliberate, localized authority state: compare-and-set is the runtime
-  // enforcement of the receipt's one-shot law, including concurrent callers.
-  private val used = new AtomicBoolean(false)
+    val role: EvaluationRole,
+    val priorSelection: Option[SelectionReceiptId]
+)
 
-  private[data] def authorize[A](
-      observed: AllObserved[A]
-  ): Either[RefitError, RefitAudit] =
-    if authority ne observed.authority then
-      Left(RefitError.ReceiptMismatch(id))
-    else if !used.compareAndSet(false, true) then
-      Left(RefitError.ReceiptAlreadyUsed(id))
-    else
-      val claim =
-        authorizingRole match
-          case EvaluationRole.Validation =>
-            RefitEvaluationClaim
-              .ArtifactNotEvaluatedOnAuthorizingValidation
-          case EvaluationRole.Test =>
-            RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingTest
-      Right(new RefitAudit(sources, id, claim))
+/** One original held-out observation paired with its successful prediction. */
+final case class Predicted[+A, +B](observation: A, prediction: B)
 
-private[data] final class ReceiptAuthority
-
-/** Successful predictions plus the only data bundle the emitted receipt may
-  * promote.
+/** Successful held-out predictions plus the exact observed-data bundle to
+  * which later scored evidence may be bound.
   */
-final class EvaluationResult[
+final class PredictionResult[
     U <: Use.Evaluation,
     +A,
     +B
 ] private[data] (
     val predictions: NonEmptyData[U, B],
-    val receipt: EvaluationReceipt,
-    val allObserved: AllObserved[A]
+    val predicted: NonEmptyData[U, Predicted[A, B]],
+    val receipt: PredictionReceipt[U],
+    val allObserved: AllObserved[U, A],
+    private[alder] val heldOut: NonEmptyData[U, A],
+    private[alder] val authority: PromotionAuthority[U]
 )
 
-object Evaluation:
+object Prediction:
+  /** Predicts every held-out value with a model fitted on the declared source. */
   def run[
       U <: Use.Evaluation,
       A,
@@ -213,7 +236,27 @@ object Evaluation:
   ](
       trained: Trained[P],
       sources: EvaluationSources[U, A]
-  ): Either[EvaluationError[E], EvaluationResult[U, A, B]] =
+  ): Either[EvaluationError[E], PredictionResult[U, A, B]] =
+    runBy(trained, sources)(identity)
+
+  /** Predicts from a projection while preserving the original held-out rows.
+    *
+    * Scored evaluation uses this to pass `Example.input` to a trained model
+    * without losing truth, metadata, or RowId.
+    */
+  def runBy[
+      U <: Use.Evaluation,
+      A,
+      X,
+      E,
+      B,
+      P <: Pipe[X, E, B]
+  ](
+      trained: Trained[P],
+      sources: EvaluationSources[U, A]
+  )(
+      input: A => X
+  ): Either[EvaluationError[E], PredictionResult[U, A, B]] =
     if !sameFingerprint(trained.audit.data, sources.fitted.fingerprint) then
       Left(
         EvaluationError.FitSourceMismatch(
@@ -221,56 +264,77 @@ object Evaluation:
           actual = trained.audit.data
         )
       )
-    else if receiptId(trained.audit.refit) != receiptId(sources.fitted.refit)
+    else if evidence(trained.audit.refit) != evidence(sources.fitted.refit)
     then
       Left(
         EvaluationError.FitAuditMismatch(
-          expected = receiptId(sources.fitted.refit),
-          actual = receiptId(trained.audit.refit)
+          expected = evidence(sources.fitted.refit),
+          actual = evidence(trained.audit.refit)
         )
       )
     else
       val predictions = sources.heldOut.data.foldRows[
-        Either[EvaluationError[E], Vector[(RowId, B)]]
+        Either[
+          EvaluationError[E],
+          Vector[(RowId, Predicted[A, B])]
+        ]
       ](Right(Vector.empty)) {
         case (Left(error), _, _) => Left(error)
         case (Right(rows), id, value) =>
           trained.artifact
-            .run(value)
+            .run(input(value))
             .left
             .map(EvaluationError.PredictionFailed(_))
-            .map(prediction => rows :+ (id, prediction))
+            .map(prediction =>
+              rows :+ (id, Predicted(value, prediction))
+            )
       }
       predictions.map { rows =>
-        val authority = new ReceiptAuthority
-        val receiptId = Fingerprints.evaluationReceipt(
+        val authority = new PromotionAuthority[U]
+        val receiptId = Fingerprints.predictionReceipt(
           trained.audit,
           sources.fingerprint,
           sources.authorizingRole
         )
-        val receipt = new EvaluationReceipt(
+        val receipt = new PredictionReceipt[U](
           receiptId,
           sources.sources,
           sources.authorizingRole,
-          authority
+          trained.audit.refit.flatMap(_.selectionReceipt)
         )
-        val observed = new AllObserved(
+        val observed = new AllObserved[U, A](
           sources.observedRows,
           sources.fingerprint,
           sources.sources,
           authority
         )
-        val predictionFingerprint = Fingerprints.derived(
+        val predictionFingerprint = Fingerprints.evaluationDerived(
           sources.heldOut.fingerprint,
           "evaluation/predictions",
           receiptId.render
         )
-        new EvaluationResult(
+        val predictedFingerprint = Fingerprints.evaluationDerived(
+          sources.heldOut.fingerprint,
+          "evaluation/predicted-observations",
+          receiptId.render
+        )
+        new PredictionResult(
           new NonEmptyData(
-            new InMemoryData[U, B](rows, predictionFingerprint)
+            new InMemoryData[U, B](
+              rows.map((id, value) => (id, value.prediction)),
+              predictionFingerprint
+            )
+          ),
+          new NonEmptyData(
+            new InMemoryData[U, Predicted[A, B]](
+              rows,
+              predictedFingerprint
+            )
           ),
           receipt,
-          observed
+          observed,
+          sources.heldOut,
+          authority
         )
       }
 
@@ -280,22 +344,45 @@ object Evaluation:
   ): Boolean =
     left.policy == right.policy && left.digest == right.digest
 
-  private def receiptId(
+  private def evidence(
       refit: Option[RefitAudit]
-  ): Option[EvaluationReceiptId] =
-    refit.map(_.receipt)
+  ): Option[RefitEvidence] =
+    refit.map(value =>
+      RefitEvidence(
+        value.evaluationReceipt,
+        value.selectionReceipt
+      )
+    )
 
-object Refit:
-  def after(receipt: EvaluationReceipt): RefitPromotion =
-    new RefitPromotion(receipt)
+/** Alder-internal one-shot link between scored evidence and its exact observed
+  * bundle. Public receipt identifiers cannot reconstruct this capability.
+  */
+private[alder] final class PromotionAuthority[
+    U <: Use.Evaluation
+]:
+  private val used = new AtomicBoolean(false)
 
-final class RefitPromotion private[data] (
-    receipt: EvaluationReceipt
-):
-  def from[A](
-      observed: AllObserved[A]
-  ): Either[RefitError, NonEmptyData[Use.Refit, A]] =
-    receipt.authorize(observed).map { audit =>
+  private[alder] def consume[A](
+      observed: AllObserved[U, A]
+  ): Either[PromotionError, Unit] =
+    if this ne observed.authority then
+      Left(PromotionError.AuthorityMismatch)
+    else if !used.compareAndSet(false, true) then
+      Left(PromotionError.AuthorityAlreadyUsed)
+    else Right(())
+
+private[alder] enum PromotionError derives CanEqual:
+  case AuthorityMismatch
+  case AuthorityAlreadyUsed
+
+/** Data-owned promotion primitive used only by the application receipt layer. */
+private[alder] object Promotion:
+  def refit[U <: Use.Evaluation, A](
+      authority: PromotionAuthority[U],
+      observed: AllObserved[U, A],
+      audit: RefitAudit
+  ): Either[PromotionError, NonEmptyData[Use.Refit, A]] =
+    authority.consume(observed).map { _ =>
       new NonEmptyData(
         new InMemoryData[Use.Refit, A](
           observed.rows,
@@ -304,3 +391,6 @@ final class RefitPromotion private[data] (
         Some(audit)
       )
     }
+
+/** Namespace extended by alder-application with receipt-gated transitions. */
+object Refit

@@ -24,9 +24,16 @@ object Fit:
       plan: String,
       numericMode: NumericMode = NumericMode.Deterministic
   )(using schema: Schema[A]): FitContext =
+    context(seed, PlanFingerprint(plan), numericMode)
+
+  def context[A](
+      seed: Seed,
+      plan: PlanFingerprint,
+      numericMode: NumericMode
+  )(using schema: Schema[A]): FitContext =
     FitContext.root(
       seed,
-      PlanFingerprint(plan),
+      plan,
       schema.fingerprint,
       numericMode
     )
@@ -56,6 +63,33 @@ object Fit:
     learner
       .fit(data)(
         using context[X](seed, plan, numericMode)
+      )
+      .toEither
+
+  /** Fits with an already policy-tagged plan identity. */
+  def learner[
+      U <: Use.Fit,
+      X,
+      Y,
+      M,
+      P,
+      L <: Learner[Id, X, Y, M, P]
+  ](
+      learner: L,
+      data: NonEmptyData[U, Example[X, Y, M]],
+      seed: Seed,
+      plan: PlanFingerprint
+  )(using Schema[X]): Either[
+    Failure[learner.FitError],
+    Trained[learner.Model]
+  ] =
+    learner
+      .fit(data)(
+        using context[X](
+          seed,
+          plan,
+          NumericMode.Deterministic
+        )
       )
       .toEither
 

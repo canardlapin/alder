@@ -1,6 +1,7 @@
 package alder.tune
 
 import alder.kernel.*
+import alder.metrics
 import cats.Monad
 import cats.syntax.all.*
 
@@ -9,20 +10,20 @@ enum SearchStrategy derives CanEqual:
   case Grid(continuousPoints: PositiveInt)
   case Random(trials: PositiveInt)
 
-/** Whether a smaller or larger finite objective is preferred. */
-enum ObjectiveDirection derives CanEqual:
-  case Minimize
-  case Maximize
+/** Shared objective direction from alder-metrics. */
+type ObjectiveDirection = metrics.ObjectiveDirection
+val ObjectiveDirection: metrics.ObjectiveDirection.type =
+  metrics.ObjectiveDirection
 
 /** Failure of one candidate evaluation. */
-enum TrialFailure derives CanEqual:
-  case Evaluation(description: String)
+enum TrialFailure[+E] derives CanEqual:
+  case Evaluation(error: E)
   case NonFiniteObjective(value: Double)
 
 /** One configuration and either its finite objective or evaluation failure. */
-final case class Trial[C](
+final case class Trial[C, +E](
     config: C,
-    objective: Either[TrialFailure, Double]
+    objective: Either[TrialFailure[E], Double]
 )
 
 /** Reproducibility and completion summary for a study. */
@@ -39,28 +40,28 @@ final case class StudyAudit(
   * Ties preserve candidate order: the first candidate with the best objective
   * is selected.
   */
-final class Selection[C] private[tune] (
+final class Selection[C, +E] private[tune] (
     val best: C,
-    val trials: Vector[Trial[C]],
+    val trials: Vector[Trial[C, E]],
     val audit: StudyAudit
 )
 
 /** Failure to select a configuration. */
-enum StudyError derives CanEqual:
-  case NoSuccessfulTrial(failures: Vector[TrialFailure])
+enum StudyError[+E] derives CanEqual:
+  case NoSuccessfulTrial(failures: Vector[TrialFailure[E]])
 
 /** A study evaluates only Train data and returns a selected configuration.
   * Fitted artifacts never cross this boundary; callers perform final refitting
   * through their concrete family(selection.best) on receipt-authorized Refit
   * data, preserving the path-dependent Model type.
   */
-final class Study[F[_], C, A] private (
+final class Study[F[_], C, A, E] private (
     candidates: Vector[C],
     strategy: SearchStrategy,
     objectiveDirection: ObjectiveDirection,
     seed: Option[Seed],
     evaluate: (C, NonEmptyData[Use.Train, A]) =>
-      F[Either[TrialFailure, Double]]
+      F[Either[TrialFailure[E], Double]]
 )(using monad: Monad[F]):
 
   /** Evaluates every candidate on the supplied training data and selects the
@@ -68,7 +69,7 @@ final class Study[F[_], C, A] private (
     */
   def run(
       data: NonEmptyData[Use.Train, A]
-  ): F[Either[StudyError, Selection[C]]] =
+  ): F[Either[StudyError[E], Selection[C, E]]] =
     candidates
       .traverse(config =>
         evaluate(config, data).map { objective =>
@@ -82,8 +83,8 @@ final class Study[F[_], C, A] private (
       .map(select)
 
   private def select(
-      trials: Vector[Trial[C]]
-  ): Either[StudyError, Selection[C]] =
+      trials: Vector[Trial[C, E]]
+  ): Either[StudyError[E], Selection[C, E]] =
     val successful = trials.collect {
       case trial @ Trial(_, Right(objective)) =>
         (trial, objective)
@@ -126,14 +127,14 @@ object Study:
     * The evaluation callback can inspect only `Use.Train` data. Candidate
     * failures are retained and do not prevent later candidates from running.
     */
-  def grid[F[_], C, A](
+  def grid[F[_], C, A, E](
       space: Space[C],
       strategy: GridStrategy,
       objectiveDirection: ObjectiveDirection
   )(
       evaluate: (C, NonEmptyData[Use.Train, A]) =>
-        F[Either[TrialFailure, Double]]
-  )(using Monad[F]): Study[F, C, A] =
+        F[Either[TrialFailure[E], Double]]
+  )(using Monad[F]): Study[F, C, A, E] =
     new Study(
       Grid.candidates(space, strategy),
       SearchStrategy.Grid(strategy.continuousPoints),
@@ -147,15 +148,15 @@ object Study:
     * The explicit seed determines candidate generation and is recorded in the
     * resulting audit.
     */
-  def random[F[_], C, A](
+  def random[F[_], C, A, E](
       space: Space[C],
       trials: PositiveInt,
       seed: Seed,
       objectiveDirection: ObjectiveDirection
   )(
       evaluate: (C, NonEmptyData[Use.Train, A]) =>
-        F[Either[TrialFailure, Double]]
-  )(using Monad[F]): Study[F, C, A] =
+        F[Either[TrialFailure[E], Double]]
+  )(using Monad[F]): Study[F, C, A, E] =
     new Study(
       RandomSearch.candidates(space, trials, seed),
       SearchStrategy.Random(trials),

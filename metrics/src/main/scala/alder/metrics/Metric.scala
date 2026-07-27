@@ -1,6 +1,60 @@
 package alder.metrics
 
+import alder.kernel.AuditValue
 import cats.kernel.CommutativeMonoid
+
+/** Stable, application-independent metric name. */
+opaque type MetricId = String
+
+object MetricId:
+  def apply(value: String): MetricId = value
+  extension (id: MetricId) def render: String = id
+  given CanEqual[MetricId, MetricId] = CanEqual.derived
+
+/** Version of a metric's semantics and accumulator policy. */
+opaque type MetricVersion = String
+
+object MetricVersion:
+  def apply(value: String): MetricVersion = value
+  extension (version: MetricVersion) def render: String = version
+  given CanEqual[MetricVersion, MetricVersion] = CanEqual.derived
+
+/** Numeric contract promised by a metric implementation. */
+enum MetricNumericPolicy derives CanEqual:
+  case Reproducible
+
+/** Whether selection prefers a smaller or larger objective. */
+enum ObjectiveDirection derives CanEqual:
+  case Minimize
+  case Maximize
+
+/** Objective-specific identity included in a metric descriptor. */
+final case class ObjectiveDescriptor(
+    direction: ObjectiveDirection,
+    scoreEncodingVersion: String
+)
+
+/** Stable public identity and validated configuration of a metric. */
+final case class MetricDescriptor(
+    id: MetricId,
+    version: MetricVersion,
+    parameters: AuditValue,
+    numericPolicy: MetricNumericPolicy,
+    objective: Option[ObjectiveDescriptor]
+)
+
+/** Explicit identity for the equality semantics used by an accuracy metric.
+  *
+  * Two `Eq` implementations with different semantics must use different ids.
+  */
+final case class EqualityPolicyId(value: String)
+
+/** Explicit identity for the metadata-to-weight interpretation.
+  *
+  * Two `WeightOf` implementations with different semantics must use different
+  * ids.
+  */
+final case class WeightPolicyId(value: String)
 
 /** A rejected metric input or an unusable aggregate result.
   *
@@ -25,6 +79,9 @@ enum MetricError derives CanEqual:
 trait Metric[-A, +S]:
   type Acc
 
+  /** Stable identity of this exact metric policy and configuration. */
+  def descriptor: MetricDescriptor
+
   /** Laws for empty, associative, and commutative accumulator combination. */
   given accumulator: CommutativeMonoid[Acc]
 
@@ -43,6 +100,15 @@ trait Metric[-A, +S]:
   /** Accumulates and finishes a collection in one call. */
   final def evaluate(values: IterableOnce[A]): Either[MetricError, S] =
     finish(accumulate(values))
+
+/** A metric that can authorize model selection.
+  *
+  * The result is deliberately invariant: this same stable metric value owns
+  * both its direction and canonical score-to-audit encoding.
+  */
+trait ObjectiveMetric[-A, S] extends Metric[A, S]:
+  def direction: ObjectiveDirection
+  def auditScore(score: S): AuditValue
 
 /** Root mean squared error, branded to prevent accidental interchange with a
   * raw objective or another metric.

@@ -1,6 +1,6 @@
 package alder.metrics
 
-import alder.kernel.{Scored, WeightOf}
+import alder.kernel.{AuditValue, Scored, WeightOf}
 import cats.kernel.CommutativeMonoid
 
 final class RmseAccumulator private[metrics] (
@@ -71,14 +71,31 @@ object RegressionMetrics:
     * The accumulator is commutative and uses an exact superaccumulator, so
     * repartitioning or changing the reduction tree does not change the result.
     */
-  def rmse[M]: Metric[
+  def rmse[M]: ObjectiveMetric[
     Scored[Double, Double, M],
     RootMeanSquaredError
   ] =
-    new Metric[Scored[Double, Double, M], RootMeanSquaredError]:
+    new ObjectiveMetric[
+      Scored[Double, Double, M],
+      RootMeanSquaredError
+    ]:
       type Acc = RmseAccumulator
       given accumulator: CommutativeMonoid[RmseAccumulator] =
         RmseAccumulator.monoid
+
+      val direction: ObjectiveDirection = ObjectiveDirection.Minimize
+
+      val descriptor: MetricDescriptor =
+        MetricDescriptor(
+          MetricId("root-mean-squared-error"),
+          MetricVersion("1"),
+          AuditValue.record(),
+          MetricNumericPolicy.Reproducible,
+          Some(ObjectiveDescriptor(direction, "binary64-decimal-v1"))
+        )
+
+      def auditScore(score: RootMeanSquaredError): AuditValue =
+        AuditValue.decimal(score.value)
 
       def observe(
           scored: Scored[Double, Double, M]
@@ -104,16 +121,37 @@ object RegressionMetrics:
     * positive. A zero-weight observation is valid and contributes no squared
     * error.
     */
-  def weightedRmse[M](using
+  def weightedRmse[M](
+      weightPolicy: WeightPolicyId
+  )(using
       weightOf: WeightOf[M]
-  ): Metric[
+  ): ObjectiveMetric[
     Scored[Double, Double, M],
     RootMeanSquaredError
   ] =
-    new Metric[Scored[Double, Double, M], RootMeanSquaredError]:
+    new ObjectiveMetric[
+      Scored[Double, Double, M],
+      RootMeanSquaredError
+    ]:
       type Acc = WeightedRmseAccumulator
       given accumulator: CommutativeMonoid[WeightedRmseAccumulator] =
         WeightedRmseAccumulator.monoid
+
+      val direction: ObjectiveDirection = ObjectiveDirection.Minimize
+
+      val descriptor: MetricDescriptor =
+        MetricDescriptor(
+          MetricId("weighted-root-mean-squared-error"),
+          MetricVersion("1"),
+          AuditValue.record(
+            "weight-policy" -> AuditValue.text(weightPolicy.value)
+          ),
+          MetricNumericPolicy.Reproducible,
+          Some(ObjectiveDescriptor(direction, "binary64-decimal-v1"))
+        )
+
+      def auditScore(score: RootMeanSquaredError): AuditValue =
+        AuditValue.decimal(score.value)
 
       def observe(
           scored: Scored[Double, Double, M]

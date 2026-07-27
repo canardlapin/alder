@@ -18,14 +18,22 @@ Use
 
 - `Unsplit` data has not entered an evaluation protocol.
 - `Train` data may fit components and run tuning studies.
-- `Refit` data may fit a final artifact only after a successful evaluation
-  emitted a one-shot receipt.
+- `Refit` data may fit a new artifact only after a one-shot receipt authorizes
+  its exact source manifest.
 - `Validation` and `Test` data may be evaluated but cannot be fitted.
 
 Most fitting signatures accept `U <: Use.Fit`, so the same implementation can
 fit training or receipt-authorized refit data without erasing the role. A
 `Study` accepts exactly `Use.Train`; tuning on final refit data would repeat
 model selection after evaluation.
+
+Prediction, scoring, selection, and refit are separate transitions. A
+`PredictionReceipt` proves that every held-out row produced a prediction but
+grants no data access. Successful metric finishing produces a role-typed
+`EvaluationReceipt`. Validation evaluation still cannot authorize refit:
+explicit selection produces the `SelectionReceipt` that permits exactly
+Train+Validation. A Test evaluation receipt can authorize only its exact
+all-observed manifest for deployment refit.
 
 ## Prepared rows
 

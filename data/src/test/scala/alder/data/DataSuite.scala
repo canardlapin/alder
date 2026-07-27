@@ -3,6 +3,7 @@ package alder.data
 import alder.kernel.*
 import cats.kernel.{Hash, Order}
 import org.scalacheck.{Gen, Prop, Test}
+import scala.compiletime.testing.typeCheckErrors
 
 final case class TestMeta(group: Int, time: Int)
 
@@ -39,6 +40,19 @@ class DataSuite extends munit.FunSuite:
     data.foldRows(Vector.empty[(Long, A)])((rows, id, value) =>
       rows :+ (id.value, value)
     )
+
+  private def rows(value: Long): Rows =
+    Rows(value) match
+      case Right(result) => result
+      case Left(error)   => fail(s"unexpected Rows error: $error")
+
+  private def fraction(
+      numerator: Long,
+      denominator: Long
+  ): Fraction =
+    Fraction(numerator, denominator) match
+      case Right(result) => result
+      case Left(error)   => fail(s"unexpected Fraction error: $error")
 
   private def planOf[A](
       resampler: Resampler[A],
@@ -108,9 +122,9 @@ class DataSuite extends munit.FunSuite:
     (first, second) match
       case (Right(left), Right(right)) =>
         val leftTrain = rowsOf(left.train.data)
-        val leftTest = rowsOf(left.test)
+        val leftTest = rowsOf(left.test.data)
         val rightTrain = rowsOf(right.train.data)
-        val rightTest = rowsOf(right.test)
+        val rightTest = rowsOf(right.test.data)
         assertEquals(leftTrain, rightTrain)
         assertEquals(leftTest, rightTest)
         assertEquals(leftTrain.map(_._1), leftTrain.map(_._1).sorted)
@@ -138,6 +152,282 @@ class DataSuite extends munit.FunSuite:
       Holdout.split(source, testSize = 4, Seed(1L)),
       Left(DataError.InvalidHoldoutSize(4, 4L))
     )
+  }
+
+  test("RankV1 matches the normative rank and membership vectors") {
+    val content =
+      new DataFingerprint(
+        FingerprintPolicy.ContentDigest("sha256"),
+        "abc"
+      )
+    assertEquals(
+      RankV1.rank(content, Seed(0L), RowId(0L)),
+      Right(7172581403538783996L)
+    )
+    assertEquals(
+      RankV1.rank(
+        new DataFingerprint(
+          FingerprintPolicy.SourceIdentity(
+            "s3://bucket/data",
+            "v1"
+          ),
+          "summary-42"
+        ),
+        Seed(17L),
+        RowId(-9L)
+      ),
+      Right(-585442076852022257L)
+    )
+    assertEquals(
+      RankV1.rank(
+        new DataFingerprint(
+          FingerprintPolicy.Summary("privacy-v1"),
+          "deadbeef"
+        ),
+        Seed(-1L),
+        RowId(42L)
+      ),
+      Right(-4250306088002722665L)
+    )
+
+    val source = InMemoryData.unsplit(Vector.range(0, 5), content)
+    val holdout =
+      Split.holdout(source, HoldoutSpec(rows(2L)), Seed(0L)) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected holdout error: $error")
+    assertEquals(
+      rowsOf(holdout.train.data).map(_._1),
+      Vector(0L, 2L, 3L)
+    )
+    assertEquals(
+      rowsOf(holdout.test.data).map(_._1),
+      Vector(1L, 4L)
+    )
+
+    val specification =
+      TrainValidationTestSpec(
+        SplitAmount.Count(rows(1L)),
+        SplitAmount.Count(rows(2L))
+      ) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected TVT spec error: $error")
+    val threeWay =
+      Split.trainValidationTest(source, specification, Seed(0L)) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected TVT split error: $error")
+    assertEquals(
+      rowsOf(threeWay.train.data).map(_._1),
+      Vector(0L, 3L)
+    )
+    assertEquals(
+      rowsOf(threeWay.validation.data).map(_._1),
+      Vector(1L)
+    )
+    assertEquals(
+      rowsOf(threeWay.test.data).map(_._1),
+      Vector(2L, 4L)
+    )
+  }
+
+  test("split specifications use exact reduced-rational total-N apportionment") {
+    val reduced = fraction(6L, 15L)
+    assertEquals(reduced.numerator, 2L)
+    assertEquals(reduced.denominator, 5L)
+    assertEquals(reduced, fraction(2L, 5L))
+    assertEquals(rows(2L), rows(2L))
+    assertEquals(Rows(0L), Left(DataError.InvalidRows(0L)))
+    assertEquals(
+      Fraction(1L, 1L),
+      Left(DataError.InvalidFraction(1L, 1L))
+    )
+
+    val validation = fraction(1L, 3L)
+    val test = fraction(1L, 5L)
+    val specification =
+      TrainValidationTestSpec(
+        SplitAmount.Proportion(validation),
+        SplitAmount.Proportion(test)
+      ) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected fraction spec error: $error")
+    val source =
+      InMemoryData.unsplit(Vector.range(0, 10), fingerprint("fraction"))
+    val result =
+      Split.trainValidationTest(source, specification, Seed(8L)) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected fraction split error: $error")
+    assertEquals(result.train.size, 5L)
+    assertEquals(result.validation.size, 3L)
+    assertEquals(result.test.size, 2L)
+
+    val half = fraction(1L, 2L)
+    assertEquals(
+      TrainValidationTestSpec(
+        SplitAmount.Proportion(half),
+        SplitAmount.Proportion(half)
+      ),
+      Left(DataError.InvalidThreeWayFractionSum(half, half))
+    )
+
+    val enormous = rows(Long.MaxValue)
+    val enormousSpecification =
+      TrainValidationTestSpec(
+        SplitAmount.Count(enormous),
+        SplitAmount.Count(enormous)
+      ) match
+        case Right(value) => value
+        case Left(error) =>
+          fail(s"unexpected large-row specification error: $error")
+    assertEquals(
+      Split.trainValidationTest(
+        source,
+        enormousSpecification,
+        Seed(8L)
+      ),
+      Left(
+        DataError.ExhaustiveSplit(
+          10L,
+          enormousSpecification.policy
+        )
+      )
+    )
+  }
+
+  test("RankV1 rejects malformed text before duplicate source RowIds") {
+    val unpaired = new String(Array(0xd800.toChar))
+    val malformed =
+      new DataFingerprint(
+        FingerprintPolicy.ContentDigest(unpaired),
+        "abc"
+      )
+    val duplicate = new InMemoryData[Use.Unsplit, Int](
+      Vector(RowId(1L) -> 1, RowId(1L) -> 2),
+      malformed
+    )
+    assertEquals(
+      Split.holdout(duplicate, HoldoutSpec(rows(1L)), Seed(0L)),
+      Left(
+        DataError.InvalidRankText(
+          RankTextField.ContentDigestAlgorithm,
+          RankTextError.UnpairedSurrogate(0)
+        )
+      )
+    )
+
+    val validDuplicate = new InMemoryData[Use.Unsplit, Int](
+      Vector(RowId(1L) -> 1, RowId(1L) -> 2),
+      fingerprint("duplicate")
+    )
+    assertEquals(
+      Split.holdout(
+        validDuplicate,
+        HoldoutSpec(rows(1L)),
+        Seed(0L)
+      ),
+      Left(DataError.DuplicateSourceRow(RowId(1L)))
+    )
+  }
+
+  test("split policy fingerprint changes even when membership does not") {
+    val source =
+      InMemoryData.unsplit(Vector.range(0, 10), fingerprint("policy"))
+    val byRows =
+      Split.holdout(source, HoldoutSpec(rows(1L)), Seed(11L)) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected row split error: $error")
+    val byFraction =
+      Split.holdout(
+        source,
+        HoldoutSpec(fraction(1L, 10L)),
+        Seed(11L)
+      ) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected fraction split error: $error")
+    assertEquals(
+      rowsOf(byRows.test.data),
+      rowsOf(byFraction.test.data)
+    )
+    assertNotEquals(
+      byRows.receipt.policy.digest,
+      byFraction.receipt.policy.digest
+    )
+  }
+
+  test("RankV1 split laws hold over generated sizes, counts, and seeds") {
+    val property = Prop.forAll(
+      Gen.choose(2, 80),
+      Gen.choose(1, 1000),
+      Gen.choose(Long.MinValue, Long.MaxValue)
+    ) { (rowCount, selector, rawSeed) =>
+      val heldOut = 1 + selector % (rowCount - 1)
+      val source =
+        InMemoryData.unsplit(
+          Vector.range(0, rowCount),
+          fingerprint(s"split-$rowCount")
+        )
+      Split.holdout(
+        source,
+        HoldoutSpec(rows(heldOut.toLong)),
+        Seed(rawSeed)
+      ) match
+        case Left(_) => false
+        case Right(result) =>
+          val trainIds = rowsOf(result.train.data).map(_._1)
+          val testIds = rowsOf(result.test.data).map(_._1)
+          trainIds == trainIds.sorted &&
+          testIds == testIds.sorted &&
+          trainIds.toSet.intersect(testIds.toSet).isEmpty &&
+          (trainIds ++ testIds).sorted ==
+            Vector.range(0, rowCount).map(_.toLong) &&
+          result.receipt.partitions.map(_.count).sum == rowCount.toLong
+    }
+    val result = Test.check(
+      Test.Parameters.default.withMinSuccessfulTests(100),
+      property
+    )
+    assert(result.passed, result.toString)
+  }
+
+  test("split roles and receipts cannot be forged or retagged") {
+    val resultErrors = typeCheckErrors(
+      """package consumer
+import alder.data.*
+import alder.kernel.*
+def illegal[A](
+  train: NonEmptyData[Use.Train, A],
+  validation: NonEmptyData[Use.Validation, A],
+  receipt: SplitReceipt
+) =
+  new ValidationSplit(train, validation, receipt)
+"""
+    )
+    val receiptErrors = typeCheckErrors(
+      """package consumer
+import alder.data.*
+import alder.kernel.*
+val forged = new SplitReceipt(
+  DataFingerprint.external("source"),
+  new ProtocolFingerprint(
+    FingerprintPolicy.Summary("policy"),
+    "digest"
+  ),
+  Seed(0L),
+  Vector.empty,
+  SplitAlgorithm.RankV1
+)
+"""
+    )
+    val retagErrors = typeCheckErrors(
+      """package consumer
+import alder.kernel.*
+def illegal[A](
+  data: Data[Use.Unsplit, A]
+): Data[Use.Train, A] = data
+"""
+    )
+    assert(resultErrors.nonEmpty)
+    assert(receiptErrors.nonEmpty)
+    assert(retagErrors.nonEmpty)
   }
 
   test("KFold assessment partitions cover each row exactly once") {

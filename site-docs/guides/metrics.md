@@ -33,7 +33,8 @@ result.
 ## Weighted metrics
 
 Weight access is typeclass evidence on metadata. There is no optional
-`weighted` flag.
+`weighted` flag. The explicit policy identity distinguishes different
+metadata-to-weight interpretations in evaluation and selection receipts.
 
 ```scala mdoc
 import alder.kernel.WeightOf
@@ -49,7 +50,9 @@ val weighted = Vector(
 )
 
 RegressionMetrics
-  .weightedRmse[ObservationMeta]
+  .weightedRmse[ObservationMeta](
+    WeightPolicyId("observation-meta.weight/v1")
+  )
   .evaluate(weighted)
   .map(_.value)
 ```
@@ -57,3 +60,7 @@ RegressionMetrics
 Invalid truths, predictions, weights, residuals, and final results are distinct
 `MetricError` cases. Empty input and zero total weight are also explicit
 failures.
+
+RMSE and accuracy are `ObjectiveMetric` values. Each owns its optimization
+direction and canonical score encoding; callers do not supply separate
+selection evidence that could disagree with the metric descriptor.

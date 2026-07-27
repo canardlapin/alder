@@ -64,7 +64,7 @@ import alder.kernel.*
 import cats.Id
 
 def evaluateTest[C, A](
-    study: Study[Id, C, A],
+    study: Study[Id, C, A, String],
     test: NonEmptyData[Use.Test, A]
 ): Unit =
   val _ = study.run(test)

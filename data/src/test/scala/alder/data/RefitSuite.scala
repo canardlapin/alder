@@ -9,17 +9,13 @@ class RefitSuite extends munit.FunSuite:
       ComponentId("alder.test.identity"),
       ComponentVersion("1"),
       AuditValue.record(),
-      BackendFingerprint(
-        "test",
-        "1",
-        AuditValue.record()
-      )
+      BackendFingerprint("test", "1", AuditValue.record())
     )
 
   private val context =
     FitContext.root(
       Seed(77L),
-      PlanFingerprint("refit-suite"),
+      PlanFingerprint("prediction-suite"),
       SchemaFingerprint("double"),
       NumericMode.Deterministic
     )
@@ -47,131 +43,120 @@ class RefitSuite extends munit.FunSuite:
   private def validationResult(
       train: NonEmptyData[Use.Train, Double],
       validation: NonEmptyData[Use.Validation, Double]
-  ): EvaluationResult[Use.Validation, Double, Double] =
-    val sources = EvaluationSources.validation(train, validation.data) match
-      case Left(error) => fail(s"unexpected source error: $error")
-      case Right(value) => value
-    Evaluation.run(identity(train), sources) match
-      case Left(error) => fail(s"unexpected evaluation error: $error")
-      case Right(value) => value
-
-  test("successful evaluation authorizes the exact observed sources once") {
-    val train = data[Use.Train](0L, "train", 1.0, 2.0)
-    val validation = data[Use.Validation](2L, "validation", 3.0)
-    val first = validationResult(train, validation)
-    val second = validationResult(train, validation)
-    assertEquals(first.allObserved.fingerprint.digest, "de01c48817fdd895")
-    assertEquals(first.receipt.id.render, "271b7232a196cf68")
-    assertEquals(second.receipt.id, first.receipt.id)
-
-    Refit.after(first.receipt).from(second.allObserved) match
-      case Left(RefitError.ReceiptMismatch(id)) =>
-        assertEquals(id, first.receipt.id)
-      case other => fail(s"expected receipt mismatch, got $other")
-
-    val promoted =
-      Refit.after(first.receipt).from(first.allObserved) match
-        case Left(error) => fail(s"unexpected promotion error: $error")
+  ): PredictionResult[Use.Validation, Double, Double] =
+    val sources =
+      EvaluationSources.validation(train, validation.data) match
+        case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
-    assertEquals(promoted.size, 3L)
+    Prediction.run(identity(train), sources) match
+      case Left(error)  => fail(s"unexpected prediction error: $error")
+      case Right(value) => value
 
-    Refit.after(first.receipt).from(first.allObserved) match
-      case Left(RefitError.ReceiptAlreadyUsed(id)) =>
-        assertEquals(id, first.receipt.id)
-      case other => fail(s"expected receipt replay error, got $other")
+  test("prediction covers every held-out RowId but grants no refit authority") {
+    val train = data[Use.Train](0L, "train", 1.0, 2.0)
+    val validation =
+      data[Use.Validation](2L, "validation", 3.0, 4.0)
+    val first = validationResult(train, validation)
+    val replay = validationResult(train, validation)
+
+    assertEquals(first.receipt.id, replay.receipt.id)
+    assertEquals(
+      first.predictions.data.foldRows(Vector.empty[(Long, Double)]) {
+        (rows, id, value) => rows :+ (id.value, value)
+      },
+      Vector(2L -> 3.0, 3L -> 4.0)
+    )
+    assertEquals(first.allObserved.size, 4L)
+
+    val refitErrors = typeCheckErrors(
+      """package consumer
+import alder.data.*
+def illegal(result: PredictionResult[?, ?, ?]) =
+  Refit.after(result.receipt)
+"""
+    )
+    assert(refitErrors.nonEmpty)
   }
 
-  test("validation then final-test refits retain exact source audit") {
+  test("prediction identity commits to the complete fitted audit") {
     val train = data[Use.Train](0L, "train", 1.0, 2.0)
-    val validation = data[Use.Validation](2L, "validation", 3.0)
-    val test = data[Use.Test](3L, "test", 4.0, 5.0)
-
-    val validationEvaluation = validationResult(train, validation)
-    val trainAndValidation =
-      Refit
-        .after(validationEvaluation.receipt)
-        .from(validationEvaluation.allObserved) match
-        case Left(error) => fail(s"unexpected validation promotion: $error")
+    val validation =
+      data[Use.Validation](2L, "validation", 3.0, 4.0)
+    val sources =
+      EvaluationSources.validation(train, validation.data) match
+        case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
-    val validationRefitModel = identity(trainAndValidation)
-    validationRefitModel.audit.refit match
-      case None => fail("expected validation refit audit")
-      case Some(audit) =>
-        assertEquals(
-          audit.sources.map(_.role),
-          Vector(
-            ObservedSourceRole.Train,
-            ObservedSourceRole.Validation
-          )
-        )
-        assertEquals(
-          audit.claim,
-          RefitEvaluationClaim
-            .ArtifactNotEvaluatedOnAuthorizingValidation
-        )
-
-    val testSources =
-      EvaluationSources.finalTest(trainAndValidation, test.data) match
-        case Left(error) => fail(s"unexpected test sources: $error")
+    val first = Prediction.run(identity(train), sources) match
+      case Left(error)  => fail(s"unexpected prediction error: $error")
+      case Right(value) => value
+    val otherContext =
+      FitContext.root(
+        Seed(78L),
+        PlanFingerprint("prediction-suite"),
+        SchemaFingerprint("double"),
+        NumericMode.Deterministic
+      )
+    val second =
+      Prediction.run(
+        otherContext.complete(
+          Pipe.identity[Double],
+          train,
+          component
+        ),
+        sources
+      ) match
+        case Left(error)  => fail(s"unexpected prediction error: $error")
         case Right(value) => value
-    val testEvaluation =
-      Evaluation.run(validationRefitModel, testSources) match
-        case Left(error) => fail(s"unexpected test evaluation: $error")
+
+    assertNotEquals(first.receipt.id, second.receipt.id)
+    assertEquals(
+      first.predictions.fingerprint.policy,
+      FingerprintPolicy.Summary(
+        "alder.evaluation-derivation-fnv1a64-v1"
+      )
+    )
+  }
+
+  test("precommitted Test sources retain an honest Train+Test manifest") {
+    val train = data[Use.Train](0L, "train", 1.0, 2.0)
+    val test = data[Use.Test](2L, "test", 3.0)
+    val sources =
+      EvaluationSources.precommittedTest(train, test.data) match
+        case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
     assertEquals(
-      testEvaluation.predictions.data
-        .foldRows(Vector.empty[Double])((values, _, value) =>
-          values :+ value
-        ),
-      Vector(4.0, 5.0)
+      sources.sources.map(_.role),
+      Vector(ObservedSourceRole.Train, ObservedSourceRole.Test)
     )
-
-    val allObserved =
-      Refit.after(testEvaluation.receipt).from(testEvaluation.allObserved) match
-        case Left(error) => fail(s"unexpected final promotion: $error")
-        case Right(value) => value
-    val finalModel = identity(allObserved)
-    finalModel.audit.refit match
-      case None => fail("expected final refit audit")
-      case Some(audit) =>
-        assertEquals(
-          audit.sources.map(_.role),
-          Vector(
-            ObservedSourceRole.Train,
-            ObservedSourceRole.Validation,
-            ObservedSourceRole.Test
-          )
-        )
-        assertEquals(audit.receipt, testEvaluation.receipt.id)
-        assertEquals(
-          audit.claim,
-          RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingTest
-        )
-        assertEquals(finalModel.audit.data.digest, allObserved.fingerprint.digest)
+    Prediction.run(identity(train), sources) match
+      case Left(error) => fail(s"unexpected prediction error: $error")
+      case Right(result) =>
+        assertEquals(result.receipt.role, EvaluationRole.Test)
+        assertEquals(result.allObserved.size, 3L)
   }
 
-  test("evaluation rejects a model fitted on another source") {
+  test("prediction rejects a model fitted on another source") {
     val expectedTrain = data[Use.Train](0L, "expected-train", 1.0)
     val otherTrain = data[Use.Train](0L, "other-train", 1.0)
     val validation = data[Use.Validation](1L, "validation", 2.0)
     val sources =
       EvaluationSources.validation(expectedTrain, validation.data) match
-        case Left(error) => fail(s"unexpected source error: $error")
+        case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
 
-    Evaluation.run(identity(otherTrain), sources) match
+    Prediction.run(identity(otherTrain), sources) match
       case Left(EvaluationError.FitSourceMismatch(expected, actual)) =>
         assertEquals(expected.digest, "expected-train")
         assertEquals(actual.digest, "other-train")
       case other => fail(s"expected fit source mismatch, got $other")
   }
 
-  test("failed prediction emits no evaluation result or receipt") {
+  test("failed prediction emits no PredictionResult or receipt") {
     val train = data[Use.Train](0L, "train", 1.0)
     val validation = data[Use.Validation](1L, "validation", 2.0)
     val sources =
       EvaluationSources.validation(train, validation.data) match
-        case Left(error) => fail(s"unexpected source error: $error")
+        case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
     val failing = new Pipe[Double, String, Double]:
       def run(value: Double): Either[Failure[String], Double] =
@@ -179,14 +164,14 @@ class RefitSuite extends munit.FunSuite:
         Left(StagePath.root.failure(cause))
     val trained = context.complete(failing, train, component)
 
-    Evaluation.run(trained, sources) match
+    Prediction.run(trained, sources) match
       case Left(EvaluationError.PredictionFailed(failure)) =>
         assertEquals(failure.stage, StagePath.root)
         assertEquals(failure.cause, "rejected")
       case other => fail(s"expected prediction failure, got $other")
   }
 
-  test("final-test sources require receipt-backed prior refit data") {
+  test("final-test sources require selected receipt-backed Refit data") {
     val unaudited = data[Use.Refit](0L, "unaudited-refit", 1.0)
     val test = data[Use.Test](1L, "test", 2.0)
     assertEquals(
@@ -195,14 +180,12 @@ class RefitSuite extends munit.FunSuite:
     )
   }
 
-  test("evaluation sources reject duplicate logical rows within any source") {
-    val duplicateValidation = new InMemoryData[Use.Validation, Double](
-      Vector(
-        RowId(2L) -> 2.0,
-        RowId(2L) -> 3.0
-      ),
-      fingerprint("duplicate-validation")
-    )
+  test("evaluation sources reject duplicate logical rows") {
+    val duplicateValidation =
+      new InMemoryData[Use.Validation, Double](
+        Vector(RowId(2L) -> 2.0, RowId(2L) -> 3.0),
+        fingerprint("duplicate-validation")
+      )
     val train = data[Use.Train](0L, "train", 1.0)
     assertEquals(
       EvaluationSources.validation(train, duplicateValidation),
@@ -210,17 +193,16 @@ class RefitSuite extends munit.FunSuite:
     )
   }
 
-  test("receipt, observed bundle, and promotion constructors are unforgeable") {
+  test("prediction receipts, observed bundles, and authority are unforgeable") {
     val receiptErrors = typeCheckErrors(
       """package consumer
 import alder.data.*
 import alder.kernel.*
-val authority = new ReceiptAuthority
-val receipt = new EvaluationReceipt(
-  EvaluationReceiptId("forged"),
+val receipt = new PredictionReceipt[Use.Validation](
+  PredictionReceiptId("forged"),
   Vector.empty,
   EvaluationRole.Validation,
-  authority
+  None
 )
 """
     )
@@ -228,8 +210,7 @@ val receipt = new EvaluationReceipt(
       """package consumer
 import alder.data.*
 import alder.kernel.*
-def illegal(data: Data[Use.Unsplit, Double], receipt: EvaluationReceipt) =
-  Refit.after(receipt).from(data)
+val authority = new PromotionAuthority[Use.Validation]
 """
     )
     val roleErrors = typeCheckErrors(

@@ -12,6 +12,8 @@ Start with these packages:
 - `alder.kernel` defines composition, data roles, failures, and audit contracts.
 - `alder.preprocess` provides target-blind preprocessing.
 - `alder.metrics` provides deterministic streaming metrics.
+- `alder.application` combines prediction, scoring, selection, and
+  receipt-gated refit.
 - `alder.models.linear` defines backend-neutral ridge contracts.
 - `alder.tune` provides applicative search spaces and Train-only studies.
 - `alder.codec` provides versioned artifact codecs.

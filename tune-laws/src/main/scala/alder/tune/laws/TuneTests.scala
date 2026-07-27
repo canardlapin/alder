@@ -96,12 +96,12 @@ final class TuningErasureTests[X, FitE, RunE, P](
         }
     )
 
-trait StudyLaws[C]:
-  def selection: Either[StudyError, Selection[C]]
+trait StudyLaws[C, E]:
+  def selection: Either[StudyError[E], Selection[C, E]]
   def candidates: Vector[C]
 
-final class StudyTests[C](
-    laws: StudyLaws[C]
+final class StudyTests[C, E](
+    laws: StudyLaws[C, E]
 ) extends Laws:
   def all(using Eq[C]): RuleSet =
     new DefaultRuleSet(

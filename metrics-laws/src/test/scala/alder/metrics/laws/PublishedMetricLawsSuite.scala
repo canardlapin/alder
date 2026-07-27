@@ -34,7 +34,11 @@ class PublishedMetricLawsSuite extends DisciplineSuite:
 
   checkAll(
     "weighted RMSE",
-    new MetricTests(RegressionMetrics.weightedRmse[LawWeight]).all
+    new MetricTests(
+      RegressionMetrics.weightedRmse[LawWeight](
+        WeightPolicyId("law-weight")
+      )
+    ).all
   )
 
   private given intEq: Eq[Int] = Eq.fromUniversalEquals
@@ -54,7 +58,11 @@ class PublishedMetricLawsSuite extends DisciplineSuite:
 
   checkAll(
     "accuracy",
-    new MetricTests(ClassificationMetrics.accuracy[Int, Unit]).all
+    new MetricTests(
+      ClassificationMetrics.accuracy[Int, Unit](
+        EqualityPolicyId("cats.eq.int")
+      )
+    ).all
   )
 
   private given weightedIntScoredArbitrary
@@ -69,6 +77,9 @@ class PublishedMetricLawsSuite extends DisciplineSuite:
   checkAll(
     "weighted accuracy",
     new MetricTests(
-      ClassificationMetrics.weightedAccuracy[Int, LawWeight]
+      ClassificationMetrics.weightedAccuracy[Int, LawWeight](
+        EqualityPolicyId("cats.eq.int"),
+        WeightPolicyId("law-weight")
+      )
     ).all
   )

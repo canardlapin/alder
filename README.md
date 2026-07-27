@@ -12,7 +12,7 @@ Scala.js, and Scala Native.
 ## Start here
 
 The executable guide begins with
-[a complete standardize-fit-predict workflow](site-docs/getting-started.md).
+[a complete standardize-fit-validate workflow](site-docs/getting-started.md).
 It then covers preprocessing, metrics, tuning, safe target-aware feature
 construction, extension authoring, and troubleshooting.
 
@@ -29,8 +29,9 @@ this repository has no configured remote.
 
 ## Build the current source
 
-Place the sibling development checkouts at `../tessera`, `../gale`, and
-`../linop4s`, then run:
+Place the sibling development checkouts at `../gale` and `../linop4s`.
+For Tessera, use either a sibling checkout at `../tessera` or the locally
+published `0.1.0-SNAPSHOT` artifacts. Then run:
 
 ```text
 sbt -J-Xmx4G -Dsbt.task.cpus=1 test

@@ -185,7 +185,7 @@ final class CrossFittedFeatureMap[
           )
         )
       case Some(rows) =>
-        val fingerprint = Fingerprints.derived(
+        val fingerprint = Fingerprints.crossFittedDerived(
           data.fingerprint,
           "cross-fitted",
           plan.resampler.digest,

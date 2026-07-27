@@ -20,11 +20,50 @@ private[data] object Fingerprints:
       label: String,
       rows: Vector[(RowId, ?)]
   ): DataFingerprint =
-    val initial = hashString(hashString(offset, parent.digest), label)
+    val initial = hashFramed(
+      Seq(
+        "alder.data-partition-v2",
+        policy(parent.policy),
+        parent.digest,
+        label
+      )
+    )
     val digest = rows.foldLeft(initial)((hash, row) => hashLong(hash, row._1.value))
     new DataFingerprint(
       FingerprintPolicy.ContentDigest("fnv1a64"),
       hex(digest)
+    )
+
+  def splitPolicy(value: SplitPolicy): ProtocolFingerprint =
+    val parts =
+      value match
+        case SplitPolicy.Holdout(test) =>
+          Vector("holdout", amount(test))
+        case SplitPolicy.Validation(validation) =>
+          Vector("validation", amount(validation))
+        case SplitPolicy.TrainValidationTest(validation, test) =>
+          Vector(
+            "train-validation-test",
+            amount(validation),
+            amount(test)
+          )
+    new ProtocolFingerprint(
+      FingerprintPolicy.Summary(
+        "alder.split-policy-rank-v1-fnv1a64"
+      ),
+      hex(
+        hashFramed(
+          Vector(
+            "alder.split-policy-v1",
+            "rank-v1",
+            "fraction-floor-total-n",
+            "assignment-order:validation-test-train",
+            "receipt-order:train-validation-test",
+            "utf8-u32be-i64be",
+            "fnv1a64-splitmix64-finalizer"
+          ) ++ parts
+        )
+      )
     )
 
   def assignment(
@@ -41,7 +80,7 @@ private[data] object Fingerprints:
       hex(digest)
     )
 
-  def derived(
+  def crossFittedDerived(
       parent: DataFingerprint,
       label: String,
       parts: String*
@@ -50,6 +89,27 @@ private[data] object Fingerprints:
     val digest = parts.foldLeft(initial)(hashString)
     new DataFingerprint(
       FingerprintPolicy.Summary("alder.cross-fitted-derivation-fnv1a64"),
+      hex(digest)
+    )
+
+  def evaluationDerived(
+      parent: DataFingerprint,
+      label: String,
+      parts: String*
+  ): DataFingerprint =
+    val initial = hashFramed(
+      Seq(
+        "alder.evaluation-derivation-v1",
+        policy(parent.policy),
+        parent.digest,
+        label
+      )
+    )
+    val digest = parts.foldLeft(initial)(hashString)
+    new DataFingerprint(
+      FingerprintPolicy.Summary(
+        "alder.evaluation-derivation-fnv1a64-v1"
+      ),
       hex(digest)
     )
 
@@ -69,21 +129,19 @@ private[data] object Fingerprints:
       hex(hashFramed("alder.observed-sources-v1" +: parts))
     )
 
-  def evaluationReceipt(
+  def predictionReceipt(
       audit: Audit,
       observed: DataFingerprint,
       authorizingRole: EvaluationRole
-  ): EvaluationReceiptId =
-    EvaluationReceiptId(
+  ): PredictionReceiptId =
+    val fitted = AuditFingerprint(audit)
+    PredictionReceiptId(
       hex(
         hashFramed(
           Seq(
-            "alder.evaluation-receipt-v1",
-            audit.plan.render,
-            policy(audit.data.policy),
-            audit.data.digest,
-            audit.component.id.render,
-            audit.component.version.render,
+            "alder.prediction-receipt-v1",
+            policy(fitted.policy),
+            fitted.digest,
             evaluationRole(authorizingRole),
             policy(observed.policy),
             observed.digest
@@ -134,16 +192,20 @@ private[data] object Fingerprints:
       case EvaluationRole.Validation => "validation"
       case EvaluationRole.Test       => "test"
 
+  private def amount(value: SplitAmount): String =
+    value match
+      case SplitAmount.Count(rows) =>
+        s"rows:${rows.value}"
+      case SplitAmount.Proportion(fraction) =>
+        s"fraction:${fraction.numerator}/${fraction.denominator}"
+
   private def hex(value: Long): String =
     val digits = "0123456789abcdef"
     val builder = new StringBuilder(16)
     var shift = 60
-    var started = false
     while shift >= 0 do
       val digit = ((value >>> shift) & 0x0fL).toInt
-      if digit != 0 || started || shift == 0 then
-        builder.append(digits.charAt(digit))
-        started = true
+      builder.append(digits.charAt(digit))
       shift -= 4
     builder.result()
 

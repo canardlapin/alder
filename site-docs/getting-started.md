@@ -1,8 +1,8 @@
-# Fit your first workflow
+# Fit and validate your first workflow
 
-This example fits a standardizer and ridge model, then predicts from the raw
-input type. Alder records how the model was fitted and prevents the held-out
-test rows from being passed to `fit`.
+This example fits a standardizer and ridge model, predicts every validation
+row, and computes root mean squared error. Alder records how the model was
+fitted and prevents validation rows from being passed to `fit`.
 
 ## Define the input and observations
 
@@ -12,7 +12,9 @@ the case class.
 
 ```scala mdoc:silent
 import alder.data.*
+import alder.application.*
 import alder.kernel.*
+import alder.metrics.*
 import alder.models.linear.*
 import alder.preprocess.*
 import alder.ridge.linop4s.*
@@ -41,15 +43,25 @@ the `DataFingerprint` overload when the application has a stronger fingerprint.
 
 ## Build the workflow
 
-The split gives the two partitions different types. Only `split.train` can be
-passed to this fit.
+The split specification is checked but has no seed. One root seed expands into
+stable, plan-scoped seeds for splitting and fitting. The resulting partitions
+have different types; only `split.train` can be passed to this fit.
 
 ```scala mdoc:silent
+val plan = PlanFingerprint.external("house-price-ridge-v1")
+val seeds = PhaseSeeds(Seed(42L), plan)
+
 val split =
-  Holdout
-    .split(data, testSize = 1, Seed(42L))
+  ValidationSpec
+    .rows(1)
     .left
     .map(_.toString)
+    .flatMap(specification =>
+      Split
+        .validation(data, specification, seeds.split)
+        .left
+        .map(_.toString)
+    )
 
 val config =
   RidgeConfig
@@ -75,42 +87,58 @@ val workflow =
 The synchronous factories are conveniences. The underlying components remain
 effect-polymorphic when fitting needs `IO` or another effect.
 
-## Fit and predict
+## Fit and score
 
 `Fit.learner` derives the schema fingerprint, uses deterministic numerics by
-default, and exposes the synchronous result as `Either`. The plan name and seed
-remain explicit because they identify this fitting run.
+default, and exposes the synchronous result as `Either`. `Evaluation.scored`
+then predicts every validation example from its input while retaining that
+row's truth, metadata, and `RowId`.
 
 ```scala mdoc:silent
-val prediction =
+val validated =
   (split, workflow).tupled.flatMap { (partitions, learner) =>
     Fit
       .learner(
         learner,
         partitions.train,
-        seed = Seed(42L),
-        plan = "house-price-ridge-v1"
+        seed = seeds.candidateFit,
+        plan = plan
       )
       .left
       .map(failure =>
         s"fit failed at ${failure.stage.render}: ${failure.cause}"
       )
-      .flatMap(model =>
-        model
-          .run(House(100.0, 3.0, 12.0))
-          .left
-          .map(failure =>
-            s"prediction failed at ${failure.stage.render}: ${failure.cause}"
+      .flatMap { model =>
+        EvaluationSources
+          .validation(
+            partitions.train,
+            partitions.validation.data
           )
-      )
+          .left
+          .map(error => s"validation sources failed: $error")
+          .flatMap(sources =>
+            Evaluation
+              .scored(
+                model,
+                sources,
+                RegressionMetrics.rmse[Unit]
+              )
+              .left
+              .map(error => s"validation failed: $error")
+          )
+      }
   }
 ```
 
-The result is a typed success or an attributed failure:
+The result is a typed validation result, not a loose score:
 
 ```scala mdoc
-prediction.map(_.isFinite)
+validated.map(result => (result.scored.size, result.score.value))
 ```
+
+This workflow stops after validation. It does not silently select the candidate,
+add validation rows to training, or make a final-test claim. Those are separate
+transitions because they change what data the model may use.
 
 Continue with [How Alder prevents leakage](concepts/data-roles.md) when you need
 to understand the data roles, or go directly to a task in

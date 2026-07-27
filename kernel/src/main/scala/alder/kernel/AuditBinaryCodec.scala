@@ -203,7 +203,7 @@ private[kernel] object AuditBinaryCodec:
     readAudit(reader).flatMap(reader.finish)
 
   private def writeAudit(writer: BinaryWriter, audit: Audit): Unit =
-    writer.string(audit.plan.render)
+    writePlanFingerprint(writer, audit.plan)
     writeDataFingerprint(writer, audit.data)
     writeSchemaFingerprint(writer, audit.schema)
     writer.long(audit.seed.value)
@@ -219,7 +219,7 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, Audit] =
     for
-      plan <- reader.string.map(PlanFingerprint(_))
+      plan <- readPlanFingerprint(reader)
       data <- readDataFingerprint(reader)
       schema <- readSchemaFingerprint(reader)
       seed <- reader.long.map(Seed(_))
@@ -335,6 +335,21 @@ private[kernel] object AuditBinaryCodec:
           )
         )
     }
+
+  private def writePlanFingerprint(
+      writer: BinaryWriter,
+      fingerprint: PlanFingerprint
+  ): Unit =
+    writePolicy(writer, fingerprint.policy)
+    writer.string(fingerprint.digest)
+
+  private def readPlanFingerprint(
+      reader: BinaryReader
+  ): Either[CodecError, PlanFingerprint] =
+    for
+      policy <- readPolicy(reader)
+      digest <- reader.string
+    yield new PlanFingerprint(policy, digest)
 
   private def writeDataFingerprint(
       writer: BinaryWriter,
@@ -678,7 +693,10 @@ private[kernel] object AuditBinaryCodec:
       refit: RefitAudit
   ): Unit =
     writer.vector(refit.sources)(writeObservedSource(writer, _))
-    writer.string(refit.receipt.render)
+    writer.string(refit.evaluationReceipt.render)
+    writer.option(refit.selectionReceipt)(selection =>
+      writer.string(selection.render)
+    )
     writeRefitClaim(writer, refit.claim)
 
   private def readRefit(
@@ -687,8 +705,11 @@ private[kernel] object AuditBinaryCodec:
     for
       sources <- reader.vector(readObservedSource(reader))
       receipt <- reader.string.map(EvaluationReceiptId(_))
+      selection <- reader.option(
+        reader.string.map(SelectionReceiptId(_))
+      )
       claim <- readRefitClaim(reader)
-    yield new RefitAudit(sources, receipt, claim)
+    yield new RefitAudit(sources, receipt, selection, claim)
 
   private def writeAuditShape(
       writer: BinaryWriter,

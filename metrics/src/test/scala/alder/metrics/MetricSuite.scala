@@ -71,7 +71,10 @@ class MetricSuite extends munit.FunSuite:
   }
 
   test("weighted RMSE uses explicit WeightOf evidence and validates weights") {
-    val metric = RegressionMetrics.weightedRmse[WeightedMeta]
+    val metric =
+      RegressionMetrics.weightedRmse[WeightedMeta](
+        WeightPolicyId("weighted-meta.weight")
+      )
     val values = Vector(
       Scored(2.0, 0.0, WeightedMeta(1.0)),
       Scored(4.0, 0.0, WeightedMeta(3.0))
@@ -97,7 +100,10 @@ class MetricSuite extends munit.FunSuite:
 
   test("accuracy has an honest hard-label input type") {
     given Eq[String] = Eq.fromUniversalEquals
-    val metric = ClassificationMetrics.accuracy[String, Unit]
+    val metric =
+      ClassificationMetrics.accuracy[String, Unit](
+        EqualityPolicyId("cats.eq.string")
+      )
     assertEquals(
       metric.evaluate(
         Vector(
@@ -112,7 +118,9 @@ class MetricSuite extends munit.FunSuite:
       """import alder.kernel.*
 import alder.metrics.*
 final case class NoWeight(value: Double)
-val illegal = RegressionMetrics.weightedRmse[NoWeight]
+val illegal = RegressionMetrics.weightedRmse[NoWeight](
+  WeightPolicyId("no-weight.value")
+)
 """
     )
     assert(typeErrors.nonEmpty)

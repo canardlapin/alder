@@ -74,7 +74,7 @@ class PublishedTuneLawsSuite extends DisciplineSuite:
 
   private val studyCandidates = Vector(5, 3, 1)
   private val study =
-    Study.grid[Id, Int, Int](
+    Study.grid[Id, Int, Int, Nothing](
       Space.choice(5, 3, 1),
       GridStrategy(positive(2)),
       ObjectiveDirection.Minimize
@@ -85,10 +85,10 @@ class PublishedTuneLawsSuite extends DisciplineSuite:
   checkAll(
     "Train-only Study",
     new StudyTests(
-      new StudyLaws[Int]:
+      new StudyLaws[Int, Nothing]:
         def selection: Either[
-          StudyError,
-          Selection[Int]
+          StudyError[Nothing],
+          Selection[Int, Nothing]
         ] =
           study.run(
             TestData.nonEmpty[Use.Train, Int](
