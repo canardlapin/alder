@@ -56,9 +56,13 @@ object InMemoryData:
 
 private[data] object DataRows:
   def collect[U <: Use, A](data: Data[U, A]): Vector[(RowId, A)] =
-    data.foldRows(Vector.empty[(RowId, A)])((rows, id, value) =>
-      rows :+ (id, value)
+    val builder = Vector.newBuilder[(RowId, A)]
+    builder.sizeHint(
+      if data.size > Int.MaxValue.toLong then Int.MaxValue
+      else data.size.toInt
     )
+    data.foreachRow((id, value) => builder += ((id, value)))
+    builder.result()
 
   def nonEmpty[U <: Use, A](
       rows: Vector[(RowId, A)],

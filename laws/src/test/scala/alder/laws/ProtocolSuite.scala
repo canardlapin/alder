@@ -2,7 +2,6 @@ package alder.laws
 
 import alder.kernel.*
 import cats.Id
-import cats.data.EitherT
 
 enum ToyRunError derives CanEqual:
   case NonFinite
@@ -20,42 +19,30 @@ final class ShiftPipe(val shift: Double, stage: StagePath)
     if java.lang.Double.isFinite(shifted) then Right(shifted)
     else Left(stage.failure(ToyRunError.NonFinite))
 
-/** Toy target-blind transform: shifts by the training mean. Exercises the full
-  * leaf protocol: FitContext.complete, then the correct-by-construction replay
-  * factory, with replay failure embedded in FitError.
+/** Toy target-blind transform: shifts by the training mean. Exercises the leaf
+  * helper: fitPipe plus FitContext.completeTransform.
   */
 final class MeanShift[F[_]](using cats.Applicative[F])
-    extends Transform[F, Double, Double]:
+    extends Transform.Leaf[F, Double, Double]:
 
   type FitError = ToyFitError
   type RunError = ToyRunError
   type Fitted = ShiftPipe
 
-  def fit[U <: Use.Fit](
+  protected def descriptor: ComponentDescriptor = MeanShift.descriptor
+
+  protected def replayFailure(
+      failure: Failure[RunError]
+  ): Failure[FitError] =
+    failure.map(ToyFitError.Replay.apply)
+
+  protected def fitPipe[U <: Use.Fit](
       data: NonEmptyData[U, Double]
-  )(using context: FitContext): FitResult[
-    F,
-    ToyFitError,
-    Prepared[Preparation.Reusable, U, ShiftPipe, Double]
-  ] =
+  )(using context: FitContext): Either[Failure[FitError], Fitted] =
     val (sum, count) = data.data.foldRows((0.0, 0L)) {
       case ((s, n), _, value) => (s + value, n + 1L)
     }
-    val pipe = ShiftPipe(sum / count.toDouble, context.stagePath)
-    val trained = context.complete(pipe, data, MeanShift.descriptor)
-    val prepared =
-      Prepared
-        .replayed[U, ToyRunError, Double, Double, ShiftPipe](
-          trained,
-          data,
-          PreparationLineage.leaf(
-            context.stagePath,
-            PreparationScopeTag.Reusable
-          )
-        )
-        .left
-        .map(failure => failure.map(ToyFitError.Replay.apply))
-    EitherT.fromEither[F](prepared)
+    Right(ShiftPipe(sum / count.toDouble, context.stagePath))
 
 object MeanShift:
   val descriptor: ComponentDescriptor =

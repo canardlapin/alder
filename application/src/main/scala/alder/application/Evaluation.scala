@@ -132,3 +132,29 @@ object Evaluation:
             )
           }
       }
+
+  /** Scores a validation candidate while retaining the exact learner that
+    * produced the fitted artifact. Selection and refit are then bound to that
+    * learner alone.
+    */
+  def validated[
+      F[_],
+      X,
+      Y,
+      M,
+      P,
+      S,
+      L <: Learner[F, X, Y, M, P],
+      Mt <: ObjectiveMetric[Scored[Y, P, M], S]
+  ](
+      learner: L,
+      trained: Trained[learner.Model],
+      sources: EvaluationSources[Use.Validation, Example[X, Y, M]],
+      metric: Mt
+  ): Either[
+    ScoredEvaluationError[learner.RunError],
+    ValidatedCandidate[F, X, Y, M, P, S, L, Mt]
+  ] =
+    scored(trained, sources, metric).map { evaluation =>
+      new ValidatedCandidate(learner, trained, evaluation)
+    }

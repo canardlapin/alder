@@ -51,16 +51,31 @@ object TesseraResampler:
       keyHash: Hash[groupOf.Key]
   ): Either[DesignError, Labels] =
     val rows = DataRows.collect(data.data)
-    var accepted = Vector.empty[groupOf.Key]
+    type Key = groupOf.Key
+    val accepted = scala.collection.mutable.ArrayBuffer.empty[Key]
+    val byHash =
+      scala.collection.mutable.HashMap.empty[Int, scala.collection.mutable.ArrayBuffer[Int]]
     val codes = new Array[Int](rows.length)
     var index = 0
     while index < rows.length do
-      val key = groupOf(rows(index)._2.meta)
-      val found = accepted.indexWhere(existing => keyHash.eqv(existing, key))
+      val key: Key = groupOf(rows(index)._2.meta)
+      val hash = keyHash.hash(key)
+      val candidates =
+        byHash.getOrElseUpdate(
+          hash,
+          scala.collection.mutable.ArrayBuffer.empty[Int]
+        )
+      var found = -1
+      var candidateIndex = 0
+      while candidateIndex < candidates.length && found < 0 do
+        val acceptedIndex = candidates(candidateIndex)
+        if keyHash.eqv(accepted(acceptedIndex), key) then found = acceptedIndex
+        candidateIndex += 1
       if found >= 0 then codes(index) = found
       else
         codes(index) = accepted.length
-        accepted = accepted :+ key
+        accepted += key
+        candidates += (accepted.length - 1)
       index += 1
     Labels.dense(IArray.unsafeFromArray(codes), rows.length)
 

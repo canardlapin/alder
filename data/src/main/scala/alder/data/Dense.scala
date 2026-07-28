@@ -96,3 +96,61 @@ object Dense:
           schema
         )
       )
+
+  /** Schema-bound coordinates for a dense feature space. */
+  def coordinates[S](schema: FeatureSchema[S]): Coordinates[Dense[S]] =
+    new Coordinates[Dense[S]]:
+      val names: IArray[String] = schema.names
+      val size: Int = schema.size
+      val featureSchema: FeatureSchema[?] = schema
+
+      def read(
+          value: Dense[S]
+      ): Either[CoordinateError, IArray[Double]] =
+        schema.validate(value) match
+          case Left(DenseError.SchemaMismatch(_, _)) =>
+            Left(
+              CoordinateError.ArityMismatch(schema.size, value.size)
+            )
+          case Left(DenseError.DimensionMismatch(expected, actual)) =>
+            Left(CoordinateError.ArityMismatch(expected, actual))
+          case Right(_) => Right(value.values)
+
+      def writeTo(
+          value: Dense[S],
+          destination: CoordinateWriter
+      ): Either[CoordinateError, Unit] =
+        read(value).flatMap { values =>
+          if destination.size != values.length then
+            Left(
+              CoordinateError.DestinationArityMismatch(
+                values.length,
+                destination.size
+              )
+            )
+          else
+            var index = 0
+            var error: Option[CoordinateError] = None
+            while index < values.length && error.isEmpty do
+              destination.write(index, names(index), values(index)) match
+                case Left(failure) => error = Some(failure)
+                case Right(_)      => ()
+              index += 1
+            error match
+              case Some(failure) => Left(failure)
+              case None          => Right(())
+        }
+
+      def build(
+          values: IArray[Double]
+      ): Either[CoordinateError, Dense[S]] =
+        Dense.from(values, schema).left.map {
+          case DenseError.DimensionMismatch(expected, actual) =>
+            CoordinateError.ArityMismatch(expected, actual)
+          case DenseError.SchemaMismatch(_, _) =>
+            CoordinateError.ArityMismatch(schema.size, values.length)
+        }
+
+  /** Schema-bound feature view for a dense feature space. */
+  def featureView[S](schema: FeatureSchema[S]): FeatureView[Dense[S]] =
+    coordinates(schema)

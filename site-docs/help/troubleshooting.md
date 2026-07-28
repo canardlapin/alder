@@ -10,6 +10,17 @@
 **Action:** fit on `Use.Train` or receipt-authorized `Use.Refit` data. Do not
 cast or retag the dataset.
 
+## Validation cannot select with a reporting metric
+
+**Symptom:** `validated.select(...)` does not compile for a plain `Metric`.
+
+**Cause:** selection and receipt-gated refit require an `ObjectiveMetric`, which
+owns an optimization direction. A reporting-only metric can score predictions
+but cannot authorize selection.
+
+**Action:** use an objective metric such as RMSE or accuracy for selection, or
+keep the reporting metric for evaluation-only paths.
+
 ## A feature map has no `andThen`
 
 **Symptom:** a target-aware `FeatureMap` cannot feed a fitted `Transform`.

@@ -1,34 +1,48 @@
 package alder.preprocess
 
-import alder.data.{CoordinateError, Coordinates}
+import alder.data.{
+  CoordinateError,
+  Coordinates,
+  Dense,
+  FeatureSchema,
+  FeatureView,
+  SchemaError
+}
 import alder.kernel.*
 import cats.{Applicative, Id}
-import cats.data.EitherT
 
-/** Centered-and-scaled representation of `A`. */
-opaque type Standardized[A] = A
+/** Phantom brand for dense coordinates produced by centered standardization of
+  * `A`. The brand retains the source type without claiming the original field
+  * representations remain valid.
+  */
+sealed trait Standardized[A]
 
 object Standardized:
-  private[alder] def wrap[A](value: A): Standardized[A] = value
-  private[alder] def unwrap[A](value: Standardized[A]): A = value
+  /** Feature schema for standardized dense coordinates of `A`. */
+  def schema[A](using
+      view: FeatureView[A]
+  ): Either[SchemaError, FeatureSchema[Standardized[A]]] =
+    FeatureSchema.named[Standardized[A]](view.names)
 
-  given [A](using coordinates: Coordinates[A]): Coordinates[Standardized[A]] =
-    coordinates.imap(wrap)(unwrap)
+  /** Coordinates for `Dense[Standardized[A]]` derived from `FeatureView[A]`. */
+  def coordinates[A](using
+      view: FeatureView[A]
+  ): Either[SchemaError, Coordinates[Dense[Standardized[A]]]] =
+    schema[A].map(Dense.coordinates)
 
-/** Scale-only representation of `A`.
-  *
-  * This distinct brand is the 0.1 sparse-policy boundary: scale-only
-  * preprocessing preserves structural zeros and exposes no centering switch.
-  * A public sparse container remains deliberately deferred.
-  */
-opaque type Scaled[A] = A
+/** Phantom brand for dense coordinates produced by scale-only preprocessing. */
+sealed trait Scaled[A]
 
 object Scaled:
-  private[alder] def wrap[A](value: A): Scaled[A] = value
-  private[alder] def unwrap[A](value: Scaled[A]): A = value
+  def schema[A](using
+      view: FeatureView[A]
+  ): Either[SchemaError, FeatureSchema[Scaled[A]]] =
+    FeatureSchema.named[Scaled[A]](view.names)
 
-  given [A](using coordinates: Coordinates[A]): Coordinates[Scaled[A]] =
-    coordinates.imap(wrap)(unwrap)
+  def coordinates[A](using
+      view: FeatureView[A]
+  ): Either[SchemaError, Coordinates[Dense[Scaled[A]]]] =
+    schema[A].map(Dense.coordinates)
 
 enum ZeroVariance derives CanEqual:
   case Reject
@@ -39,32 +53,39 @@ enum ScaleFitError derives CanEqual:
   case NonFinite(row: RowId, coordinate: String, value: Double)
   case NonFiniteMoment(coordinate: String)
   case ConstantCoordinate(coordinate: String)
+  case Schema(cause: SchemaError)
 
 enum ScaleRunError derives CanEqual:
   case CoordinateFailure(cause: CoordinateError)
+  case Dense(cause: alder.data.DenseError)
   case NonFiniteInput(coordinate: String, value: Double)
   case NonFiniteOutput(coordinate: String)
 
 /** Stable population-moment standardization with explicit constant-coordinate
-  * policy. The fitted artifact centers and scales each coordinate.
+  * policy. Produces dense numerical coordinates rather than rebuilding `A`.
   */
 final class StandardScaler[F[_], A](
-    val zeroVariance: ZeroVariance
-)(using Applicative[F], Coordinates[A])
-    extends Transform[F, A, Standardized[A]]:
+    val zeroVariance: ZeroVariance,
+    private val outputSchema: FeatureSchema[Standardized[A]]
+)(using Applicative[F], FeatureView[A])
+    extends Transform.Leaf[F, A, Dense[Standardized[A]]]:
 
   type FitError = ScaleFitError | ScaleRunError
   type RunError = ScaleRunError
   type Fitted = Standardizer[A]
 
-  def fit[U <: Use.Fit](
+  protected def descriptor: ComponentDescriptor =
+    ScalerComponents.centered(zeroVariance, outputSchema)
+
+  protected def replayFailure(
+      failure: Failure[RunError]
+  ): Failure[FitError] =
+    failure.widen[FitError]
+
+  protected def fitPipe[U <: Use.Fit](
       data: NonEmptyData[U, A]
-  )(using context: FitContext): FitResult[
-    F,
-    FitError,
-    Prepared[Preparation.Reusable, U, Standardizer[A], Standardized[A]]
-  ] =
-    val result = for
+  )(using context: FitContext): Either[Failure[FitError], Fitted] =
+    for
       moments <- Moments
         .compute(data)
         .left
@@ -73,25 +94,12 @@ final class StandardScaler[F[_], A](
         .inverseStandardDeviation(zeroVariance)
         .left
         .map(error => context.stagePath.failure[FitError](error))
-      pipe = new Standardizer[A](
-        moments.mean,
-        inverse,
-        context.stagePath
-      )
-      trained = context.complete(pipe, data, ScalerComponents.centered(zeroVariance))
-      prepared <- Prepared
-        .replayed(
-          trained,
-          data,
-          PreparationLineage.leaf(
-            context.stagePath,
-            PreparationScopeTag.Reusable
-          )
-        )
-        .left
-        .map(_.widen[FitError])
-    yield prepared
-    EitherT.fromEither(result)
+    yield new Standardizer[A](
+      moments.mean,
+      inverse,
+      outputSchema,
+      context.stagePath
+    )
 
 object StandardScaler:
   /** Creates a synchronous scaler for applications that do not need an
@@ -99,8 +107,12 @@ object StandardScaler:
     */
   def sync[A](
       zeroVariance: ZeroVariance
-  )(using Coordinates[A]): StandardScaler[Id, A] =
-    new StandardScaler[Id, A](zeroVariance)
+  )(using view: FeatureView[A]): Either[ScaleFitError, StandardScaler[Id, A]] =
+    Standardized
+      .schema[A]
+      .left
+      .map(ScaleFitError.Schema.apply)
+      .map(schema => new StandardScaler[Id, A](zeroVariance, schema))
 
 /** Stable population-moment scaling without centering.
   *
@@ -108,27 +120,27 @@ object StandardScaler:
   * which makes this the lawful preprocessing shape for a future `Sparse[S]`.
   */
 final class ScaleOnlyScaler[F[_], A](
-    val zeroVariance: ZeroVariance
-)(using Applicative[F], Coordinates[A])
-    extends Transform[F, A, Scaled[A]]:
+    val zeroVariance: ZeroVariance,
+    private val outputSchema: FeatureSchema[Scaled[A]]
+)(using Applicative[F], FeatureView[A])
+    extends Transform.Leaf[F, A, Dense[Scaled[A]]]:
 
   type FitError = ScaleFitError | ScaleRunError
   type RunError = ScaleRunError
   type Fitted = ScaleOnlyStandardizer[A]
 
-  def fit[U <: Use.Fit](
+  protected def descriptor: ComponentDescriptor =
+    ScalerComponents.scaleOnly(zeroVariance, outputSchema)
+
+  protected def replayFailure(
+      failure: Failure[RunError]
+  ): Failure[FitError] =
+    failure.widen[FitError]
+
+  protected def fitPipe[U <: Use.Fit](
       data: NonEmptyData[U, A]
-  )(using context: FitContext): FitResult[
-    F,
-    FitError,
-    Prepared[
-      Preparation.Reusable,
-      U,
-      ScaleOnlyStandardizer[A],
-      Scaled[A]
-    ]
-  ] =
-    val result = for
+  )(using context: FitContext): Either[Failure[FitError], Fitted] =
+    for
       moments <- Moments
         .compute(data)
         .left
@@ -137,50 +149,43 @@ final class ScaleOnlyScaler[F[_], A](
         .inverseStandardDeviation(zeroVariance)
         .left
         .map(error => context.stagePath.failure[FitError](error))
-      pipe = new ScaleOnlyStandardizer[A](
-        inverse,
-        context.stagePath
-      )
-      trained =
-        context.complete(pipe, data, ScalerComponents.scaleOnly(zeroVariance))
-      prepared <- Prepared
-        .replayed(
-          trained,
-          data,
-          PreparationLineage.leaf(
-            context.stagePath,
-            PreparationScopeTag.Reusable
-          )
-        )
-        .left
-        .map(_.widen[FitError])
-    yield prepared
-    EitherT.fromEither(result)
+    yield new ScaleOnlyStandardizer[A](
+      inverse,
+      outputSchema,
+      context.stagePath
+    )
 
 object ScaleOnlyScaler:
   /** Creates a synchronous scale-only scaler. */
   def sync[A](
       zeroVariance: ZeroVariance
-  )(using Coordinates[A]): ScaleOnlyScaler[Id, A] =
-    new ScaleOnlyScaler[Id, A](zeroVariance)
+  )(using view: FeatureView[A]): Either[ScaleFitError, ScaleOnlyScaler[Id, A]] =
+    Scaled
+      .schema[A]
+      .left
+      .map(ScaleFitError.Schema.apply)
+      .map(schema => new ScaleOnlyScaler[Id, A](zeroVariance, schema))
 
 /** Immutable fitted centered standardizer. */
 final class Standardizer[A] private[alder] (
     mean: IArray[Double],
     inverseStandardDeviation: IArray[Double],
+    schema: FeatureSchema[Standardized[A]],
     stage: StagePath
-)(using coordinates: Coordinates[A])
-    extends Pipe[A, ScaleRunError, Standardized[A]]:
+)(using view: FeatureView[A])
+    extends Pipe[A, ScaleRunError, Dense[Standardized[A]]]:
 
-  def run(value: A): Either[Failure[ScaleRunError], Standardized[A]] =
+  def run(
+      value: A
+  ): Either[Failure[ScaleRunError], Dense[Standardized[A]]] =
     ScalerRun
       .transform(
         value,
-        coordinates,
+        view,
+        schema,
         (raw, index) =>
           (raw(index) - mean(index)) *
-            inverseStandardDeviation(index),
-        Standardized.wrap
+            inverseStandardDeviation(index)
       )
       .left
       .map(stage.failure)
@@ -188,50 +193,50 @@ final class Standardizer[A] private[alder] (
 /** Immutable fitted scale-only standardizer. */
 final class ScaleOnlyStandardizer[A] private[alder] (
     inverseStandardDeviation: IArray[Double],
+    schema: FeatureSchema[Scaled[A]],
     stage: StagePath
-)(using coordinates: Coordinates[A])
-    extends Pipe[A, ScaleRunError, Scaled[A]]:
+)(using view: FeatureView[A])
+    extends Pipe[A, ScaleRunError, Dense[Scaled[A]]]:
 
-  def run(value: A): Either[Failure[ScaleRunError], Scaled[A]] =
+  def run(value: A): Either[Failure[ScaleRunError], Dense[Scaled[A]]] =
     ScalerRun
       .transform(
         value,
-        coordinates,
+        view,
+        schema,
         (raw, index) =>
-          raw(index) * inverseStandardDeviation(index),
-        Scaled.wrap
+          raw(index) * inverseStandardDeviation(index)
       )
       .left
       .map(stage.failure)
 
 private object ScalerRun:
-  def transform[A, B](
+  def transform[A, S](
       value: A,
-      coordinates: Coordinates[A],
-      scaledAt: (IArray[Double], Int) => Double,
-      brand: A => B
-  ): Either[ScaleRunError, B] =
-    coordinates
+      view: FeatureView[A],
+      schema: FeatureSchema[S],
+      scaledAt: (IArray[Double], Int) => Double
+  ): Either[ScaleRunError, Dense[S]] =
+    view
       .read(value)
       .left
       .map(ScaleRunError.CoordinateFailure.apply)
       .flatMap { raw =>
-        firstNonFinite(raw, coordinates.names) match
+        firstNonFinite(raw, view.names) match
           case Some((name, invalid)) =>
             Left(ScaleRunError.NonFiniteInput(name, invalid))
           case None =>
             val scaled = IArray.tabulate(raw.length)(index =>
               scaledAt(raw, index)
             )
-            firstNonFinite(scaled, coordinates.names) match
+            firstNonFinite(scaled, view.names) match
               case Some((name, _)) =>
                 Left(ScaleRunError.NonFiniteOutput(name))
               case None =>
-                coordinates
-                  .build(scaled)
+                Dense
+                  .from(scaled, schema)
                   .left
-                  .map(ScaleRunError.CoordinateFailure.apply)
-                  .map(brand)
+                  .map(ScaleRunError.Dense.apply)
       }
 
   private def firstNonFinite(
@@ -281,20 +286,20 @@ private final class Moments(
 private object Moments:
   def compute[U <: Use.Fit, A](
       data: NonEmptyData[U, A]
-  )(using coordinates: Coordinates[A]): Either[ScaleFitError, Moments] =
-    val means = new Array[Double](coordinates.size)
-    val m2 = new Array[Double](coordinates.size)
+  )(using view: FeatureView[A]): Either[ScaleFitError, Moments] =
+    val means = new Array[Double](view.size)
+    val m2 = new Array[Double](view.size)
     val result = data.data.foldRows[
       Either[ScaleFitError, Long]
     ](Right(0L)) {
       case (left @ Left(_), _, _) => left
       case (Right(count), row, value) =>
-        coordinates
+        view
           .read(value)
           .left
           .map(ScaleFitError.CoordinateFailure(row, _))
           .flatMap { values =>
-            update(values, coordinates.names, row, count, means, m2)
+            update(values, view.names, row, count, means, m2)
           }
     }
     result.map(count =>
@@ -302,7 +307,7 @@ private object Moments:
         IArray.unsafeFromArray(means),
         IArray.unsafeFromArray(m2),
         count,
-        coordinates.names
+        view.names
       )
     )
 
@@ -343,16 +348,33 @@ private object ScalerComponents:
       AuditValue.record()
     )
 
-  def centered(policy: ZeroVariance): ComponentDescriptor =
-    descriptor("alder.preprocess.standard-scaler", policy, centered = true)
+  def centered[A](
+      policy: ZeroVariance,
+      schema: FeatureSchema[Standardized[A]]
+  ): ComponentDescriptor =
+    descriptor(
+      "alder.preprocess.standard-scaler",
+      policy,
+      centered = true,
+      schema.fingerprint
+    )
 
-  def scaleOnly(policy: ZeroVariance): ComponentDescriptor =
-    descriptor("alder.preprocess.scale-only-scaler", policy, centered = false)
+  def scaleOnly[A](
+      policy: ZeroVariance,
+      schema: FeatureSchema[Scaled[A]]
+  ): ComponentDescriptor =
+    descriptor(
+      "alder.preprocess.scale-only-scaler",
+      policy,
+      centered = false,
+      schema.fingerprint
+    )
 
   private def descriptor(
       id: String,
       policy: ZeroVariance,
-      centered: Boolean
+      centered: Boolean,
+      featureFingerprint: SchemaFingerprint
   ): ComponentDescriptor =
     ComponentDescriptor(
       ComponentId(id),
@@ -360,7 +382,17 @@ private object ScalerComponents:
       AuditValue.record(
         "zeroVariance" -> AuditValue.text(policyName(policy)),
         "centered" -> AuditValue.bool(centered),
-        "variance" -> AuditValue.text("population")
+        "variance" -> AuditValue.text("population"),
+        "featureFingerprintPolicy" -> AuditValue.text(
+          featureFingerprint.policy match
+            case FingerprintPolicy.ContentDigest(algorithm) =>
+              s"content-digest:$algorithm"
+            case FingerprintPolicy.SourceIdentity(uri, version) =>
+              s"source-identity:$uri:$version"
+            case FingerprintPolicy.Summary(policyId) =>
+              s"summary:$policyId"
+        ),
+        "featureFingerprint" -> AuditValue.text(featureFingerprint.digest)
       ),
       backend
     )

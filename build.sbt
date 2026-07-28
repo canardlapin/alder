@@ -145,6 +145,24 @@ lazy val lawsJVM    = laws.jvm.settings(compatibilitySettings)
 lazy val lawsJS     = laws.js
 lazy val lawsNative = laws.native
 
+/** External-package consumer fixtures that prove SPI usability outside
+  * `package alder`. Not published.
+  */
+lazy val consumerFixture = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("consumer-fixture"))
+  .dependsOn(kernel, laws % Test, testkit % "test->compile")
+  .settings(strictSettings)
+  .settings(
+    name           := "alder-consumer-fixture",
+    publish / skip := true,
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val consumerFixtureJVM    = consumerFixture.jvm
+lazy val consumerFixtureJS     = consumerFixture.js
+lazy val consumerFixtureNative = consumerFixture.native
+
 /** Published generators and leakage-tracing fixtures for Alder law suites and
   * downstream plugin tests.
   */
@@ -371,6 +389,29 @@ lazy val ridgeLinop4sJS =
 lazy val ridgeLinop4sNative =
   ridgeLinop4s.native.dependsOn(linop4sKrylovNative)
 
+/** Curated batteries for the ordinary supervised getting-started path. */
+lazy val quickstart = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("quickstart"))
+  .dependsOn(
+    application,
+    preprocess,
+    modelsLinear,
+    ridgeLinop4s,
+    tune,
+    testkit % "test->compile"
+  )
+  .settings(strictSettings)
+  .settings(
+    name := "alder-quickstart",
+    libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
+  )
+
+lazy val quickstartJVM =
+  quickstart.jvm.settings(compatibilitySettings)
+lazy val quickstartJS     = quickstart.js
+lazy val quickstartNative = quickstart.native
+
 /** Valid-by-construction search spaces, deterministic interpreters, and the
   * explicit model-erasure boundary used by tuning.
   */
@@ -426,6 +467,25 @@ lazy val codecJVM    = codec.jvm.settings(compatibilitySettings)
 lazy val codecJS     = codec.js
 lazy val codecNative = codec.native
 
+/** Local performance baselines. Not published; documents 100k-row budgets. */
+lazy val benchmarks = project
+  .in(file("benchmarks"))
+  .dependsOn(
+    dataJVM,
+    preprocessJVM,
+    applicationJVM,
+    modelsLinearJVM,
+    ridgeLinop4sJVM,
+    quickstartJVM,
+    testkitJVM
+  )
+  .settings(strictSettings)
+  .settings(
+    name           := "alder-benchmarks",
+    publish / skip := true,
+    libraryDependencies += "org.scalameta" %% "munit" % munitV % Test
+  )
+
 /** Curated public guide site. Its input is deliberately separate from docs/,
   * which contains internal reviews and release evidence.
   */
@@ -443,6 +503,7 @@ lazy val docs = project
     modelsLinearJVM,
     ridgeGaleJVM,
     ridgeLinop4sJVM,
+    quickstartJVM,
     tuneJVM,
     tuneLawsJVM,
     codecJVM
@@ -466,6 +527,9 @@ lazy val root = project
     lawsJVM,
     lawsJS,
     lawsNative,
+    consumerFixtureJVM,
+    consumerFixtureJS,
+    consumerFixtureNative,
     testkitJVM,
     testkitJS,
     testkitNative,
@@ -492,6 +556,9 @@ lazy val root = project
     ridgeLinop4sJVM,
     ridgeLinop4sJS,
     ridgeLinop4sNative,
+    quickstartJVM,
+    quickstartJS,
+    quickstartNative,
     tuneJVM,
     tuneJS,
     tuneNative,
@@ -500,7 +567,8 @@ lazy val root = project
     tuneLawsNative,
     codecJVM,
     codecJS,
-    codecNative
+    codecNative,
+    benchmarks
   )
   .settings(
     name           := "alder",

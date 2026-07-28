@@ -3,6 +3,8 @@ package alder.application
 import alder.data.*
 import alder.kernel.*
 import alder.metrics.*
+import cats.Id
+import cats.data.EitherT
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration.*
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -46,27 +48,40 @@ class ReceiptConcurrencySuite extends munit.FunSuite:
         AuditValue.record(),
         BackendFingerprint("test", "1", AuditValue.record())
       )
+    val learner =
+      new Learner[Id, Double, Double, Unit, Double]:
+        type FitError = Nothing
+        type RunError = Nothing
+        type Model = Pipe[Double, Nothing, Double]
+        def fit[U <: Use.Fit](
+            data: NonEmptyData[U, Example[Double, Double, Unit]]
+        )(using fitContext: FitContext)
+            : FitResult[Id, FitError, Trained[Model]] =
+          EitherT.right(
+            fitContext.complete(Pipe.identity[Double], data, component)
+          )
     val trained =
-      context.complete(
-        Pipe.identity[Double],
-        split.train,
-        component
-      )
+      learner.fit(split.train)(using context).value match
+        case Left(error)  => fail(s"unexpected fit error: $error")
+        case Right(value) => value
     val sources =
       EvaluationSources
         .validation(split.train, split.validation.data) match
         case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
     val evaluated =
-      Evaluation.scored(
-        trained,
-        sources,
-        RegressionMetrics.rmse[Unit]
-      ) match
-        case Left(error)  => fail(s"unexpected evaluation error: $error")
-        case Right(value) => value
-    val selection =
-      evaluated.select("identity-learner", SingleCandidate)
+      Evaluation
+        .validated(
+          learner,
+          trained,
+          sources,
+          RegressionMetrics.rmse[Unit]
+        )
+        .fold(
+          error => fail(s"unexpected evaluation error: $error"),
+          identity
+        )
+    val selection = evaluated.select(SingleCandidate)
     val ready = new CountDownLatch(2)
     val start = new CountDownLatch(1)
 
@@ -74,7 +89,7 @@ class ReceiptConcurrencySuite extends munit.FunSuite:
       Future {
         ready.countDown()
         start.await()
-        Refit.after(selection).from(evaluated.allObserved)
+        Refit.after(selection).from(evaluated.evaluation.allObserved)
       }
 
     val first = attempt()

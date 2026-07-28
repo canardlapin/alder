@@ -33,7 +33,8 @@ private[application] object ReceiptHash:
       descriptor: MetricDescriptor,
       score: AuditValue,
       direction: ObjectiveDirection,
-      policy: SelectionPolicy
+      policy: SelectionPolicy,
+      candidate: Audit
   ): SelectionReceiptId =
     SelectionReceiptId(
       digest(
@@ -45,8 +46,34 @@ private[application] object ReceiptHash:
           metricDescriptor(descriptor),
           auditValue(score),
           objectiveDirection(direction),
-          selectionPolicy(policy)
+          selectionPolicy(policy),
+          trainedAudit(candidate)
         )
+      )
+    )
+
+  def trainedAudit(audit: Audit): String =
+    framed(
+      Vector(
+        "candidate-audit-v1",
+        fingerprintPolicy(audit.plan.policy),
+        audit.plan.digest,
+        fingerprintPolicy(audit.data.policy),
+        audit.data.digest,
+        fingerprintPolicy(audit.schema.policy),
+        audit.schema.digest,
+        audit.seed.value.toString,
+        audit.backend.id,
+        audit.backend.version,
+        auditValue(audit.backend.details),
+        audit.component.id.render,
+        audit.component.version.render,
+        auditValue(audit.component.parameters),
+        audit.numerics match
+          case NumericMode.Deterministic => "deterministic"
+          case NumericMode.FastMath      => "fast-math"
+          case NumericMode.NonDeterministic(description) =>
+            s"non-deterministic:$description"
       )
     )
 

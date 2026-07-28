@@ -50,6 +50,67 @@ val second =
 first == second
 ```
 
+## Cross-validated search over a learner family
+
+`Search.crossValidatedGrid` expands each configuration across a
+`CompleteResampler`, scores every assessment fold, discards the fold models, and
+selects with the same first-best-tie policy as `Study`. Reconstruct the concrete
+learner with `family(result.best)`.
+
+```scala mdoc
+import alder.data.{Holdout, KFold}
+import alder.kernel.PlanFingerprint
+import alder.metrics.RootMeanSquaredError
+import alder.models.linear.{RidgeConfig, RidgeRegression}
+import alder.quickstart.*
+import alder.ridge.linop4s.Linop4sRidgeBackend
+import alder.tune.{GridStrategy, PositiveInt, Space}
+import cats.Id
+
+final case class Point(x: Double) derives Coordinates, Schema
+
+val points = Supervised.fromPairs(
+  Vector.tabulate(12) { index =>
+    val x = index.toDouble
+    Point(x) -> (2.0 * x + 1.0)
+  },
+  "point-search-v1"
+)
+
+val backend = Linop4sRidgeBackend.lsqr[Id]()
+val family: Double => RidgeRegression[Id, Point, Unit] =
+  penalty =>
+    RidgeConfig.create(penalty) match
+      case Right(config) => RidgeRegression.sync[Point, Unit](config, backend)
+      case Left(error)   => sys.error(error.toString)
+
+val selected =
+  for
+    holdout <- Holdout.split(points, testSize = 2, Seed(3L)).left.map(_.toString)
+    resampler <- KFold[Example[Point, Double, Unit]](3).left.map(_.toString)
+    pointsPerAxis <- PositiveInt.create(1).left.map(_.toString)
+    result <- Search
+      .crossValidatedGridSync(
+        Space.choice(0.01, 0.1, 1.0),
+        GridStrategy(pointsPerAxis),
+        resampler,
+        family,
+        Metrics.rmse,
+        (score: RootMeanSquaredError) => score.value,
+        Seed(5L),
+        PlanFingerprint.external("point-search-v1")
+      )
+      .run(holdout.train)
+      .left
+      .map(_.toString)
+  yield result
+
+selected.map(result => (result.best, result.trials.length))
+```
+
+Fold models are never retained in the result. Only per-fold scores, the chosen
+configuration, and study audit evidence remain.
+
 ## Keep studies on Train data
 
 A `Study` evaluates configurations only on

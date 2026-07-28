@@ -191,6 +191,15 @@ Run the full local gate with:
 sbt -J-Xmx4G -Dsbt.task.cpus=1 test
 ```
 
+Run the 100k-row performance baselines with:
+
+```text
+sbt -J-Xmx4G -Dsbt.task.cpus=1 benchmarks/test
+```
+
+The twelve interface acceptance gates and their owner evidence commands are
+listed in `RELEASE_GATES.md`.
+
 Run compatibility tasks with:
 
 ```text

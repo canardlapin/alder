@@ -1,6 +1,7 @@
 package alder.kernel
 
-import cats.Monad
+import cats.{Applicative, Monad}
+import cats.data.EitherT
 
 /** Target-blind preprocessing: cannot inspect targets or metadata because they
   * do not occur in its input. Fitting owns its training-replay preparation
@@ -85,6 +86,42 @@ trait Transform[F[_], X, Z]:
     fit(data)(using context.forChild(startOrdinal))
 
   private[alder] def stageCount: Int = 1
+
+object Transform:
+  /** Ordinary leaf helper for external transform authors.
+    *
+    * Implement [[fitPipe]] and [[descriptor]]; the framework audits, replays,
+    * and constructs [[Prepared]]. Combinators continue to use the raw trait.
+    */
+  abstract class Leaf[F[_], X, Z](using Applicative[F])
+      extends Transform[F, X, Z]:
+    protected def descriptor: ComponentDescriptor
+
+    /** Fit the serving pipe only. Do not construct [[Prepared]]. */
+    protected def fitPipe[U <: Use.Fit](
+        data: NonEmptyData[U, X]
+    )(using FitContext): Either[Failure[FitError], Fitted]
+
+    /** Embed a replay/serving failure into this leaf's fit-error channel. */
+    protected def replayFailure(
+        failure: Failure[RunError]
+    ): Failure[FitError]
+
+    final def fit[U <: Use.Fit](
+        data: NonEmptyData[U, X]
+    )(using context: FitContext): FitResult[
+      F,
+      FitError,
+      Prepared[Preparation.Reusable, U, Fitted, Z]
+    ] =
+      EitherT.fromEither {
+        fitPipe(data).flatMap { pipe =>
+          context
+            .completeTransform(pipe, data, descriptor)
+            .left
+            .map(replayFailure)
+        }
+      }
 
 /** Sequential composition of two target-blind transforms. Knows nothing
   * algorithm-specific: only preparation scope, row identity, audit

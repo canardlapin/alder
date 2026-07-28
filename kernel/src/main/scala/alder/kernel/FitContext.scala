@@ -52,6 +52,24 @@ final class FitContext private (
       )
     )
 
+  /** Lawful leaf finalizer for target-blind transforms.
+    *
+    * Audits the fitted pipe, replays it over the exact fitting rows, and
+    * constructs [[Prepared]] internally so external plugins never need the
+    * package-private Prepared constructor or replay factory.
+    */
+  def completeTransform[U <: Use.Fit, E, X, Z, P <: Pipe[X, E, Z]](
+      artifact: P,
+      trainedOn: NonEmptyData[U, X],
+      component: ComponentDescriptor
+  ): Either[Failure[E], Prepared[Preparation.Reusable, U, P, Z]] =
+    val trained = complete(artifact, trainedOn, component)
+    Prepared.replayed(
+      trained,
+      trainedOn,
+      PreparationLineage.leaf(stagePath, PreparationScopeTag.Reusable)
+    )
+
   /** Framework-internal: audit for a composed artifact, with child audits. */
   private[alder] def composite[A](
       artifact: A,
@@ -107,6 +125,32 @@ private[alder] object AlderComponents:
     descriptor("alder.compose.feature-map")
   val mapFeatureOutput: ComponentDescriptor =
     descriptor("alder.map.feature-output")
+
+  def mapFeatureOutputNamed(
+      name: String,
+      version: String
+  ): ComponentDescriptor =
+    ComponentDescriptor(
+      id = ComponentId("alder.map.feature-output"),
+      version = ComponentVersion("0.1.0-SNAPSHOT"),
+      parameters = AuditValue.record(
+        "function" -> AuditValue.text(name),
+        "functionVersion" -> AuditValue.text(version),
+        "identity" -> AuditValue.text("named")
+      ),
+      backend = backend
+    )
+
+  def mapFeatureOutputAnonymous: ComponentDescriptor =
+    ComponentDescriptor(
+      id = ComponentId("alder.map.feature-output"),
+      version = ComponentVersion("0.1.0-SNAPSHOT"),
+      parameters = AuditValue.record(
+        "identity" -> AuditValue.text("application-defined")
+      ),
+      backend = backend
+    )
+
   val composeFoldEncoder: ComponentDescriptor =
     descriptor("alder.compose.fold-encoder")
   val learnedWith: ComponentDescriptor =

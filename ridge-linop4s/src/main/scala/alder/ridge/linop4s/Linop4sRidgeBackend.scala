@@ -1,6 +1,6 @@
 package alder.ridge.linop4s
 
-import alder.data.Coordinates
+import alder.data.FeatureView
 import alder.kernel.*
 import alder.models.linear.*
 import cats.Applicative
@@ -45,7 +45,7 @@ final class Linop4sRidgeBackend[F[_]](
 
   def solve[X, M, U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]],
-      coordinates: Coordinates[X],
+      features: FeatureView[X],
       config: RidgeConfig,
       weights: RowWeights,
       context: BackendContext
@@ -61,7 +61,7 @@ final class Linop4sRidgeBackend[F[_]](
         Left(RidgeBackendError.RequiresPositivePenalty(solverId))
       else
         RidgeProblem
-          .materialize(data, coordinates, weights)
+          .materialize(data, features, weights)
           .flatMap(problem => solveProblem(problem, config))
     EitherT.fromEither[F](solved.left.map(context.stage.failure))
 

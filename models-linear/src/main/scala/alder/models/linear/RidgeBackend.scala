@@ -1,6 +1,6 @@
 package alder.models.linear
 
-import alder.data.Coordinates
+import alder.data.FeatureView
 import alder.kernel.*
 
 /** Numerical backend boundary for ridge fitting.
@@ -13,7 +13,7 @@ trait RidgeBackend[F[_]]:
   /** Solves one ridge problem on fitting-authorized data. */
   def solve[X, M, U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]],
-      coordinates: Coordinates[X],
+      features: FeatureView[X],
       config: RidgeConfig,
       weights: RowWeights,
       context: BackendContext
@@ -51,12 +51,12 @@ private[alder] final class RidgeProblem(
 private[alder] object RidgeProblem:
   def materialize[X, M, U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]],
-      coordinates: Coordinates[X],
+      features: FeatureView[X],
       rowWeights: RowWeights
   ): Either[RidgeBackendError, RidgeProblem] =
     if data.size > Int.MaxValue.toLong then
       Left(RidgeBackendError.TooManyRows(data.size))
-    else if coordinates.size == 0 then
+    else if features.size == 0 then
       Left(RidgeBackendError.EmptyCoordinateSpace)
     else
       val expectedRows = data.size.toInt
@@ -73,7 +73,7 @@ private[alder] object RidgeProblem:
           )
         case _ =>
           val ids = new Array[RowId](expectedRows)
-          val design = new Array[Double](expectedRows * coordinates.size)
+          val design = new Array[Double](expectedRows * features.size)
           val targets = new Array[Double](expectedRows)
           val weights = new Array[Double](expectedRows)
           var nextRow = 0
@@ -90,7 +90,7 @@ private[alder] object RidgeProblem:
                     RidgeBackendError.NonFiniteTarget(id, example.target)
                   )
               else
-                coordinates.read(example.input) match
+                features.read(example.input) match
                   case Left(error) =>
                     failure =
                       Some(RidgeBackendError.Coordinate(id, error))
@@ -102,12 +102,12 @@ private[alder] object RidgeProblem:
                         failure = Some(
                           RidgeBackendError.NonFiniteFeature(
                             id,
-                            coordinates.names(column),
+                            features.names(column),
                             value
                           )
                         )
                       else
-                        design(nextRow * coordinates.size + column) = value
+                        design(nextRow * features.size + column) = value
                       column += 1
                     targets(nextRow) = example.target
                     weights(nextRow) = weight
@@ -120,16 +120,16 @@ private[alder] object RidgeProblem:
               if !weightSum.isFinite || weightSum <= 0.0 then
                 Left(RidgeBackendError.NonPositiveTotalWeight(weightSum))
               else
-                val means = new Array[Double](coordinates.size)
+                val means = new Array[Double](features.size)
                 var row = 0
                 var targetTotal = 0.0
                 while row < expectedRows do
                   val weight = weights(row)
                   targetTotal += weight * targets(row)
                   var column = 0
-                  while column < coordinates.size do
+                  while column < features.size do
                     means(column) +=
-                      weight * design(row * coordinates.size + column)
+                      weight * design(row * features.size + column)
                     column += 1
                   row += 1
                 var column = 0
@@ -140,7 +140,7 @@ private[alder] object RidgeProblem:
                   new RidgeProblem(
                     IArray.unsafeFromArray(ids),
                     expectedRows,
-                    coordinates.size,
+                    features.size,
                     IArray.unsafeFromArray(design),
                     IArray.unsafeFromArray(targets),
                     IArray.unsafeFromArray(weights),

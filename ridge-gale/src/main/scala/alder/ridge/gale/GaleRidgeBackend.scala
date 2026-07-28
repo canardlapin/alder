@@ -1,6 +1,6 @@
 package alder.ridge.gale
 
-import alder.data.{CoordinateWriter, Coordinates}
+import alder.data.{CoordinateWriter, FeatureView}
 import alder.kernel.*
 import alder.models.linear.*
 import cats.Applicative
@@ -70,7 +70,7 @@ final class GaleRidgeBackend[F[_]](
 
   def solve[X, M, U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]],
-      coordinates: Coordinates[X],
+      features: FeatureView[X],
       config: RidgeConfig,
       weights: RowWeights,
       context: BackendContext
@@ -80,15 +80,15 @@ final class GaleRidgeBackend[F[_]](
         Left(RidgeBackendError.NumericModeMismatch(numericMode, context.numericMode))
       else
         RidgeProblem
-          .materialize(data, coordinates, weights)
-          .flatMap(problem => solveProblem(problem, coordinates, config))
+          .materialize(data, features, weights)
+          .flatMap(problem => solveProblem(problem, features, config))
     EitherT.fromEither[F](
       solved.left.map(context.stage.failure)
     )
 
   private def solveProblem[X](
       problem: RidgeProblem,
-      coordinates: Coordinates[X],
+      features: FeatureView[X],
       config: RidgeConfig
   ): Either[RidgeBackendError, RidgeSolution] =
     try
@@ -118,7 +118,7 @@ final class GaleRidgeBackend[F[_]](
         while column < problem.columns do
           writer.write(
             column,
-            coordinates.names(column),
+            features.names(column),
             problem.feature(row, column)
           ) match
             case Left(error) =>

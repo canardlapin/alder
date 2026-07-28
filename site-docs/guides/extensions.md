@@ -18,9 +18,47 @@ Do not implement a target-aware operation as a `Transform`. Its fitting input
 does not contain targets, and adding targets through ambient state would defeat
 the protocol.
 
-## Complete one leaf audit
+## Implement an ordinary transform leaf
 
-A leaf calls `FitContext.complete` exactly once after validation and fitting:
+External packages should extend `Transform.Leaf` and call the SPI finalizer
+indirectly through `fitPipe`. Implement `fitPipe` and `descriptor`; Alder
+audits, replays training rows, and constructs `Prepared`.
+
+```scala
+final class AddConstant[F[_]](amount: Double)(using Applicative[F])
+    extends Transform.Leaf[F, Double, Double]:
+  type FitError = Nothing
+  type RunError = Nothing
+  type Fitted = Pipe[Double, Nothing, Double]
+
+  protected def descriptor: ComponentDescriptor =
+    ComponentDescriptor(
+      ComponentId("com.example.add-constant"),
+      ComponentVersion("1"),
+      AuditValue.record("amount" -> AuditValue.decimal(amount)),
+      BackendFingerprint("example", "1", AuditValue.record())
+    )
+
+  protected def replayFailure(
+      failure: Failure[RunError]
+  ): Failure[FitError] =
+    failure.widen[FitError]
+
+  protected def fitPipe[U <: Use.Fit](
+      data: NonEmptyData[U, Double]
+  )(using FitContext): Either[Failure[FitError], Fitted] =
+    val _ = data
+    Right(Pipe.total[Double, Double](value => value + amount))
+```
+
+Do not construct `Prepared` yourself. The leaf path calls
+`FitContext.completeTransform` once with the fitted pipe, the exact fitting
+data, and the descriptor.
+
+## Complete one learner audit
+
+A learner leaf calls `FitContext.complete` exactly once after validation and
+fitting:
 
 ```scala
 context.complete(

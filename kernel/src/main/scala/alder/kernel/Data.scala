@@ -84,15 +84,26 @@ private[alder] object DataOperations:
   )(
       f: (RowId, A) => Either[Failure[E], B]
   ): Either[Failure[E], NonEmptyData[U, B]] =
-    data.data
-      .foldRows[Either[Failure[E], Vector[(RowId, B)]]](Right(Vector.empty)) {
-        case (Left(failure), _, _) => Left(failure)
-        case (Right(rows), id, value) =>
-          f(id, value).map(result => rows :+ (id, result))
+    val builder = Vector.newBuilder[(RowId, B)]
+    val failed =
+      data.data.foldRows[Option[Failure[E]]](None) {
+        case (Some(failure), _, _) => Some(failure)
+        case (None, id, value) =>
+          f(id, value) match
+            case Left(failure) => Some(failure)
+            case Right(result) =>
+              builder += ((id, result))
+              None
       }
-      .map(rows =>
-        new NonEmptyData(RowVectorData(rows, data.fingerprint), data.refit)
-      )
+    failed match
+      case Some(failure) => Left(failure)
+      case None =>
+        Right(
+          new NonEmptyData(
+            RowVectorData(builder.result(), data.fingerprint),
+            data.refit
+          )
+        )
 
   def restoreExamples[U <: Use.Fit, X, Y, M, Z](
       original: NonEmptyData[U, Example[X, Y, M]],
@@ -112,31 +123,30 @@ private[alder] object DataOperations:
         else Right(rows.updated(id, (example.target, example.meta)))
     }
     val restored = originals.flatMap { available =>
-      prepared.data.foldRows[
-        Either[
-          PreparationError,
-          (Map[RowId, (Y, M)], Set[RowId], Vector[(RowId, Example[Z, Y, M])])
-        ]
-      ](Right((available, Set.empty, Vector.empty))) {
-        case (Left(error), _, _) => Left(error)
-        case (Right((remaining, seen, rows)), id, value) =>
-          if seen.contains(id) then
-            Left(PreparationError.DuplicatePreparedRow(id))
-          else
-            remaining.get(id) match
-              case None => Left(PreparationError.UnknownPreparedRow(id))
-              case Some((target, meta)) =>
-                Right(
-                  (
-                    remaining.removed(id),
-                    seen + id,
-                    rows :+ (id, Example(value, target, meta))
-                  )
-                )
-      }.flatMap { (remaining, _, rows) =>
-        if remaining.isEmpty then Right(rows)
-        else Left(PreparationError.MissingPreparedRows(remaining.size))
-      }
+      val builder = Vector.newBuilder[(RowId, Example[Z, Y, M])]
+      val seen = scala.collection.mutable.HashSet.empty[RowId]
+      var remaining = available
+      val walked =
+        prepared.data.foldRows[Option[PreparationError]](None) {
+          case (Some(error), _, _) => Some(error)
+          case (None, id, value) =>
+            if seen.contains(id) then
+              Some(PreparationError.DuplicatePreparedRow(id))
+            else
+              remaining.get(id) match
+                case None =>
+                  Some(PreparationError.UnknownPreparedRow(id))
+                case Some((target, meta)) =>
+                  seen += id
+                  remaining = remaining.removed(id)
+                  builder += ((id, Example(value, target, meta)))
+                  None
+        }
+      walked match
+        case Some(error) => Left(error)
+        case None =>
+          if remaining.isEmpty then Right(builder.result())
+          else Left(PreparationError.MissingPreparedRows(remaining.size))
     }
     restored
       .left

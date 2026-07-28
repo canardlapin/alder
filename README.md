@@ -11,10 +11,15 @@ Scala.js, and Scala Native.
 
 ## Start here
 
-The executable guide begins with
+Depend on `alder-quickstart` for the ordinary supervised path. The executable
+guide begins with
 [a complete standardize-fit-validate workflow](site-docs/getting-started.md).
 It then covers preprocessing, metrics, tuning, safe target-aware feature
 construction, extension authoring, and troubleshooting.
+
+Plugin authors that only need the SPI should depend on `alder-kernel` (and
+`alder-data` when constructing cross-fitted feature maps), plus `alder-laws`
+and `alder-testkit` at test scope.
 
 ## Pre-release status
 
@@ -36,6 +41,14 @@ published `0.1.0-SNAPSHOT` artifacts. Then run:
 ```text
 sbt -J-Xmx4G -Dsbt.task.cpus=1 test
 ```
+
+Performance baselines (100k-row budgets):
+
+```text
+sbt -J-Xmx4G -Dsbt.task.cpus=1 benchmarks/test
+```
+
+Interface acceptance gates are listed in [`RELEASE_GATES.md`](RELEASE_GATES.md).
 
 This aggregate command compiles and tests the required JVM, Scala.js, and Scala
 Native projects.

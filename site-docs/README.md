@@ -23,9 +23,10 @@ a ridge model, predicts every validation row from the original input type, and
 computes RMSE. The example uses the application-facing conveniences while
 preserving Alder's typed errors and audit.
 
-After that, choose a task in [Guides](guides/README.md). Read
-[How Alder prevents leakage](concepts/data-roles.md) when you want the reason
-behind the type boundaries.
+After that, choose a task in [Guides](guides/README.md): experiment routes,
+preprocessing, prediction and model inspection, metrics, tuning, or extensions.
+Read [How Alder prevents leakage](concepts/data-roles.md) when you want the
+reason behind the type boundaries.
 
 ## Current status
 

@@ -50,20 +50,25 @@ The plan name and seed identify this fit. `Fit.transform` derives the schema and
 uses deterministic numerics by default.
 
 ```scala mdoc:silent
+import alder.data.Dense
+
 val prepared =
   holdout
     .left
     .map(_.toString)
     .flatMap(partitions =>
-      Fit
-        .transform(
-          StandardScaler.sync[Features](ZeroVariance.Reject),
-          partitions.train,
-          seed = Seed(101L),
-          plan = "standardize-features-v1"
-        )
-        .left
-        .map(_.toString)
+      StandardScaler.sync[Features](ZeroVariance.Reject) match
+        case Left(error) => Left(error.toString)
+        case Right(scaler) =>
+          Fit
+            .transform(
+              scaler,
+              partitions.train,
+              seed = Seed(101L),
+              plan = "standardize-features-v1"
+            )
+            .left
+            .map(_.toString)
     )
 ```
 
@@ -79,13 +84,7 @@ val standardized =
       .map(_.toString)
   )
 
-standardized.flatMap(value =>
-  Coordinates[Standardized[Features]]
-    .read(value)
-    .left
-    .map(_.toString)
-    .map(_.toVector)
-)
+standardized.map((value: Dense[Standardized[Features]]) => value.values.toVector)
 ```
 
 The audit identifies the fitting data, component, backend, numerical mode, and

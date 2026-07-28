@@ -3,6 +3,8 @@ package alder.application
 import alder.data.*
 import alder.kernel.*
 import alder.metrics.*
+import cats.Id
+import cats.data.EitherT
 import scala.compiletime.testing.typeCheckErrors
 
 class ApplicationLifecycleSuite extends munit.FunSuite:
@@ -16,6 +18,14 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       BackendFingerprint("test", "1", AuditValue.record())
     )
 
+  private val otherComponent =
+    ComponentDescriptor(
+      ComponentId("alder.test.identity-regression-other"),
+      ComponentVersion("1"),
+      AuditValue.record("variant" -> AuditValue.text("other")),
+      BackendFingerprint("test", "1", AuditValue.record())
+    )
+
   private val context =
     FitContext.root(
       Seed(71L),
@@ -23,6 +33,22 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       SchemaFingerprint("double"),
       NumericMode.Deterministic
     )
+
+  private final class IdentityLearner(
+      descriptor: ComponentDescriptor
+  ) extends Learner[Id, Double, Double, String, Double]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Model = Pipe[Double, Nothing, Double]
+
+    def fit[U <: Use.Fit](
+        data: NonEmptyData[U, Observation]
+    )(using fitContext: FitContext): FitResult[Id, FitError, Trained[Model]] =
+      EitherT.right(
+        fitContext.complete(Pipe.identity[Double], data, descriptor)
+      )
+
+  private val learner = new IdentityLearner(component)
 
   private def source(
       count: Int,
@@ -44,20 +70,25 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       case Right(result) => result
       case Left(error)   => fail(s"unexpected Rows error: $error")
 
-  private def identity(
-      fittedOn: NonEmptyData[Use.Fit, Observation]
-  ): Trained[Pipe[Double, Nothing, Double]] =
-    context.complete(Pipe.identity[Double], fittedOn, component)
+  private def fitIdentity(
+      fittedOn: NonEmptyData[Use.Fit, Observation],
+      chosen: IdentityLearner = learner
+  ): Trained[chosen.Model] =
+    chosen.fit(fittedOn)(using context).value match
+      case Left(error)  => fail(s"unexpected fit error: $error")
+      case Right(value) => value
 
-  private def validationEvaluation(
-      split: ValidationSplit[Observation]
-  ): ScoredEvaluation[
-    Use.Validation,
+  private def validationCandidate(
+      split: ValidationSplit[Observation],
+      chosen: IdentityLearner = learner
+  ): ValidatedCandidate[
+    Id,
     Double,
     Double,
     String,
     Double,
     RootMeanSquaredError,
+    IdentityLearner,
     ObjectiveMetric[
       Scored[Double, Double, String],
       RootMeanSquaredError
@@ -69,7 +100,12 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
         case Left(error)  => fail(s"unexpected source error: $error")
         case Right(value) => value
     val metric = RegressionMetrics.rmse[String]
-    Evaluation.scored(identity(split.train), sources, metric) match
+    Evaluation.validated(
+      chosen,
+      fitIdentity(split.train, chosen),
+      sources,
+      metric
+    ) match
       case Left(error)  => fail(s"unexpected evaluation error: $error")
       case Right(value) => value
 
@@ -82,7 +118,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       ) match
         case Left(error)  => fail(s"unexpected split error: $error")
         case Right(value) => value
-    val evaluated = validationEvaluation(split)
+    val evaluated = validationCandidate(split).evaluation
     val expected =
       split.validation.data.foldRows(
         Vector.empty[(Long, Observation)]
@@ -168,7 +204,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
         case Right(value) => value
 
     Evaluation.scored(
-      identity(split.train),
+      fitIdentity(split.train),
       sources,
       RegressionMetrics.rmse[String]
     ) match
@@ -190,11 +226,12 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       ) match
         case Left(error)  => fail(s"unexpected split error: $error")
         case Right(value) => value
-    val first = validationEvaluation(split)
-    val replay = validationEvaluation(split)
-    val selection = first.select("identity-learner", SingleCandidate)
+    val first = validationCandidate(split)
+    val replay = validationCandidate(split)
+    val selection = first.select(SingleCandidate)
+    assert(selection.learner eq first.learner)
 
-    Refit.after(selection).from(replay.allObserved) match
+    Refit.after(selection).from(replay.evaluation.allObserved) match
       case Left(
             ApplicationRefitError.SelectionReceiptMismatch(id)
           ) =>
@@ -202,14 +239,14 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       case other => fail(s"expected receipt mismatch, got $other")
 
     val promoted =
-      Refit.after(selection).from(first.allObserved) match
+      Refit.after(selection).from(first.evaluation.allObserved) match
         case Left(error) => fail(s"unexpected promotion error: $error")
         case Right(value) => value
     assertEquals(promoted.size, 6L)
     promoted.refit match
       case None => fail("expected refit audit")
       case Some(audit) =>
-        assertEquals(audit.evaluationReceipt, first.receipt.id)
+        assertEquals(audit.evaluationReceipt, first.evaluation.receipt.id)
         assertEquals(audit.selectionReceipt, Some(selection.id))
         assertEquals(
           audit.sources.map(_.role),
@@ -219,12 +256,31 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
           )
         )
 
-    Refit.after(selection).from(first.allObserved) match
+    Refit.after(selection).from(first.evaluation.allObserved) match
       case Left(
             ApplicationRefitError.SelectionReceiptAlreadyUsed(id)
           ) =>
         assertEquals(id, selection.id)
       case other => fail(s"expected receipt reuse error, got $other")
+  }
+
+  test("selection identity commits to the evaluated candidate audit") {
+    val split =
+      Split.validation(
+        source(6, "candidate-audit-source"),
+        ValidationSpec(rows(2L)),
+        Seed(13L)
+      ) match
+        case Left(error)  => fail(s"unexpected split error: $error")
+        case Right(value) => value
+    val first = validationCandidate(split, learner)
+    val other =
+      validationCandidate(split, new IdentityLearner(otherComponent))
+    assertEquals(first.evaluation.score, other.evaluation.score)
+    assertNotEquals(
+      first.select(SingleCandidate).id,
+      other.select(SingleCandidate).id
+    )
   }
 
   test("selected Train+Validation refit unlocks final Test exactly once") {
@@ -250,20 +306,20 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
         case Right(value) => value
     val metric = RegressionMetrics.rmse[String]
     val validation =
-      Evaluation.scored(
-        identity(split.train),
+      Evaluation.validated(
+        learner,
+        fitIdentity(split.train),
         validationSources,
         metric
       ) match
         case Left(error)  => fail(s"unexpected validation error: $error")
         case Right(value) => value
-    val selection =
-      validation.select("identity-learner", SingleCandidate)
+    val selection = validation.select(SingleCandidate)
     val refitData =
-      Refit.after(selection).from(validation.allObserved) match
+      Refit.after(selection).from(validation.evaluation.allObserved) match
         case Left(error)  => fail(s"unexpected selected refit: $error")
         case Right(value) => value
-    val refitModel = identity(refitData)
+    val refitModel = fitIdentity(refitData, selection.learner)
     val testSources =
       EvaluationSources.finalTest(refitData, split.test.data) match
         case Left(error)  => fail(s"unexpected final-test source: $error")
@@ -313,7 +369,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
         case Right(value) => value
     val tested =
       Evaluation.scored(
-        identity(split.train),
+        fitIdentity(split.train),
         sources,
         RegressionMetrics.rmse[String]
       ) match
@@ -363,18 +419,25 @@ def illegal(
 import alder.application.*
 import alder.kernel.*
 import alder.metrics.*
-def illegal(
-  evaluation: ScoredEvaluation[
-    Use.Validation,
-    Double,
-    Double,
-    Unit,
-    Double,
-    Double,
-    Metric[Scored[Double, Double, Unit], Double]
-  ]
+import cats.Id
+def illegal[
+  L <: Learner[Id, Double, Double, Unit, Double]
+](
+  learner: L,
+  trained: Trained[learner.Model],
+  sources: alder.data.EvaluationSources[Use.Validation, Example[Double, Double, Unit]],
+  metric: Metric[Scored[Double, Double, Unit], Double]
 ) =
-  evaluation.select("learner", SingleCandidate)
+  Evaluation.validated(learner, trained, sources, metric)
+"""
+    )
+    val selectTakesNoReplacementLearner = typeCheckErrors(
+      """package consumer
+import alder.application.*
+def illegal[F[_], X, Y, M, P, S, L <: alder.kernel.Learner[F, X, Y, M, P], Mt](
+  candidate: ValidatedCandidate[F, X, Y, M, P, S, L, Mt]
+) =
+  candidate.select("other-learner", SingleCandidate)
 """
     )
     val rolesCannotCross = typeCheckErrors(
@@ -422,6 +485,7 @@ def illegal[A](
 
     assert(validationCannotRefit.nonEmpty)
     assert(reportingCannotSelect.nonEmpty)
+    assert(selectTakesNoReplacementLearner.nonEmpty)
     assert(rolesCannotCross.nonEmpty)
     assert(receiptCannotBeForged.nonEmpty)
     assert(observedCannotBeResplit.nonEmpty)

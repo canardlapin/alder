@@ -25,11 +25,25 @@ trait FeatureMap[F[_], X, Y, M, Z]:
 
   /** Total rowwise postprocessing has no fitted state or training dependency,
     * so it preserves the preparation scope exactly (D20).
+    *
+    * Prefer [[mapOutput(NamedMap)]] when the function must be identified in
+    * audit. A bare function is recorded as application-defined and is not
+    * reproducibly identified.
     */
   final def mapOutput[W](f: Z => W)(using
       Monad[F]
   ): MappedOutputFeatureMap[F, X, Y, M, Z, W, this.type] =
-    MappedOutputFeatureMap(this, f)
+    MappedOutputFeatureMap(this, f, AlderComponents.mapFeatureOutputAnonymous)
+
+  /** Named total rowwise postprocessing with a stable audit identity. */
+  final def mapOutput[W](named: NamedMap[Z, W])(using
+      Monad[F]
+  ): MappedOutputFeatureMap[F, X, Y, M, Z, W, this.type] =
+    MappedOutputFeatureMap(
+      this,
+      named.run,
+      AlderComponents.mapFeatureOutputNamed(named.name, named.version)
+    )
 
   /** FeatureMap composed with a terminal learner is a terminal learner. */
   final def learnWith[P, L <: Learner[F, Z, Y, M, P]](learner: L)(using
@@ -149,7 +163,8 @@ final class MappedOutputFeatureMap[
     FM <: FeatureMap[F, X, Y, M, Z]
 ](
     val featureMap: FM,
-    val f: Z => W
+    val f: Z => W,
+    private val mapComponent: ComponentDescriptor
 )(using Monad[F])
     extends FeatureMap[F, X, Y, M, W]:
   type Scope = featureMap.Scope
@@ -179,7 +194,7 @@ final class MappedOutputFeatureMap[
       val trained = context.composite(
         fitted,
         data,
-        AlderComponents.mapFeatureOutput,
+        mapComponent,
         lineage,
         Vector(prepared.fitted.audit)
       )
@@ -207,7 +222,7 @@ final class MappedOutputFeatureMap[
       val trained = context.composite(
         fitted,
         data,
-        AlderComponents.mapFeatureOutput,
+        mapComponent,
         lineage,
         Vector(prepared.fitted.audit)
       )

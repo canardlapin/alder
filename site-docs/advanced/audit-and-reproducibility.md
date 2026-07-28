@@ -21,6 +21,11 @@ An audit includes:
 Stage paths and derived seeds use stable logical ordinals. Reparenthesizing an
 associative composition does not change leaf stage identity.
 
+Behaviour-changing policies belong in the audit identity. Changing a feature
+view, a weight / group / time policy, or a named row function produces a
+different component or policy fingerprint. An anonymous `mapOutput` function
+does not.
+
 ## Fingerprint policies
 
 Every fingerprint names its policy:

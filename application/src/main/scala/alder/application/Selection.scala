@@ -11,6 +11,65 @@ enum SelectionPolicy derives CanEqual:
 val SingleCandidate: SelectionPolicy.SingleCandidate.type =
   SelectionPolicy.SingleCandidate
 
+/** A validation-scored candidate that retains the exact learner and fitted
+  * artifact whose score may authorize selection and refit.
+  */
+final class ValidatedCandidate[
+    F[_],
+    X,
+    Y,
+    M,
+    P,
+    S,
+    L <: Learner[F, X, Y, M, P],
+    Mt <: ObjectiveMetric[Scored[Y, P, M], S]
+] private[application] (
+    val learner: L,
+    val trained: Trained[learner.Model],
+    val evaluation: ScoredEvaluation[
+      Use.Validation,
+      X,
+      Y,
+      M,
+      P,
+      S,
+      Mt
+    ]
+):
+  /** Selects this exact candidate. No replacement learner may be supplied. */
+  def select(
+      policy: SelectionPolicy.SingleCandidate.type
+  ): SelectionReceipt[L, Mt, S] =
+    val _ = policy
+    val metric = evaluation.metric
+    val auditedScore = metric.auditScore(evaluation.score)
+    val id = ReceiptHash.selection(
+      evaluation.plan,
+      evaluation.receipt.id,
+      metric.descriptor,
+      auditedScore,
+      metric.direction,
+      SelectionPolicy.SingleCandidate,
+      trained.audit
+    )
+    new SelectionReceipt(
+      id,
+      evaluation.plan,
+      evaluation.receipt.id,
+      evaluation.allObserved.fingerprint,
+      evaluation.scored.fingerprint,
+      metric.descriptor,
+      evaluation.score,
+      auditedScore,
+      metric.direction,
+      SelectionPolicy.SingleCandidate,
+      learner,
+      trained.audit,
+      metric,
+      evaluation.receipt.sources,
+      evaluation.receipt.authority
+    )
+
 /** Explicit evidence that one validation-scored candidate was selected. */
 final class SelectionReceipt[
     L,
@@ -28,62 +87,11 @@ final class SelectionReceipt[
     val direction: ObjectiveDirection,
     val policy: SelectionPolicy,
     val learner: L,
+    val candidateAudit: Audit,
     val metric: Mt,
     val sources: Vector[ObservedSource],
     private[alder] val authority: PromotionAuthority[Use.Validation]
 )
-
-extension [
-    X,
-    Y,
-    M,
-    P,
-    S,
-    Mt <: ObjectiveMetric[Scored[Y, P, M], S]
-](
-    evaluation: ScoredEvaluation[
-      Use.Validation,
-      X,
-      Y,
-      M,
-      P,
-      S,
-      Mt
-    ]
-)
-  /** Selects the only candidate explicitly, authorizing a later refit on the
-    * exact Train+Validation manifest.
-    */
-  def select[L](
-      learner: L,
-      policy: SelectionPolicy.SingleCandidate.type
-  ): SelectionReceipt[L, Mt, S] =
-    val metric = evaluation.metric
-    val auditedScore = metric.auditScore(evaluation.score)
-    val id = ReceiptHash.selection(
-      evaluation.plan,
-      evaluation.receipt.id,
-      metric.descriptor,
-      auditedScore,
-      metric.direction,
-      policy
-    )
-    new SelectionReceipt(
-      id,
-      evaluation.plan,
-      evaluation.receipt.id,
-      evaluation.allObserved.fingerprint,
-      evaluation.scored.fingerprint,
-      metric.descriptor,
-      evaluation.score,
-      auditedScore,
-      metric.direction,
-      policy,
-      learner,
-      metric,
-      evaluation.receipt.sources,
-      evaluation.receipt.authority
-    )
 
 /** Runtime rejection of same-role receipt substitution or one-shot reuse. */
 enum ApplicationRefitError derives CanEqual:
@@ -110,9 +118,13 @@ final class SelectedRefitPromotion[
     Mt,
     S
 ] private[application] (
-    receipt: SelectionReceipt[L, Mt, S]
+    val receipt: SelectionReceipt[L, Mt, S]
 ):
-  /** Promotes only the validation bundle bound to this selection receipt. */
+  /** Promotes only the validation bundle bound to this selection receipt.
+    *
+    * The retained [[SelectionReceipt.learner]] is the only algorithm the
+    * safe API exposes for the subsequent fit on promoted data.
+    */
   def from[A](
       observed: AllObserved[Use.Validation, A]
   ): Either[

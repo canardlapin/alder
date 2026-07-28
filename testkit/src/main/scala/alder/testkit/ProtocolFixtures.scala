@@ -63,6 +63,18 @@ object TestData:
     if rows.isEmpty then None
     else Some(new NonEmptyData(RowVectorData(rows, fingerprint)))
 
+  /** Builds nonempty data with contiguous private RowIds for plugin tests. */
+  def indexed[U <: Use, A](
+      values: Vector[A],
+      fingerprint: DataFingerprint
+  ): Option[NonEmptyData[U, A]] =
+    nonEmpty(
+      values.zipWithIndex.map { (value, index) =>
+        RowId(index.toLong) -> value
+      },
+      fingerprint
+    )
+
   def rowsOf[U <: Use, A](
       data: NonEmptyData[U, A]
   ): Vector[(RowId, A)] =

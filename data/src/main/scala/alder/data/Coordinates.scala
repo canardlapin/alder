@@ -1,5 +1,6 @@
 package alder.data
 
+import alder.kernel.*
 import scala.compiletime.{constValue, erasedValue, summonInline}
 import scala.deriving.Mirror
 
@@ -54,13 +55,18 @@ trait CoordinateWriter:
       value: Double
   ): Either[CoordinateError, Unit]
 
-/** Complete, ordered numeric coordinates for an application value. */
-trait Coordinates[A]:
+/** Ordered numeric view of an application value for materialization and
+  * prediction. Learners ordinarily need only this capability.
+  */
+trait FeatureView[-A]:
   /** Coordinate names in the same order used by every read and write. */
   def names: IArray[String]
 
   /** Number of coordinates in this representation. */
   def size: Int
+
+  /** Runtime schema fingerprint of the selected numerical feature view. */
+  def featureSchema: FeatureSchema[?]
 
   /** Reads all coordinates into an immutable, ordered array. */
   def read(value: A): Either[CoordinateError, IArray[Double]]
@@ -71,8 +77,32 @@ trait Coordinates[A]:
       destination: CoordinateWriter
   ): Either[CoordinateError, Unit]
 
-  /** Rebuilds an application value from coordinates in `names` order. */
+  /** Stable audit identity for this exact numerical representation. */
+  final def featureViewDescriptor: AuditValue =
+    AuditValue.record(
+      "fingerprintPolicy" -> AuditValue.text(
+        featureSchema.fingerprint.policy match
+          case FingerprintPolicy.ContentDigest(algorithm) =>
+            s"content-digest:$algorithm"
+          case FingerprintPolicy.SourceIdentity(uri, version) =>
+            s"source-identity:$uri:$version"
+          case FingerprintPolicy.Summary(policyId) =>
+            s"summary:$policyId"
+      ),
+      "fingerprint" -> AuditValue.text(featureSchema.fingerprint.digest),
+      "names" -> AuditValue.sequence(
+        names.iterator.map(AuditValue.text).toVector*
+      )
+    )
+
+/** Rebuilds an application value from arbitrary doubles. Required only by
+  * transforms that preserve the source representation.
+  */
+trait CoordinateBuilder[A]:
   def build(values: IArray[Double]): Either[CoordinateError, A]
+
+/** Complete, ordered numeric coordinates for an application value. */
+trait Coordinates[A] extends FeatureView[A], CoordinateBuilder[A]:
 
   /** Reuses this coordinate representation through an isomorphism. */
   final def imap[B](to: A => B)(from: B => A): Coordinates[B] =
@@ -80,6 +110,7 @@ trait Coordinates[A]:
     new Coordinates[B]:
       def names: IArray[String] = underlying.names
       def size: Int = underlying.size
+      def featureSchema: FeatureSchema[?] = underlying.featureSchema
       def read(value: B): Either[CoordinateError, IArray[Double]] =
         underlying.read(from(value))
       def writeTo(
@@ -133,9 +164,16 @@ object Coordinates:
       writeValue: (A, CoordinateWriter) => Either[CoordinateError, Unit],
       buildValue: IArray[Double] => Either[CoordinateError, A]
   ): Coordinates[A] =
+    val schema = FeatureSchema.named[A](coordinateNames) match
+      case Right(value) => value
+      case Left(error) =>
+        throw IllegalArgumentException(
+          s"derived coordinate schema rejected: $error"
+        )
     new Coordinates[A]:
       val names: IArray[String] = coordinateNames
       val size: Int = coordinateNames.length
+      val featureSchema: FeatureSchema[?] = schema
 
       def read(value: A): Either[CoordinateError, IArray[Double]] =
         readValue(value)

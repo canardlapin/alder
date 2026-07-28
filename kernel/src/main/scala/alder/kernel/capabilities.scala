@@ -123,7 +123,82 @@ trait Explain[A, -X]:
   type Attribution
   def apply(trained: Trained[A], input: X): Either[ExplainError, Attribution]
 
+/** Indexed linear coefficients for a fitted numeric model. */
+trait Coefficients[A]:
+  def coefficientCount(trained: Trained[A]): Int
+  def coefficient(trained: Trained[A], index: Int): Double
+  def coefficients(trained: Trained[A]): IArray[Double]
+  def intercept(trained: Trained[A]): Double
+
+/** Latent / component scores produced by a fitted decomposition. */
+trait LatentScores[A, -X]:
+  type Scores
+  def scores(trained: Trained[A], input: X): Either[ExplainError, Scores]
+
+/** Loadings for a fitted linear decomposition. */
+trait Loadings[A]:
+  def loadings(trained: Trained[A]): IArray[IArray[Double]]
+
+/** Class probability vector for a fitted classifier. */
+trait ClassProbabilities[A, -X, C]:
+  def probabilities(
+      trained: Trained[A],
+      input: X
+  ): Either[ExplainError, Map[C, Double]]
+
+/** Feature importance scores for a fitted model. */
+trait FeatureImportance[A]:
+  def importances(trained: Trained[A]): IArray[Double]
+
+/** Principal-component projection for a fitted decomposition. */
+trait PrincipalComponents[A]:
+  def componentCount(trained: Trained[A]): Int
+  def components(trained: Trained[A]): IArray[IArray[Double]]
+
+/** Inverse transform of a fitted preprocessing or decomposition artifact. */
+trait InverseTransform[A, -Z, X]:
+  def inverse(trained: Trained[A], value: Z): Either[ExplainError, X]
+
 /** Incremental update capability for learners that support it. */
 trait Incremental[L]:
   type Update
   def update(learner: L, update: Update): L
+
+object Coefficients:
+  def apply[A](using evidence: Coefficients[A]): Coefficients[A] = evidence
+
+object Explain:
+  def apply[A, X](using evidence: Explain[A, X]): Explain[A, X] = evidence
+
+/** Ordinary prediction and audit accessors for fitted artifacts.
+  *
+  * Algorithm-specific inspection uses capability traits such as
+  * [[Coefficients]] or [[Explain]] against the terminal model.
+  */
+extension [A](trained: Trained[A])
+  /** The exact fitted artifact without navigating composition wrappers. */
+  def terminal: A = trained.artifact
+
+extension [X, E, P](trained: Trained[? <: Pipe[X, E, P]])
+  /** Predicts one input through the fitted pipe. */
+  def predict(input: X): Either[Failure[E], P] =
+    trained.artifact.run(input)
+
+  /** Predicts every row, retaining RowIds. */
+  def predictAll[U <: Use](
+      data: Data[U, X]
+  ): Either[Failure[E], Vector[(RowId, P)]] =
+    val builder = Vector.newBuilder[(RowId, P)]
+    val failed =
+      data.foldRows[Option[Failure[E]]](None) {
+        case (Some(failure), _, _) => Some(failure)
+        case (None, id, value) =>
+          trained.artifact.run(value) match
+            case Left(failure) => Some(failure)
+            case Right(prediction) =>
+              builder += ((id, prediction))
+              None
+      }
+    failed match
+      case Some(failure) => Left(failure)
+      case None          => Right(builder.result())

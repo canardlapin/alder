@@ -8,11 +8,12 @@
 | `alder-data` | immutable data, typed splits, resampling, prediction evidence, private promotion authority | kernel, Tessera integration |
 | `alder-preprocess` | target-blind standardization | kernel, data |
 | `alder-metrics` | deterministic streaming metrics | kernel |
-| `alder-application` | scored evaluation, selection receipts, and receipt-gated refit | kernel, data, metrics |
+| `alder-application` | Blueprint, Experiment routes, selection receipts, receipt-gated refit | kernel, data, metrics |
 | `alder-models-linear` | ridge vocabulary and backend-neutral learner | kernel, data |
 | `alder-ridge-linop4s` | matrix-free LSQR and CG ridge backend | models-linear, linop4s |
 | `alder-ridge-gale` | dense QR and Cholesky ridge backend | models-linear, Gale |
-| `alder-tune` | applicative spaces, deterministic search, Train-only studies | kernel, data, metrics |
+| `alder-tune` | applicative spaces, cross-validated Search, Train-only studies | kernel, data, metrics |
+| `alder-quickstart` | curated `import alder.quickstart.*` for the ordinary supervised path | application, preprocess, models-linear, ridge-linop4s, tune |
 | `alder-codec` | versioned artifact codecs and exact chain derivation | kernel |
 
 `alder-ridge-gale` is non-publishable until Gale has a stable compatible

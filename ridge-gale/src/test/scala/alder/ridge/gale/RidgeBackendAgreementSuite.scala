@@ -15,8 +15,10 @@ final case class RidgePoint(x: Double, z: Double)
 final case class WeightedMeta(weight: Double)
 
 object WeightedMeta:
-  given WeightOf[WeightedMeta] with
+  given WeightPolicy[WeightedMeta] with
     def apply(meta: WeightedMeta): Double = meta.weight
+    def descriptor: PolicyDescriptor =
+      PolicyDescriptor("weighted-meta", "1")
 
 class RidgeBackendAgreementSuite extends munit.FunSuite:
   private val fingerprint =

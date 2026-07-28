@@ -44,18 +44,27 @@ object Prepared:
       lineage: PreparationLineage
   ): Either[Failure[E], Prepared[Preparation.Reusable, U, P, Z]] =
     val pipe = fitted.artifact
-    val replay = data.data
-      .foldRows[Either[Failure[E], Vector[(RowId, Z)]]](Right(Vector.empty)) {
-        case (Left(failure), _, _) => Left(failure)
-        case (Right(acc), id, x)   => pipe.run(x).map(z => acc :+ (id, z))
+    val builder = Vector.newBuilder[(RowId, Z)]
+    val failed =
+      data.data.foldRows[Option[Failure[E]]](None) {
+        case (Some(failure), _, _) => Some(failure)
+        case (None, id, x) =>
+          pipe.run(x) match
+            case Left(failure) => Some(failure)
+            case Right(z) =>
+              builder += ((id, z))
+              None
       }
-    replay.map { rows =>
-      new Prepared(
-        fitted,
-        new NonEmptyData(
-          RowVectorData(rows, data.fingerprint),
-          data.refit
-        ),
-        lineage
-      )
-    }
+    failed match
+      case Some(failure) => Left(failure)
+      case None =>
+        Right(
+          new Prepared(
+            fitted,
+            new NonEmptyData(
+              RowVectorData(builder.result(), data.fingerprint),
+              data.refit
+            ),
+            lineage
+          )
+        )
