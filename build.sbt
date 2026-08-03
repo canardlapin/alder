@@ -24,6 +24,11 @@ ThisBuild / alderCompatibilityBaseline :=
 // overrides them below.
 ThisBuild / mimaPreviousArtifacts := Set.empty
 
+// Statement coverage is a local diagnostic. Prefer JVM module reports over the
+// aggregate because JS/Native do not contribute measurements under Scala 3.
+ThisBuild / coverageExcludedPackages :=
+  "<empty>;.*\\.js\\..*;.*\\.native\\..*"
+
 val catsV            = "2.13.0"
 val munitV           = "1.3.4"
 val disciplineMunitV = "2.0.0"
