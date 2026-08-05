@@ -63,8 +63,8 @@ and `alder-testkit` at test scope.
 ## Pre-release status
 
 The current checkout contains a cross-platform implementation and test suites.
-It uses source composites for Tessera, Gale, and linop4s during development. It
-is not ready for a stable publication until every dependency used by a
+It uses source composites for Resample4s, Gale, and linop4s during development.
+It is not ready for a stable publication until every dependency used by a
 published Alder artifact has a released coordinate and the release gates have
 current evidence.
 
@@ -73,12 +73,12 @@ snapshot dependency. An `origin` remote is configured, but this checkout has no
 repository workflow definitions and does not prove remote required checks,
 hosted documentation, or publication. See the
 [current release-status ledger](site-docs/reference/release-status.md) for the
-evidence checked on 2026-08-03.
+evidence checked on 2026-08-05.
 
 ## Build the current source
 
 Place the sibling development checkouts at `../gale` and `../linop4s`.
-For Tessera, use either a sibling checkout at `../tessera` or the locally
+For Resample4s, use either a sibling checkout at `../resample4s` or the locally
 published `0.1.0-SNAPSHOT` artifacts. Then run:
 
 ```text

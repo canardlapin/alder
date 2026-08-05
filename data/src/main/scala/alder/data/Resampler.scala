@@ -19,7 +19,7 @@ final class ResamplingPlan[+U <: Use.Fit, +A] private[alder] (
     private[alder] val folds: Vector[ResamplingFold[U, A]],
     val resampler: ResamplerFingerprint,
     val assignment: DataFingerprint,
-    private[alder] val tessera: Option[TesseraPlanReceipt]
+    private[alder] val resample4s: Option[Resample4sPlanReceipt]
 ):
   def foldCount: Int = folds.length
 

@@ -96,7 +96,7 @@ repository-hosted package evidence.
 
 ## Stable-release blockers
 
-1. Replace development source composites with published, non-snapshot Tessera,
+1. Replace development source composites with published, non-snapshot Resample4s,
    Gale, and linop4s coordinates for every artifact intended for publication.
    A source composite can compile locally but cannot provide a stable consumer
    POM.

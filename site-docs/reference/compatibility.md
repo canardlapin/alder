@@ -43,6 +43,6 @@ consumers.
 
 ## Release status
 
-The current checkout is pre-release. It uses source composites for Tessera,
+The current checkout is pre-release. It uses source composites for Resample4s,
 Gale, and linop4s. Stable Alder artifacts must use published, non-snapshot
 dependencies and must be verified from their generated POMs.

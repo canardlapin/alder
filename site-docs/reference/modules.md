@@ -5,7 +5,7 @@
 | Module | Responsibility | Main dependencies |
 | --- | --- | --- |
 | `alder-kernel` | fitting, composition, roles, failures, audit, capabilities | Cats Core |
-| `alder-data` | immutable data, typed splits, resampling, prediction evidence, private promotion authority | kernel, Tessera integration |
+| `alder-data` | immutable data, typed splits, resampling, prediction evidence, private promotion authority | kernel, Resample4s integration |
 | `alder-preprocess` | target-blind standardization | kernel, data |
 | `alder-metrics` | deterministic streaming metrics | kernel |
 | `alder-application` | Blueprint, Experiment routes, selection receipts, receipt-gated refit | kernel, data, metrics |

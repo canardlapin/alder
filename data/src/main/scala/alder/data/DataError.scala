@@ -27,11 +27,11 @@ enum DataError derives CanEqual:
   case TooManyFolds(requested: Int, availableRows: Long)
   case TooFewGroups(requestedFolds: Int, availableGroups: Int)
   case InvalidResamplingAssignment
-  case TesseraPopulationTooLarge(availableRows: Long)
-  case TesseraPopulationSizeMismatch(expected: Int, actual: Long)
-  case TesseraSeedMismatch(expected: Long, actual: Long)
-  case TesseraPopulationFingerprintMismatch
-  case InvalidTesseraPopulationFingerprint(
+  case Resample4sPopulationTooLarge(availableRows: Long)
+  case Resample4sPopulationSizeMismatch(expected: Int, actual: Long)
+  case Resample4sSeedMismatch(expected: Long, actual: Long)
+  case Resample4sPopulationFingerprintMismatch
+  case InvalidResample4sPopulationFingerprint(
       policy: FingerprintPolicy,
       digest: String
   )

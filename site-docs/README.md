@@ -34,8 +34,8 @@ Scala Native. This documentation project executes examples on the JVM; it does
 not substitute for the repository's cross-platform test gate.
 
 Alder 0.1.0 is not published yet. The source build currently uses sibling
-development checkouts for Gale and linop4s, plus either a Tessera sibling or a
-locally published Tessera snapshot. The guide therefore does not present
+development checkouts for Gale and linop4s, plus either a Resample4s sibling or a
+locally published Resample4s snapshot. The guide therefore does not present
 unreleased Maven coordinates as an installation method. See
 [Build Alder from source](reference/building-from-source.md) to try this
 checkout. The [current release-status ledger](reference/release-status.md)

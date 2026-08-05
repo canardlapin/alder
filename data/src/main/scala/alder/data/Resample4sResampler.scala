@@ -2,16 +2,16 @@ package alder.data
 
 import alder.kernel.{Seed as AlderSeed, *}
 import cats.kernel.Hash
-import tessera.core.*
+import resample4s.core.*
 
-/** Interpretation of Tessera's ordinal plans as Alder row partitions.
+/** Interpretation of Resample4s ordinal plans as Alder row partitions.
   *
   * The `complete` constructor is total because `Coverage.ExactOnce` proves
   * exactly-once assessment coverage over the whole plan. It performs no
   * runtime coverage validation. Size, seed, and population-fingerprint checks
   * remain split-time compatibility checks between a bound plan and Alder data.
   */
-object TesseraResampler:
+object Resample4sResampler:
   /** Bind an exact-once plan and its verification receipt as a complete Alder
     * resampler.
     *
@@ -22,7 +22,7 @@ object TesseraResampler:
       plan: Plan[Split[Selection], Coverage.ExactOnce],
       receipt: PlanReceipt
   ): CompleteResampler[A] =
-    new TesseraCompleteResampler(plan, ReceiptMapping.render(receipt))
+    new Resample4sCompleteResampler(plan, ReceiptMapping.render(receipt))
 
   /** Generate the receipt and bind its plan without allowing them to diverge. */
   def fromCompiled[A](
@@ -35,7 +35,7 @@ object TesseraResampler:
       .receipt(population)
       .map(receipt => complete(compiled.plan, receipt))
 
-  /** Translate Alder's population identity into Tessera's policy-tagged
+  /** Translate Alder's population identity into Resample4s policy-tagged
     * fingerprint vocabulary for receipt generation.
     */
   def populationFingerprint(
@@ -79,9 +79,9 @@ object TesseraResampler:
       index += 1
     Labels.dense(IArray.unsafeFromArray(codes), rows.length)
 
-private final class TesseraCompleteResampler[A](
+private final class Resample4sCompleteResampler[A](
     plan: Plan[Split[Selection], Coverage.ExactOnce],
-    receipt: TesseraPlanReceipt
+    receipt: Resample4sPlanReceipt
 ) extends CompleteResampler[A]:
   val fingerprint: ResamplerFingerprint = receipt.design
 
@@ -91,17 +91,17 @@ private final class TesseraCompleteResampler[A](
   ): Either[DataError, ResamplingPlan[U, A]] =
     val expectedSize = plan.first.assessment.codomain
     if data.size > Int.MaxValue.toLong then
-      Left(DataError.TesseraPopulationTooLarge(data.size))
+      Left(DataError.Resample4sPopulationTooLarge(data.size))
     else if data.size != expectedSize.toLong then
       Left(
-        DataError.TesseraPopulationSizeMismatch(
+        DataError.Resample4sPopulationSizeMismatch(
           expectedSize,
           data.size
         )
       )
     else if seed.value != receipt.planSeed.value then
       Left(
-        DataError.TesseraSeedMismatch(
+        DataError.Resample4sSeedMismatch(
           receipt.planSeed.value,
           seed.value
         )
@@ -109,7 +109,7 @@ private final class TesseraCompleteResampler[A](
     else
       ReceiptMapping.population(data.fingerprint).flatMap { observed =>
         if !ReceiptMapping.same(observed, receipt.population) then
-          Left(DataError.TesseraPopulationFingerprintMismatch)
+          Left(DataError.Resample4sPopulationFingerprintMismatch)
         else materialize(data)
       }
 
@@ -135,13 +135,13 @@ private final class TesseraCompleteResampler[A](
           val analysisFingerprint =
             Fingerprints.partition(
               data.fingerprint,
-              s"tessera/fold/$foldIndex/analysis",
+              s"resample4s/fold/$foldIndex/analysis",
               analysisRows
             )
           val assessmentFingerprint =
             Fingerprints.partition(
               data.fingerprint,
-              s"tessera/fold/$foldIndex/assessment",
+              s"resample4s/fold/$foldIndex/assessment",
               assessmentRows
             )
           for
@@ -173,7 +173,7 @@ private final class TesseraCompleteResampler[A](
         )
       )
 
-  /** Index validity follows from the validated Tessera selection and the
+  /** Index validity follows from the validated Resample4s selection and the
     * preceding codomain/data-size equality check.
     */
   private def selectUnchecked(
@@ -183,9 +183,9 @@ private final class TesseraCompleteResampler[A](
     Vector.tabulate(indices.length)(index => rows(indices(index)))
 
 private object ReceiptMapping:
-  def render(receipt: PlanReceipt): TesseraPlanReceipt =
+  def render(receipt: PlanReceipt): Resample4sPlanReceipt =
     val design = protocol(receipt.design)
-    new TesseraPlanReceipt(
+    new Resample4sPlanReceipt(
       designAlgorithm = receipt.algorithm.value,
       digestAlgorithm = receipt.design.algorithm.value,
       design = design,
@@ -199,7 +199,7 @@ private object ReceiptMapping:
       fingerprint: DataFingerprint
   ): Either[DataError, Fingerprint] =
     val invalid =
-      DataError.InvalidTesseraPopulationFingerprint(
+      DataError.InvalidResample4sPopulationFingerprint(
         fingerprint.policy,
         fingerprint.digest
       )

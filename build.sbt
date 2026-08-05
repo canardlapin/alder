@@ -33,18 +33,18 @@ val catsV            = "2.13.0"
 val munitV           = "1.3.4"
 val disciplineMunitV = "2.0.0"
 val scalacheckV      = "1.18.1"
-val tesseraV         = "0.1.0-SNAPSHOT"
+val resample4sV      = "0.1.0-SNAPSHOT"
 
 // Development composite for the zero-runtime-dependency resampling protocol.
-// Stable Alder releases pin a published tessera-core version instead.
-lazy val tesseraBuild      = file("../tessera").toURI
-lazy val tesseraCoreJVM    = ProjectRef(tesseraBuild, "coreJVM")
-lazy val tesseraCoreJS     = ProjectRef(tesseraBuild, "coreJS")
-lazy val tesseraCoreNative = ProjectRef(tesseraBuild, "coreNative")
-lazy val tesseraDesignsJVM = ProjectRef(tesseraBuild, "designsJVM")
-lazy val tesseraDesignsJS  = ProjectRef(tesseraBuild, "designsJS")
-lazy val tesseraDesignsNative =
-  ProjectRef(tesseraBuild, "designsNative")
+// Stable Alder releases pin a published resample4s-core version instead.
+lazy val resample4sBuild      = file("../resample4s").toURI
+lazy val resample4sCoreJVM    = ProjectRef(resample4sBuild, "coreJVM")
+lazy val resample4sCoreJS     = ProjectRef(resample4sBuild, "coreJS")
+lazy val resample4sCoreNative = ProjectRef(resample4sBuild, "coreNative")
+lazy val resample4sDesignsJVM = ProjectRef(resample4sBuild, "designsJVM")
+lazy val resample4sDesignsJS  = ProjectRef(resample4sBuild, "designsJS")
+lazy val resample4sDesignsNative =
+  ProjectRef(resample4sBuild, "designsNative")
 
 // Development composites for the two independent ridge implementations.
 // ridge-gale remains non-publishable until Gale has a released compatible
@@ -206,46 +206,46 @@ lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 lazy val dataJVM =
-  if (file("../tessera").isDirectory)
+  if (file("../resample4s").isDirectory)
     data.jvm
       .dependsOn(
-        tesseraCoreJVM,
-        tesseraDesignsJVM % "test->compile"
+        resample4sCoreJVM,
+        resample4sDesignsJVM % "test->compile"
       )
       .settings(compatibilitySettings)
   else
     data.jvm
       .settings(
         libraryDependencies ++= Seq(
-          "io.github.canardlapin" %% "tessera-core" % tesseraV,
-          "io.github.canardlapin" %% "tessera-designs" % tesseraV % Test
+          "io.github.canardlapin" %% "resample4s-core" % resample4sV,
+          "io.github.canardlapin" %% "resample4s-designs" % resample4sV % Test
         )
       )
       .settings(compatibilitySettings)
 lazy val dataJS =
-  if (file("../tessera").isDirectory)
+  if (file("../resample4s").isDirectory)
     data.js.dependsOn(
-      tesseraCoreJS,
-      tesseraDesignsJS % "test->compile"
+      resample4sCoreJS,
+      resample4sDesignsJS % "test->compile"
     )
   else
     data.js.settings(
       libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "tessera-core" % tesseraV,
-        "io.github.canardlapin" %%% "tessera-designs" % tesseraV % Test
+        "io.github.canardlapin" %%% "resample4s-core" % resample4sV,
+        "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
       )
     )
 lazy val dataNative =
-  if (file("../tessera").isDirectory)
+  if (file("../resample4s").isDirectory)
     data.native.dependsOn(
-      tesseraCoreNative,
-      tesseraDesignsNative % "test->compile"
+      resample4sCoreNative,
+      resample4sDesignsNative % "test->compile"
     )
   else
     data.native.settings(
       libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "tessera-core" % tesseraV,
-        "io.github.canardlapin" %%% "tessera-designs" % tesseraV % Test
+        "io.github.canardlapin" %%% "resample4s-core" % resample4sV,
+        "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
       )
     )
 
