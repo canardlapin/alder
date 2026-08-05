@@ -61,7 +61,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
           learner,
           RegressionMetrics.rmse[Unit]
         )
-        .runToValidated match
+        .run match
         case Left(error)  => fail(s"unexpected validation failure: $error")
         case Right(value) => value
 
@@ -76,7 +76,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     assert(refitted.model.artifact.run(3.0).contains(3.0))
   }
 
-  test("train-validation-test runToTested then deploymentRefit") {
+  test("train-validation-test run then deploymentRefit") {
     val specification =
       TrainValidationTestSpec(
         SplitAmount.Count(rows(2L)),
@@ -94,7 +94,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
           learner,
           RegressionMetrics.rmse[Unit]
         )
-        .runToTested match
+        .run match
         case Left(error)  => fail(s"unexpected TVT failure: $error")
         case Right(value) => value
 
@@ -108,7 +108,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     assertEquals(deployed.learner, learner)
   }
 
-  test("precommitted runToTested scores without selection") {
+  test("precommitted run scores without selection") {
     val specification = HoldoutSpec(rows(2L))
     val tested =
       Experiment
@@ -120,7 +120,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
           learner,
           RegressionMetrics.rmse[Unit]
         )
-        .runToTested match
+        .run match
         case Left(error)  => fail(s"unexpected precommitted failure: $error")
         case Right(value) => value
     assertEquals(tested.evaluation.scored.size, 2L)
@@ -153,7 +153,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         learner,
         RegressionMetrics.rmse[Unit]
       )
-      .runToValidated match
+      .run match
       case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
         ()
       case other =>
@@ -170,7 +170,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         learner,
         RegressionMetrics.rmse[Unit]
       )
-      .runToValidated match
+      .run match
       case Left(ExperimentFailure.Split(SplitPhase.Partition, _)) => ()
       case other =>
         fail(s"expected Split failure, got $other")
@@ -186,14 +186,14 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         new FailingLearner,
         RegressionMetrics.rmse[Unit]
       )
-      .runToValidated match
+      .run match
       case Left(ExperimentFailure.Fit(FitPhase.Candidate, failure)) =>
         assertEquals(failure.cause, "forced-candidate-fit-failure")
       case other =>
         fail(s"expected Fit Candidate failure, got $other")
   }
 
-  test("validation stepwise partition fitCandidate validate matches runToValidated") {
+  test("validation stepwise partition fitCandidate validate matches run") {
     val defined =
       Experiment.validation(
         source(8, "stepwise"),
@@ -209,7 +209,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         fitted <- partitioned.fitCandidate
         validated <- fitted.validate
       yield validated
-    val direct = defined.runToValidated
+    val direct = defined.run
     (stepwise, direct) match
       case (Right(left), Right(right)) =>
         assertEquals(left.predictions.size, right.predictions.size)
@@ -219,7 +219,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         fail(s"unexpected stepwise/direct mismatch: $other")
   }
 
-  test("trainValidationTest stepwise path matches runToTested") {
+  test("trainValidationTest stepwise path matches run") {
     val specification =
       TrainValidationTestSpec(
         SplitAmount.Count(rows(2L)),
@@ -244,7 +244,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         refitted <- validated.select(SingleCandidate).refit
         tested <- refitted.test
       yield tested
-    val direct = defined.runToTested
+    val direct = defined.run
     (stepwise, direct) match
       case (Right(left), Right(right)) =>
         assertEquals(left.evaluation.scored.size, right.evaluation.scored.size)
@@ -273,7 +273,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         blueprint,
         RegressionMetrics.rmse[Unit]
       )
-      .runToTested match
+      .run match
       case Left(error) => fail(s"unexpected TVT blueprint failure: $error")
       case Right(tested) =>
         assertEquals(tested.evaluation.scored.size, 2L)
@@ -286,7 +286,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         blueprint,
         RegressionMetrics.rmse[Unit]
       )
-      .runToTested match
+      .run match
       case Left(error) =>
         fail(s"unexpected precommitted blueprint failure: $error")
       case Right(tested) =>
@@ -314,7 +314,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         learner,
         RegressionMetrics.rmse[Unit]
       )
-      .runToTested match
+      .run match
       case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
         ()
       case other =>
@@ -328,7 +328,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         learner,
         RegressionMetrics.rmse[Unit]
       )
-      .runToTested match
+      .run match
       case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
         ()
       case other =>
@@ -346,7 +346,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
           learner,
           RegressionMetrics.rmse[Unit]
         )
-        .runToTested match
+        .run match
         case Left(error)  => fail(s"unexpected precommitted failure: $error")
         case Right(value) => value
     tested.deploymentRefit match

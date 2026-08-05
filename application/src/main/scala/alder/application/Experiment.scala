@@ -259,7 +259,7 @@ object Experiment:
           )
 
     /** Partition, fit the candidate, and score validation in one step. */
-    def runToValidated(using
+    def run(using
         ev: R =:= ValidationRoute.type
     ): Either[
       ExperimentFailure[learner.FitError, learner.RunError],

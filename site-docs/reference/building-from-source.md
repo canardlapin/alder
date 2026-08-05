@@ -62,4 +62,4 @@ The exact future dependency declarations are listed in
 current source-composite build.
 
 For a working application example, return to
-[Fit your first workflow](../getting-started.md).
+[Learn Alder through one workflow](../learn/workflow.md).

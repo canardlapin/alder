@@ -1,4 +1,4 @@
-# Write an Alder extension
+# Write an Alder extension safely
 
 This guide is for authors implementing a transform, target-aware encoder, or
 learner. The root `AGENTS.md` file contains the full repository checklist; this

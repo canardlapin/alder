@@ -78,23 +78,25 @@ val points = Supervised.fromPairs(
 )
 
 val backend = Linop4sRidgeBackend.lsqr[Id]()
-val family: Double => RidgeRegression[Id, Point, Unit] =
-  penalty =>
-    RidgeConfig.create(penalty) match
-      case Right(config) => RidgeRegression.sync[Point, Unit](config, backend)
-      case Left(error)   => sys.error(error.toString)
+val configurations =
+  for
+    small <- RidgeConfig.create(0.01).left.map(_.toString)
+    medium <- RidgeConfig.create(0.1).left.map(_.toString)
+    large <- RidgeConfig.create(1.0).left.map(_.toString)
+  yield (small, medium, large)
 
 val selected =
   for
     holdout <- Holdout.split(points, testSize = 2, Seed(3L)).left.map(_.toString)
     resampler <- KFold[Example[Point, Double, Unit]](3).left.map(_.toString)
     pointsPerAxis <- PositiveInt.create(1).left.map(_.toString)
+    (small, medium, large) <- configurations
     result <- Search
       .crossValidatedGridSync(
-        Space.choice(0.01, 0.1, 1.0),
+        Space.choice(small, medium, large),
         GridStrategy(pointsPerAxis),
         resampler,
-        family,
+        config => RidgeRegression.sync[Point, Unit](config, backend),
         Metrics.rmse,
         (score: RootMeanSquaredError) => score.value,
         Seed(5L),
@@ -105,11 +107,13 @@ val selected =
       .map(_.toString)
   yield result
 
-selected.map(result => (result.best, result.trials.length))
+selected.map(result => (result.best.penalty, result.trials.length))
 ```
 
 Fold models are never retained in the result. Only per-fold scores, the chosen
-configuration, and study audit evidence remain.
+validated `RidgeConfig`, and study audit evidence remain. Invalid penalties
+fail before the search space exists; a trial never reconstructs a configuration
+from an unchecked number.
 
 ## Keep studies on Train data
 

@@ -187,7 +187,7 @@ object ExperimentRoutes:
             new TVTPartitioned(learner, metric, plan, phases, split)
           )
 
-    def runToTested(using
+    def run(using
         Mt <:< ObjectiveMetric[Scored[Y, P, M], S]
     ): Either[
       ExperimentFailure[learner.FitError, learner.RunError],
@@ -623,7 +623,7 @@ object ExperimentRoutes:
             )
           )
 
-    def runToTested: Either[
+    def run: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
       PrecommittedTested[X, Y, M, P, L, Mt, S]
     ] =

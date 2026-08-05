@@ -1,4 +1,4 @@
-# Predict and inspect fitted models
+# Predict and inspect a fitted model
 
 A fitted `Trained[A]` always carries its audit. Ordinary prediction uses the
 fitted pipe. Algorithm-specific inspection uses capability evidence such as
@@ -97,10 +97,21 @@ trained.flatMap { model =>
 }
 ```
 
-For a composed blueprint such as standardize-then-ridge, capabilities attach to
-the terminal ridge artifact once you reach it, not to the outer composition
-wrapper. Use `trained.terminal` when you need the exact fitted value without
-navigating wrappers by hand.
+For a composed workflow such as standardize-then-ridge, keep ordinary
+prediction on the outer trained value so the input passes through every fitted
+stage. Algorithm capabilities are deliberately not lifted to that outer type.
+Focus through the exact composed learner instead:
 
-See [Audit and reproducibility](../advanced/audit-and-reproducibility.md) for
+```scala
+workflow.terminalModel(trainedWorkflow)
+```
+
+The result is a `Trained[workflow.learner.Model]`: it retains the terminal
+learner's child audit, and its input is the feature map's output type. Ridge
+coefficients and attributions obtained from that value are therefore expressed
+in transformed-feature coordinates, not automatically in the original input
+units. `terminalModel` returns `Either[TerminalFocusError, ...]` so a malformed
+or mismatched decoded audit cannot silently produce an unaudited artifact.
+
+See [Audit and reproducibility](../understand/audit-and-reproducibility.md) for
 what the accompanying audit records.

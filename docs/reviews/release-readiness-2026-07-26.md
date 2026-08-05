@@ -1,4 +1,10 @@
-# Alder 0.1 release-readiness audit
+# Alder 0.1 release-readiness audit (historical snapshot)
+
+> **Snapshot dated 2026-07-26.** This document preserves the evidence available
+> during that audit; several present-tense statements below are no longer
+> current. Use the
+> [current release-status ledger](../../site-docs/reference/release-status.md)
+> for the checkout's present evidence and blockers.
 
 ## Conclusion
 

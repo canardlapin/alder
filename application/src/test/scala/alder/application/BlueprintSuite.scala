@@ -81,6 +81,30 @@ class BlueprintSuite extends munit.FunSuite:
         )
       )
 
+  private final class ReadVisibility
+      extends Transform.Leaf[Id, VisibilityValue, Double]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Fitted = Pipe[VisibilityValue, Nothing, Double]
+
+    protected def descriptor: ComponentDescriptor =
+      ComponentDescriptor(
+        ComponentId("alder.test.read-visibility"),
+        ComponentVersion("1"),
+        AuditValue.record(),
+        BackendFingerprint("test", "1", AuditValue.record())
+      )
+
+    protected def replayFailure(
+        failure: Failure[RunError]
+    ): Failure[FitError] = failure.widen[FitError]
+
+    protected def fitPipe[U <: Use.Fit](
+        data: NonEmptyData[U, VisibilityValue]
+    )(using FitContext): Either[Failure[FitError], Fitted] =
+      val _ = data
+      Right(Pipe.total(_.input))
+
   private final class VisibilityLearner
       extends Learner[Id, VisibilityValue, Double, String, Double]:
     type FitError = Nothing
@@ -101,6 +125,28 @@ class BlueprintSuite extends munit.FunSuite:
           data,
           ComponentDescriptor(
             ComponentId("alder.test.visibility-learner"),
+            ComponentVersion("1"),
+            AuditValue.record(),
+            BackendFingerprint("test", "1", AuditValue.record())
+          )
+        )
+      )
+
+  private final class StringBiasLearner
+      extends Learner[Id, Double, Double, String, Double]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Model = Pipe[Double, Nothing, Double]
+
+    def fit[U <: Use.Fit](
+        data: NonEmptyData[U, Example[Double, Double, String]]
+    )(using context: FitContext): FitResult[Id, FitError, Trained[Model]] =
+      EitherT.right(
+        context.complete(
+          Pipe.identity[Double],
+          data,
+          ComponentDescriptor(
+            ComponentId("alder.test.string-bias-learner"),
             ComponentVersion("1"),
             AuditValue.record(),
             BackendFingerprint("test", "1", AuditValue.record())
@@ -190,6 +236,27 @@ class BlueprintSuite extends munit.FunSuite:
         assert(trained.artifact.run(1.0).isRight)
   }
 
+  test("crossFit accepts FoldEncoder.andThen and matches the direct core") {
+    val encoder = new VisibilityEncoder
+    val postprocess = new ReadVisibility
+    val resampler = KFold[Example[Double, Double, String]](3, shuffle = false) match
+      case Right(value) => value
+      case Left(error)  => fail(s"unexpected kfold: $error")
+    val learner = new StringBiasLearner
+    val combined = encoder.andThen(postprocess)
+    val facade =
+      Blueprint
+        .apply[Id, Double, Double, String]
+        .crossFit(combined, resampler)
+        .learn(learner)
+    val direct =
+      FeatureMap
+        .crossFitted(combined, resampler)
+        .learnWith(learner)
+    assertEquals(facade.learner.getClass.getName, direct.getClass.getName)
+    assertEquals(combined.stageCount, 2)
+  }
+
   test("via.via.learn expands to transform.andThen.learnWith") {
     val scale = new Scale
     val shift = new Shift
@@ -273,6 +340,19 @@ def illegal[
   ready.via(transform)
 """
     )
+    val incompleteCrossFit = typeCheckErrors(
+      """package consumer
+import alder.application.*
+import alder.data.*
+import alder.kernel.*
+import cats.Id
+def illegal(
+  encoder: FoldEncoder[Id, Double, Double, Unit, Double],
+  resampler: Resampler[Example[Double, Double, Unit]]
+) = Blueprint.supervised[Double, Double].crossFit(encoder, resampler)
+"""
+    )
     assert(afterLearn.nonEmpty)
     assert(learnerReadyVia.nonEmpty)
+    assert(incompleteCrossFit.nonEmpty)
   }

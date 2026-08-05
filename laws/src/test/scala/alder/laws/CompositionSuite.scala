@@ -241,6 +241,11 @@ class CompositionSuite extends munit.FunSuite:
         assertEquals(summary.metadata, Vector("a", "b", "c"))
         assertEquals(trained.artifact.run(4.0), Right(61.0))
         assertEquals(trained.audit.children.length, 2)
+        workflow.terminalModel(trained) match
+          case Left(error) => fail(s"unexpected terminal focus: $error")
+          case Right(terminal) =>
+            assert(terminal.artifact eq summary)
+            assert(terminal.audit eq trained.audit.children.last)
   }
 
   test("Transform workflow association preserves normalized stages") {

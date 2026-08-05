@@ -30,14 +30,14 @@ class RidgeSearchSuite extends FunSuite:
       case Left(error)  => fail(s"kfold: $error")
       case Right(value) => value
     val backend = Linop4sRidgeBackend.lsqr[Id]()
-    val penalties = Vector(0.01, 0.1, 1.0)
-    val family: Double => RidgeRegression[Id, Point, Unit] =
-      penalty =>
-        val config = RidgeConfig.create(penalty) match
-          case Left(error)  => fail(s"config: $error")
-          case Right(value) => value
-        RidgeRegression.sync[Point, Unit](config, backend)
-    val space = Space.choice(penalties.head, penalties.tail*)
+    val configurations = Vector(0.01, 0.1, 1.0).map { penalty =>
+      RidgeConfig.create(penalty) match
+        case Left(error)  => fail(s"config: $error")
+        case Right(value) => value
+    }
+    val family: RidgeConfig => RidgeRegression[Id, Point, Unit] =
+      config => RidgeRegression.sync[Point, Unit](config, backend)
+    val space = Space.choice(configurations.head, configurations.tail*)
     val strategy = GridStrategy(
       PositiveInt.create(1) match
         case Right(value) => value
@@ -60,5 +60,5 @@ class RidgeSearchSuite extends FunSuite:
         assertEquals(selected.trials.length, 3)
         assert(selected.trials.forall(_.folds.length == 3))
         val rebuilt = family(selected.best)
-        assertEquals(rebuilt.config.penalty, selected.best)
+        assertEquals(rebuilt.config.penalty, selected.best.penalty)
   }

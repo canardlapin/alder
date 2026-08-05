@@ -24,6 +24,13 @@ trait Learner[F[_], X, Y, M, P]:
 
   private[alder] def stageCount: Int = 1
 
+/** Failure to recover the audited terminal child from a composed workflow.
+  * Framework-fitted [[LearnedWith]] values always contain that child. This
+  * error keeps malformed or mismatched decoded audits in the typed channel.
+  */
+enum TerminalFocusError derives CanEqual:
+  case MissingTerminalAudit
+
 /** FeatureMap composed with a terminal learner: fits the feature map, fits the
   * learner on the LearnerReady rows, and serves through the chained pipe. The
   * resulting model accepts the original input X.
@@ -58,6 +65,23 @@ final class LearnedWith[
   override private[alder] def stageCount: Int =
     featureMap.stageCount + learner.stageCount
 
+  /** Focuses a fitted workflow on its exact terminal learner model and the
+    * audit produced when that model was fitted.
+    *
+    * The returned model consumes `Z`, the feature-map output, rather than the
+    * workflow's original `X`. Algorithm-specific capabilities such as
+    * coefficients and attributions therefore remain in transformed-feature
+    * coordinates. Prediction from `X` must continue through the outer trained
+    * workflow.
+    */
+  def terminalModel(
+      trained: Trained[Model]
+  ): Either[TerminalFocusError, Trained[learner.Model]] =
+    trained.audit.children.lastOption match
+      case None => Left(TerminalFocusError.MissingTerminalAudit)
+      case Some(terminalAudit) =>
+        Right(new Trained(trained.artifact.second, terminalAudit))
+
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Y, M]]
   )(using context: FitContext): FitResult[F, FitError, Trained[Model]] =
@@ -84,6 +108,6 @@ final class LearnedWith[
         preparation = prepared.lineage,
         children =
           prepared.fitted.audit.flattenedPreparationSequence ++
-            model.audit.flattenedPreparationSequence,
+            Vector(model.audit),
         shape = AuditShape.WorkflowSequence
       )

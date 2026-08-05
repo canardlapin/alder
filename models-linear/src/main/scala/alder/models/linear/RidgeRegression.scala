@@ -99,7 +99,7 @@ object RidgeRegression:
     new RidgeRegression[Id, X, M](config, backend)
 
 /** Ridge learner using non-negative weights obtained from observation
-  * metadata through an auditable [[WeightPolicy]].
+  * metadata through an auditable [[alder.kernel.WeightPolicy]].
   */
 final class WeightedRidgeRegression[F[_], X, M](
     val config: RidgeConfig,

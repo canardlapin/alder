@@ -1,4 +1,4 @@
-# Fit target-blind preprocessing
+# Fit target-blind preprocessing safely
 
 This guide fits a `StandardScaler` on typed training data and runs its fitted
 pipe on a new value.
