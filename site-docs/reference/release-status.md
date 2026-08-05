@@ -1,29 +1,29 @@
 # Current release status
 
 This is the authoritative status ledger for the current Alder checkout. It was
-last inspected on **2026-08-05** in a working tree based on commit `59c392e`.
-It distinguishes files and commands observed locally from evidence that would
+last inspected on **2026-08-05** after migration commit `f26563a`. It
+distinguishes files and commands observed locally from evidence that would
 require a remote service or a published artifact.
 
 ## Current conclusion
 
 Alder is pre-release. The source tree contains the implementation, local test
 and documentation gates, compatibility tooling, and loose 100k-row wall-clock
-guards. A separate local `alder-sparse-pca` checkout now exercises the public
-extension protocol and law artifacts. That is not evidence of a published
-`0.1.0`, remote required checks, a hosted documentation site, or
-consumer-visible package metadata.
+guards. The separate `alder-sparse-pca` repository now has a public review
+branch that exercises the public extension protocol and law artifacts. That is
+not evidence of a published `0.1.0`, remote required checks, a hosted
+documentation site, or consumer-visible package metadata.
 
 ## Evidence ledger
 
 | Area | Current evidence | Consequence |
 | --- | --- | --- |
-| Git remote | `origin` is configured as `https://github.com/canardlapin/alder`. | A remote address exists; this inspection did not establish remote CI, branch protection, releases, or packages. |
+| Git remote | `origin` is configured as `git@github-canardlapin:canardlapin/alder.git`; migration commit `f26563a` was merged to `main` through [PR #1](https://github.com/canardlapin/alder/pull/1). The later evidence correction is isolated in [draft PR #2](https://github.com/canardlapin/alder/pull/2). | The migration is merged and the evidence correction is under review; this inspection did not establish remote CI, branch protection, releases, or packages. |
 | Workflows | No `.github` workflow files are present in this checkout. | No repository-defined remote gate can be claimed from source. |
 | Publication | The build version is `0.1.0-SNAPSHOT`; the root aggregate and `alder-ridge-gale` are non-publishable. | No stable Alder artifact or immutable compatibility baseline is evidenced here. |
 | Dependencies | The build uses development composites for Resample4s, Gale, and linop4s; Gale remains a snapshot publication blocker. | A successful source build would not prove stable consumer POMs. |
 | Resample4s integration | Alder now loads the sibling `../resample4s` source composite and uses the `resample4s-core` and test-scoped `resample4s-designs` artifacts. The focused adapter suite passed 8 tests on each of JVM, Scala.js, and Scala Native against Resample4s commit `6bc4172`. | This replaces the obsolete dependency identity and proves the current source integration. Resample4s remains `0.1.0-SNAPSHOT`, so this is not stable dependency evidence. |
-| Reference plugin | A separate sibling Git repository, `alder-sparse-pca`, contains a cross-platform core and JVM EJML backend. After the Resample4s cutover, its Alder `TransformTests`, projector-invariance, reconstruction, sparsity, and typed-failure tests passed against refreshed local Alder snapshots on 2026-08-05. | This proves the current source SPI can support the required external plugin shape. The plugin has no remote, release, or published coordinates. |
+| Reference plugin | The public [`canardlapin/alder-sparse-pca`](https://github.com/canardlapin/alder-sparse-pca) repository contains an empty `main` review base. Commit `4237a30` carries the cross-platform core, JVM EJML backend, and Apache-2.0 license on `agent/add-sparse-pca-reference-plugin` in [draft PR #1](https://github.com/canardlapin/alder-sparse-pca/pull/1). After the Resample4s cutover, its Alder `TransformTests`, projector-invariance, reconstruction, sparsity, and typed-failure tests passed against refreshed local Alder snapshots on 2026-08-05. | This proves the current source SPI can support the required external plugin shape and records remote review evidence. The plugin still has no remote CI receipt, merged implementation, release, or published coordinates. |
 | Compatibility | MiMa and TASTy-MiMa are configured. Their first-release tasks completed locally with the default empty baseline. | The tools execute, but an empty baseline cannot prove compatibility with a previous Alder release. |
 | Coverage | sbt-scoverage 2.4.2 and JVM-oriented exclusions are configured. The application JVM report generated on 2026-08-03 measured 81.68% statement and 67.57% branch coverage. | These module-local diagnostic percentages are not a release threshold or cross-platform coverage claim. |
 | Performance | `BaselineSuite` times grouped 10-fold splitting and a standardize-fit-predict-score workflow at 100,000 rows. | The loose elapsed-time ceilings may catch gross complexity regressions. They do not measure allocations or establish portable throughput. |
