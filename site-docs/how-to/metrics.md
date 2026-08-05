@@ -1,4 +1,4 @@
-# Compute and merge metrics
+# Compute and merge metrics correctly
 
 A `Metric[A, S]` exposes a commutative accumulator. You can evaluate one
 collection directly or combine independently accumulated partitions.

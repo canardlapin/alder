@@ -1,4 +1,10 @@
-# Alder 0.1 release-readiness audit
+# Alder 0.1 release-readiness audit (historical snapshot)
+
+> **Snapshot dated 2026-07-26.** This document preserves the evidence available
+> during that audit; several present-tense statements below are no longer
+> current. Use the
+> [current release-status ledger](../../site-docs/reference/release-status.md)
+> for the checkout's present evidence and blockers.
 
 ## Conclusion
 
@@ -90,7 +96,7 @@ repository-hosted package evidence.
 
 ## Stable-release blockers
 
-1. Replace development source composites with published, non-snapshot Tessera,
+1. Replace development source composites with published, non-snapshot Resample4s,
    Gale, and linop4s coordinates for every artifact intended for publication.
    A source composite can compile locally but cannot provide a stable consumer
    POM.

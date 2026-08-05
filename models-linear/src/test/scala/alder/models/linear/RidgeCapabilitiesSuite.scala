@@ -42,6 +42,31 @@ private final class UnitRidgeBackend extends RidgeBackend[Id]:
 
 class RidgeCapabilitiesSuite extends FunSuite:
   final case class Point(x: Double) derives Coordinates, Schema
+  final case class StandardPoint(x: Double) derives Coordinates, Schema
+
+  private final class StandardizePoint
+      extends Transform.Leaf[Id, Point, StandardPoint]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Fitted = Pipe[Point, Nothing, StandardPoint]
+
+    protected def descriptor: ComponentDescriptor =
+      ComponentDescriptor(
+        ComponentId("alder.test.standardize-point"),
+        ComponentVersion("1"),
+        AuditValue.record(),
+        BackendFingerprint("test", "1", AuditValue.record())
+      )
+
+    protected def replayFailure(
+        failure: Failure[RunError]
+    ): Failure[FitError] = failure.widen[FitError]
+
+    protected def fitPipe[U <: Use.Fit](
+        data: NonEmptyData[U, Point]
+    )(using FitContext): Either[Failure[FitError], Fitted] =
+      val _ = data
+      Right(Pipe.total(point => StandardPoint(point.x / 2.0)))
 
   test("Coefficients and Explain inspect the terminal ridge model") {
     val config = RidgeConfig.create(0.1) match
@@ -89,7 +114,7 @@ class RidgeCapabilitiesSuite extends FunSuite:
     assert(attribution.prediction.isFinite)
     assertEquals(attribution.prediction, prediction)
 
-    assertEquals(trained.terminal.solution.intercept, coefficients.intercept(trained))
+    assertEquals(trained.artifact.solution.intercept, coefficients.intercept(trained))
     assertEquals(
       coefficients.coefficient(trained, 0),
       coefficients.coefficients(trained)(0)
@@ -113,12 +138,68 @@ class RidgeCapabilitiesSuite extends FunSuite:
     val _ = trainIds
   }
 
+  test("a composed workflow focuses the terminal model with its child audit") {
+    val config = RidgeConfig.create(0.1) match
+      case Left(error)  => fail(s"config: $error")
+      case Right(value) => value
+    val ridge =
+      RidgeRegression.sync[StandardPoint, Unit](config, new UnitRidgeBackend)
+    val workflow = new StandardizePoint().learnWith(ridge)
+    val data =
+      TestData.indexed[Use.Train, Example[Point, Double, Unit]](
+        Vector(
+          Example(Point(1.0), 2.0, ()),
+          Example(Point(2.0), 4.0, ()),
+          Example(Point(3.0), 6.0, ())
+        ),
+        DataFingerprint.external("composed-ridge-capabilities")
+      ) match
+        case Some(value) => value
+        case None        => fail("expected data")
+    val trained =
+      Fit.learner(workflow, data, Seed(2L), "composed-ridge-v1") match
+        case Left(error)  => fail(s"fit failed: $error")
+        case Right(value) => value
+
+    assertEquals(trained.predict(Point(4.0)), Right(2.0))
+    workflow.terminalModel(trained) match
+      case Left(error) => fail(s"terminal focus failed: $error")
+      case Right(terminal) =>
+        assert(terminal.audit eq trained.audit.children.last)
+        assertEquals(
+          Coefficients[RidgeModel[StandardPoint]].coefficientCount(terminal),
+          1
+        )
+        val explanation =
+          summon[Explain[RidgeModel[StandardPoint], StandardPoint]]
+            .apply(terminal, StandardPoint(2.0))
+        assert(explanation.isRight)
+  }
+
   test("Coefficients and Explain evidence are required at compile time") {
     val errors = typeCheckErrors(
       """package consumer
 import alder.kernel.*
 def illegal(trained: Trained[String]) =
   Coefficients[String].coefficients(trained)
+"""
+    )
+    assert(errors.nonEmpty)
+  }
+
+  test("algorithm capabilities are not lifted to a composed workflow") {
+    val errors = typeCheckErrors(
+      """package consumer
+import alder.kernel.*
+import alder.models.linear.*
+final case class Raw(x: Double)
+final case class Feature(x: Double)
+type WorkflowModel = Pipe.Chain[
+  Raw, Nothing, Feature, Nothing, Double,
+  Pipe[Raw, Nothing, Feature], RidgeModel[Feature]
+]
+def illegal(trained: Trained[WorkflowModel]) =
+  Coefficients[WorkflowModel].coefficients(trained)
 """
     )
     assert(errors.nonEmpty)

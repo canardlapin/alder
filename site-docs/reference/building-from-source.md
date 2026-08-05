@@ -9,7 +9,7 @@ contributing to the repository.
 - sbt 1.x;
 - Scala 3.7.4, selected by the build; and
 - sibling checkouts named `gale` and `linop4s`; and
-- either a sibling `tessera` checkout or locally published Tessera
+- either a sibling `resample4s` checkout or locally published Resample4s
   `0.1.0-SNAPSHOT` artifacts.
 
 Use this directory layout:
@@ -19,7 +19,7 @@ scala/
 ├── alder/
 ├── gale/
 ├── linop4s/
-└── tessera/   # optional when the local snapshot is published
+└── resample4s/   # optional when the local snapshot is published
 ```
 
 From the Alder checkout, run:
@@ -62,4 +62,4 @@ The exact future dependency declarations are listed in
 current source-composite build.
 
 For a working application example, return to
-[Fit your first workflow](../getting-started.md).
+[Learn Alder through one workflow](../learn/workflow.md).

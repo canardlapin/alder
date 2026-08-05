@@ -170,15 +170,6 @@ object Coefficients:
 object Explain:
   def apply[A, X](using evidence: Explain[A, X]): Explain[A, X] = evidence
 
-/** Ordinary prediction and audit accessors for fitted artifacts.
-  *
-  * Algorithm-specific inspection uses capability traits such as
-  * [[Coefficients]] or [[Explain]] against the terminal model.
-  */
-extension [A](trained: Trained[A])
-  /** The exact fitted artifact without navigating composition wrappers. */
-  def terminal: A = trained.artifact
-
 extension [X, E, P](trained: Trained[? <: Pipe[X, E, P]])
   /** Predicts one input through the fitted pipe. */
   def predict(input: X): Either[Failure[E], P] =

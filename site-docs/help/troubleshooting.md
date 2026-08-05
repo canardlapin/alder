@@ -40,8 +40,8 @@ a learner.
 one assessment partition.
 
 **Action:** use a `CompleteResampler`, such as `KFold`, `GroupedKFold`, or a
-receipt-verified exact Tessera plan. Rolling-origin resampling is intentionally
-not complete.
+receipt-verified exact Resample4s plan. Rolling-origin resampling is
+intentionally not complete.
 
 ## A scaler reports a constant coordinate
 
@@ -87,7 +87,7 @@ limit.
 
 ## The build cannot resolve sibling projects
 
-**Symptom:** sbt cannot load `../tessera`, `../gale`, or `../linop4s`.
+**Symptom:** sbt cannot load `../resample4s`, `../gale`, or `../linop4s`.
 
 **Cause:** the pre-release build still uses development source composites.
 

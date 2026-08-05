@@ -86,7 +86,7 @@ class BaselineSuite extends FunSuite:
               blueprint,
               Metrics.rmse
             )
-            .runToValidated
+            .run
         yield validated
       result match
         case Left(error) => fail(s"workflow failed: $error")

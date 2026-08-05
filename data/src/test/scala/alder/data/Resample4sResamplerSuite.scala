@@ -5,12 +5,12 @@ import alder.testkit.*
 import cats.kernel.Hash
 import org.scalacheck.{Gen, Prop, Test}
 import scala.compiletime.testing.typeCheckErrors
-import tessera.core.{Seed as TesseraSeed, *}
-import tessera.designs.{KFold as TesseraKFold}
+import resample4s.core.{Seed as Resample4sSeed, *}
+import resample4s.designs.{KFold as Resample4sKFold}
 
 final case class AdapterMeta(group: String)
 
-class TesseraResamplerSuite extends munit.FunSuite:
+final class Resample4sResamplerSuite extends munit.FunSuite:
   private given GroupOf[AdapterMeta] with
     type Key = String
     def apply(meta: AdapterMeta): String = meta.group
@@ -21,7 +21,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
 
   private def alderFingerprint(label: String): DataFingerprint =
     new DataFingerprint(
-      FingerprintPolicy.Summary("alder.tessera-test/v1"),
+      FingerprintPolicy.Summary("alder.resample4s-test/v1"),
       label
     )
 
@@ -51,7 +51,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
     val space = IndexSpace.of(size) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected space failure: $error")
-    TesseraKFold(folds).compile(space, TesseraSeed.fromLong(seed)) match
+    Resample4sKFold(folds).compile(space, Resample4sSeed.fromLong(seed)) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected compile failure: $error")
 
@@ -62,10 +62,10 @@ class TesseraResamplerSuite extends munit.FunSuite:
   ): CompleteResampler[A] =
     val compiled = exactCompiled(data.size.toInt, folds, seed)
     val population =
-      TesseraResampler.populationFingerprint(data.fingerprint) match
+      Resample4sResampler.populationFingerprint(data.fingerprint) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected population failure: $error")
-    TesseraResampler.fromCompiled[A](compiled, population)(
+    Resample4sResampler.fromCompiled[A](compiled, population)(
       using DigestAlgorithm.fnv1a64
     ) match
       case Right(value) => value
@@ -84,7 +84,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
     val data = train(Vector.range(0, 12))
     val compiled = exactCompiled(12, 4, 91L)
     val population =
-      TesseraResampler.populationFingerprint(data.fingerprint) match
+      Resample4sResampler.populationFingerprint(data.fingerprint) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected population failure: $error")
     val receipt =
@@ -93,7 +93,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
         case Left(error)  => fail(s"unexpected receipt failure: $error")
 
     val complete: CompleteResampler[Int] =
-      TesseraResampler.complete(compiled.plan, receipt)
+      Resample4sResampler.complete(compiled.plan, receipt)
     assertEquals(plan(complete, data, 91L).foldCount, 4)
   }
 
@@ -121,7 +121,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
     }
   }
 
-  test("adapter retains the policy-tagged Tessera receipt in cross-fit lineage") {
+  test("adapter retains the policy-tagged Resample4s receipt in cross-fit lineage") {
     val values = Vector.tabulate(8) { index =>
       Example(index.toDouble, index.toDouble, s"m$index")
     }
@@ -132,8 +132,8 @@ class TesseraResamplerSuite extends munit.FunSuite:
     given FitContext =
       FitContext.root(
         seed = AlderSeed(101L),
-        plan = PlanFingerprint("tessera-crossfit"),
-        schema = SchemaFingerprint("tessera-example"),
+        plan = PlanFingerprint("resample4s-crossfit"),
+        schema = SchemaFingerprint("resample4s-example"),
         numericMode = NumericMode.Deterministic
       )
 
@@ -144,8 +144,8 @@ class TesseraResamplerSuite extends munit.FunSuite:
         produced.foreach { (id, example) =>
           assert(!example.input.fittedOn.contains(RowId(id)))
         }
-        prepared.lineage.crossFit.flatMap(_.tessera) match
-          case None => fail("expected mapped Tessera receipt")
+        prepared.lineage.crossFit.flatMap(_.resample4s) match
+          case None => fail("expected mapped Resample4s receipt")
           case Some(receipt) =>
             assertEquals(receipt.designAlgorithm, "kfold/v1")
             assertEquals(receipt.digestAlgorithm, "fnv1a64/v1")
@@ -157,7 +157,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
                 fail(s"expected design content digest, got $policy")
             receipt.population.policy match
               case FingerprintPolicy.Summary(policyId) =>
-                assertEquals(policyId, "alder.tessera-test/v1")
+                assertEquals(policyId, "alder.resample4s-test/v1")
               case policy =>
                 fail(s"expected summary population, got $policy")
   }
@@ -167,24 +167,24 @@ class TesseraResamplerSuite extends munit.FunSuite:
       Example(index, index, AdapterMeta(s"g${index / 3}"))
     }
     val data = train(values)
-    val labels = TesseraResampler.groupLabels(data) match
+    val labels = Resample4sResampler.groupLabels(data) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected label failure: $error")
     val space = IndexSpace.of(12) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected space failure: $error")
     val compiled =
-      TesseraKFold
+      Resample4sKFold
         .grouped(3, labels)
-        .compile(space, TesseraSeed.fromLong(33L)) match
+        .compile(space, Resample4sSeed.fromLong(33L)) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected grouped failure: $error")
     val population =
-      TesseraResampler.populationFingerprint(data.fingerprint) match
+      Resample4sResampler.populationFingerprint(data.fingerprint) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected population failure: $error")
     val resampler =
-      TesseraResampler.fromCompiled[
+      Resample4sResampler.fromCompiled[
         Example[Int, Int, AdapterMeta]
       ](compiled, population)(
         using DigestAlgorithm.fnv1a64
@@ -192,7 +192,7 @@ class TesseraResamplerSuite extends munit.FunSuite:
         case Right(value) => value
         case Left(error)  => fail(s"unexpected receipt failure: $error")
     val groupedPlan = plan(resampler, data, 33L)
-    assert(groupedPlan.tessera.flatMap(_.labels).nonEmpty)
+    assert(groupedPlan.resample4s.flatMap(_.labels).nonEmpty)
     val groupFolds = groupedPlan.folds.flatMap { fold =>
       rowsOf(fold.assessment).map(row => row._2.meta.group -> fold.index)
     }
@@ -206,17 +206,17 @@ class TesseraResamplerSuite extends munit.FunSuite:
     val resampler = adapter(data, folds = 4, seed = 9L)
     assertEquals(
       resampler.split(data, AlderSeed(10L)),
-      Left(DataError.TesseraSeedMismatch(9L, 10L))
+      Left(DataError.Resample4sSeedMismatch(9L, 10L))
     )
     val short = train(Vector.range(0, 7), "first")
     assertEquals(
       resampler.split(short, AlderSeed(9L)),
-      Left(DataError.TesseraPopulationSizeMismatch(8, 7L))
+      Left(DataError.Resample4sPopulationSizeMismatch(8, 7L))
     )
     val different = train(Vector.range(0, 8), "second")
     assertEquals(
       resampler.split(different, AlderSeed(9L)),
-      Left(DataError.TesseraPopulationFingerprintMismatch)
+      Left(DataError.Resample4sPopulationFingerprintMismatch)
     )
   }
 
@@ -226,9 +226,9 @@ class TesseraResamplerSuite extends munit.FunSuite:
       "not-hex"
     )
     assertEquals(
-      TesseraResampler.populationFingerprint(malformed),
+      Resample4sResampler.populationFingerprint(malformed),
       Left(
-        DataError.InvalidTesseraPopulationFingerprint(
+        DataError.InvalidResample4sPopulationFingerprint(
           malformed.policy,
           malformed.digest
         )
@@ -239,22 +239,22 @@ class TesseraResamplerSuite extends munit.FunSuite:
   test("Holdout, Bootstrap, and repeated exact plans cannot mint completeness") {
     val errors = typeCheckErrors(
       """import alder.data.*
-import tessera.core.*
+import resample4s.core.*
 def holdout(
   plan: Plan[Split[Selection], Coverage],
   receipt: PlanReceipt
 ): CompleteResampler[Int] =
-  TesseraResampler.complete(plan, receipt)
+  Resample4sResampler.complete(plan, receipt)
 def bootstrap(
   plan: Plan[Split[Draw], Coverage],
   receipt: PlanReceipt
 ): CompleteResampler[Int] =
-  TesseraResampler.complete(plan, receipt)
+  Resample4sResampler.complete(plan, receipt)
 def repeated(
   plan: Plan[Split[Selection], Coverage.Exact],
   receipt: PlanReceipt
 ): CompleteResampler[Int] =
-  TesseraResampler.complete(plan, receipt)
+  Resample4sResampler.complete(plan, receipt)
 """
     )
     assertEquals(errors.length, 3)

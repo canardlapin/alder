@@ -3,6 +3,7 @@ package alder.quickstart
 import alder.data.HoldoutSpec
 import alder.kernel.Seed
 import munit.FunSuite
+import scala.compiletime.testing.typeCheckErrors
 
 class QuickstartSuite extends FunSuite:
   final case class House(
@@ -39,7 +40,7 @@ class QuickstartSuite extends FunSuite:
             blueprint,
             Metrics.rmse
           )
-          .runToValidated
+          .run
       yield validated
 
     result match
@@ -48,6 +49,13 @@ class QuickstartSuite extends FunSuite:
       case Right(validated) =>
         assertEquals(validated.predictions.size, 1L)
         assert(validated.score.value.isFinite)
+        validated.select(SingleCandidate).refit match
+          case Left(error) => fail(s"unexpected refit failure: $error")
+          case Right(refitted) =>
+            assert(
+              refitted.model.artifact.run(House(100.0, 3, 12.0)).isRight
+            )
+            assert(refitted.model.audit.children.nonEmpty)
   }
 
   test("Blueprint.via.learn expands to transform.learnWith") {
@@ -95,7 +103,7 @@ class QuickstartSuite extends FunSuite:
             blueprint.learner,
             Metrics.rmse
           )
-          .runToTested
+          .run
       yield tested
 
     result match
@@ -103,4 +111,20 @@ class QuickstartSuite extends FunSuite:
       case Right(tested) =>
         assertEquals(tested.evaluation.scored.size, 2L)
         assert(tested.score.value.isFinite)
+  }
+
+  test("learner-ready Blueprint diagnostics name the unavailable operation") {
+    val errors = typeCheckErrors(
+      """import alder.application.*
+import alder.kernel.*
+import cats.Id
+def invalid[
+  FM <: FeatureMap[Id, Double, Double, Unit, Double],
+  T <: Transform[Id, Double, Double]
+](ready: Blueprint.LearnerReady[Id, Double, Double, Unit, Double, FM], t: T) =
+  ready.via(t)
+"""
+    )
+    assert(errors.nonEmpty)
+    assert(errors.exists(_.message.contains("via")), clues(errors.map(_.message)))
   }

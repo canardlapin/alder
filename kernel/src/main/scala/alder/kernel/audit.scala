@@ -122,11 +122,11 @@ final class CrossFitFoldLineage private[alder] (
     val fittedState: PreparationLineage
 )
 
-/** Alder-owned, dependency-neutral rendering of a Tessera verification
+/** Alder-owned, dependency-neutral rendering of a Resample4s verification
   * receipt. Policy tags and digest values are retained without making
-  * alder-kernel depend on tessera-core.
+  * alder-kernel depend on resample4s-core.
   */
-final class TesseraPlanReceipt private[alder] (
+final class Resample4sPlanReceipt private[alder] (
     val designAlgorithm: String,
     val digestAlgorithm: String,
     val design: ProtocolFingerprint,
@@ -143,7 +143,7 @@ final class CrossFitLineage private[alder] (
     val assignment: DataFingerprint,
     val folds: Vector[CrossFitFoldLineage],
     val serving: PreparationLineage,
-    val tessera: Option[TesseraPlanReceipt]
+    val resample4s: Option[Resample4sPlanReceipt]
 )
 
 /** How prepared training rows were produced. Plan-shaped and per-fold in

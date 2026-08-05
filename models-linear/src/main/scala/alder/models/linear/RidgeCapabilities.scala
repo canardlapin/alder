@@ -12,16 +12,16 @@ final case class RidgeAttribution(
 
 given [X]: Coefficients[RidgeModel[X]] with
   def coefficientCount(trained: Trained[RidgeModel[X]]): Int =
-    trained.terminal.solution.coefficientCount
+    trained.artifact.solution.coefficientCount
 
   def coefficient(trained: Trained[RidgeModel[X]], index: Int): Double =
-    trained.terminal.solution.coefficient(index)
+    trained.artifact.solution.coefficient(index)
 
   def coefficients(trained: Trained[RidgeModel[X]]): IArray[Double] =
-    trained.terminal.solution.coefficientsCopy
+    trained.artifact.solution.coefficientsCopy
 
   def intercept(trained: Trained[RidgeModel[X]]): Double =
-    trained.terminal.solution.intercept
+    trained.artifact.solution.intercept
 
 given [X](using features: FeatureView[X]): Explain[RidgeModel[X], X] with
   type Attribution = RidgeAttribution
@@ -37,7 +37,7 @@ given [X](using features: FeatureView[X]): Explain[RidgeModel[X], X] with
         ExplainError.NotExplainable(s"feature view failed: $error")
       )
       .map { values =>
-        val solution = trained.terminal.solution
+        val solution = trained.artifact.solution
         val contributions = IArray.tabulate(values.length) { index =>
           values(index) * solution.coefficient(index)
         }

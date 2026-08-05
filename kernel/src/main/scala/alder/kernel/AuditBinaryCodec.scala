@@ -537,9 +537,9 @@ private[kernel] object AuditBinaryCodec:
         fittedState
       )
 
-  private def writeTessera(
+  private def writeResample4s(
       writer: BinaryWriter,
-      receipt: TesseraPlanReceipt
+      receipt: Resample4sPlanReceipt
   ): Unit =
     writer.string(receipt.designAlgorithm)
     writer.string(receipt.digestAlgorithm)
@@ -549,9 +549,9 @@ private[kernel] object AuditBinaryCodec:
     writer.long(receipt.planSeed.value)
     writeDataFingerprint(writer, receipt.assignment)
 
-  private def readTessera(
+  private def readResample4s(
       reader: BinaryReader
-  ): Either[CodecError, TesseraPlanReceipt] =
+  ): Either[CodecError, Resample4sPlanReceipt] =
     for
       designAlgorithm <- reader.string
       digestAlgorithm <- reader.string
@@ -561,7 +561,7 @@ private[kernel] object AuditBinaryCodec:
       planSeed <- reader.long.map(Seed(_))
       assignment <- readDataFingerprint(reader)
     yield
-      new TesseraPlanReceipt(
+      new Resample4sPlanReceipt(
         designAlgorithm,
         digestAlgorithm,
         design,
@@ -580,7 +580,7 @@ private[kernel] object AuditBinaryCodec:
     writeDataFingerprint(writer, crossFit.assignment)
     writer.vector(crossFit.folds)(writeFold(writer, _))
     writePreparation(writer, crossFit.serving)
-    writer.option(crossFit.tessera)(writeTessera(writer, _))
+    writer.option(crossFit.resample4s)(writeResample4s(writer, _))
 
   private def readCrossFit(
       reader: BinaryReader
@@ -591,7 +591,7 @@ private[kernel] object AuditBinaryCodec:
       assignment <- readDataFingerprint(reader)
       folds <- reader.vector(readFold(reader))
       serving <- readPreparation(reader)
-      tessera <- reader.option(readTessera(reader))
+      resample4s <- reader.option(readResample4s(reader))
     yield
       new CrossFitLineage(
         resampler,
@@ -599,7 +599,7 @@ private[kernel] object AuditBinaryCodec:
         assignment,
         folds,
         serving,
-        tessera
+        resample4s
       )
 
   private def writeComponent(

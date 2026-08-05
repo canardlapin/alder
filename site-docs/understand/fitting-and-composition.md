@@ -50,5 +50,5 @@ Alder's combinators construct composite audits internally. They assign stable
 stage ordinals, derive child seeds, and retain child audits. Extension code must
 not construct `Trained`, `Audit`, `Prepared`, or `FitContext`.
 
-See [Writing an extension](../guides/extensions.md) for the implementation
+See [Writing an extension](../extend/writing-an-extension.md) for the implementation
 checklist and executable negative examples.

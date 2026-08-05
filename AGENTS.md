@@ -197,6 +197,14 @@ Run the 100k-row performance baselines with:
 sbt -J-Xmx4G -Dsbt.task.cpus=1 benchmarks/test
 ```
 
+Measure JVM statement coverage for a module with:
+
+```text
+sbt -J-Xmx4G -Dsbt.task.cpus=1 coverage applicationJVM/test coverageReport coverageOff
+```
+
+HTML reports land under `<module>/.jvm/target/scala-3.7.4/scoverage-report/`.
+
 The twelve interface acceptance gates and their owner evidence commands are
 listed in `RELEASE_GATES.md`.
 
