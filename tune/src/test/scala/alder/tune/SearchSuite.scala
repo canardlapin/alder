@@ -73,6 +73,14 @@ class SearchSuite extends munit.FunSuite:
       case Right(selected) =>
         assertEquals(selected.best, 0.0)
         assertEquals(selected.trials.length, 3)
+        assertEquals(selected.evidence.length, 3)
+        assertEquals(selected.evidence.map(_.folds.length), Vector(3, 3, 3))
+        assert(
+          selected.evidence.forall(_.folds.forall(_.analysis.digest.nonEmpty))
+        )
+        assert(
+          selected.evidence.forall(_.folds.forall(_.assessment.digest.nonEmpty))
+        )
         assert(selected.trials.forall(_.folds.length == 3))
         assert(
           selected.trials.forall(_.folds.forall {
@@ -143,6 +151,16 @@ class SearchSuite extends munit.FunSuite:
       case Left(error) => fail(s"unexpected whole-population failure: $error")
       case Right(result) =>
         assertEquals(result.trials.length, 1)
+        assertEquals(result.evidence.length, 1)
+        assertEquals(result.evidence.head.folds.length, 3)
+        assertEquals(
+          result.evidence.head.folds.map(_.audit.data),
+          result.evidence.head.folds.map(_.analysis)
+        )
+        assertEquals(
+          result.evidence.head.folds.map(_.audit.seed),
+          Vector.fill(3)(Seed(17L))
+        )
         assertEquals(fitted.length, 3)
         assertEquals(fitted.map(_.size).toVector, Vector(8, 8, 8))
         assertEquals(assessed.sorted.toVector, rows.map(_.input))
