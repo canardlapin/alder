@@ -30,6 +30,7 @@ final class CrossValidatedFoldEvidence[S] private[tune] (
     val fold: Int,
     val score: S,
     val audit: Audit,
+    val auditIdentity: ProtocolFingerprint,
     val analysis: DataFingerprint,
     val assessment: DataFingerprint
 )
@@ -366,6 +367,7 @@ final class CrossValidatedSearch[
                     fold.index,
                     score,
                     trained.audit,
+                    AuditFingerprint(trained.audit),
                     fold.analysis.fingerprint,
                     fold.assessment.fingerprint
                   )

@@ -81,6 +81,9 @@ class SearchSuite extends munit.FunSuite:
         assert(
           selected.evidence.forall(_.folds.forall(_.assessment.digest.nonEmpty))
         )
+        assert(
+          selected.evidence.forall(_.folds.forall(_.auditIdentity.digest.nonEmpty))
+        )
         assert(selected.trials.forall(_.folds.length == 3))
         assert(
           selected.trials.forall(_.folds.forall {
