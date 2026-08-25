@@ -82,6 +82,101 @@ class SearchSuite extends munit.FunSuite:
         )
   }
 
+  test("runUnsplit evaluates the whole population exactly once out of fold") {
+    val rows = Vector.tabulate(12) { index =>
+      val value = index.toDouble
+      Example(value, value, ())
+    }
+    val data = InMemoryData.unsplit(
+      rows,
+      DataFingerprint.external("search-unsplit-complete")
+    )
+    val fitted = scala.collection.mutable.ArrayBuffer.empty[Set[Double]]
+    val assessed = scala.collection.mutable.ArrayBuffer.empty[Double]
+
+    final class RecordingLearner
+        extends Learner[Id, Double, Double, Unit, Double]:
+      type FitError = Nothing
+      type RunError = Nothing
+      type Model = Pipe[Double, Nothing, Double]
+
+      def fit[U <: Use.Fit](
+          fold: NonEmptyData[U, Example[Double, Double, Unit]]
+      )(using context: FitContext): FitResult[Id, FitError, Trained[Model]] =
+        val visible = fold.data.foldRows(Set.empty[Double]) {
+          (values, _, example) => values + example.input
+        }
+        fitted += visible
+        val model: Model = Pipe.total { value =>
+          assessed += value
+          value
+        }
+        EitherT.right(
+          context.complete(
+            model,
+            fold,
+            ComponentDescriptor(
+              ComponentId("alder.test.recording"),
+              ComponentVersion("1"),
+              AuditValue.record(),
+              BackendFingerprint("test", "1", AuditValue.record())
+            )
+          )
+        )
+
+    val resampler = KFold[Example[Double, Double, Unit]](3) match
+      case Left(error)  => fail(s"unexpected kfold error: $error")
+      case Right(value) => value
+    val strategy = GridStrategy(PositiveInt.one)
+    Search
+      .crossValidatedGridSync(
+        Space.constant(()),
+        strategy,
+        resampler,
+        _ => new RecordingLearner,
+        RegressionMetrics.rmse[Unit],
+        (score: RootMeanSquaredError) => score.value,
+        Seed(17L),
+        PlanFingerprint.external("search-unsplit-complete-v1")
+      )
+      .runUnsplit(data) match
+      case Left(error) => fail(s"unexpected whole-population failure: $error")
+      case Right(result) =>
+        assertEquals(result.trials.length, 1)
+        assertEquals(fitted.length, 3)
+        assertEquals(fitted.map(_.size).toVector, Vector(8, 8, 8))
+        assertEquals(assessed.sorted.toVector, rows.map(_.input))
+        fitted.zipWithIndex.foreach { (analysis, fold) =>
+          val start = fold * 4
+          val assessment = assessed.slice(start, start + 4).toSet
+          assertEquals(analysis.intersect(assessment), Set.empty[Double])
+        }
+  }
+
+  test("runUnsplit rejects an empty population before resampling") {
+    val data = InMemoryData.unsplit(
+      Vector.empty[Example[Double, Double, Unit]],
+      DataFingerprint.external("search-unsplit-empty")
+    )
+    val resampler = KFold[Example[Double, Double, Unit]](2) match
+      case Left(error)  => fail(s"unexpected kfold error: $error")
+      case Right(value) => value
+    Search
+      .crossValidatedGridSync(
+        Space.constant(0.0),
+        GridStrategy(PositiveInt.one),
+        resampler,
+        bias => new BiasLearner(bias),
+        RegressionMetrics.rmse[Unit],
+        (score: RootMeanSquaredError) => score.value,
+        Seed(19L),
+        PlanFingerprint.external("search-unsplit-empty-v1")
+      )
+      .runUnsplit(data) match
+      case Left(SearchError.Resampling(DataError.EmptyData)) => ()
+      case other => fail(s"expected empty-data rejection, got $other")
+  }
+
   private final class FailingLearner
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = String

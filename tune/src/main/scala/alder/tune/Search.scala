@@ -177,6 +177,27 @@ final class CrossValidatedSearch[
 )(using monad: Monad[F], schema: Schema[X]):
   private type EvalE = FoldEvaluationError[Any, Any]
 
+  /** Runs complete-resampler evaluation over one whole unsplit population.
+    *
+    * This is the application boundary for cross-validation without an outer
+    * holdout. Alder owns the role transition and non-emptiness proof: callers
+    * cannot manufacture `NonEmptyData[Use.Train, A]`, and the returned search
+    * result retains no fitted model or refit authority. Every scientific
+    * assessment claim still comes exclusively from the supplied
+    * [[CompleteResampler]].
+    */
+  def runUnsplit(
+      data: Data[Use.Unsplit, Example[X, Y, M]]
+  ): F[Either[SearchError[EvalE], CrossValidatedResult[C, EvalE, S]]] =
+    if data.size <= 0L then
+      monad.pure(Left(SearchError.Resampling(DataError.EmptyData)))
+    else
+      run(
+        new NonEmptyData[Use.Train, Example[X, Y, M]](
+          new SearchTrainingPopulation(data)
+        )
+      )
+
   /** Runs cross-validated search on Train data and returns the best config. */
   def run(
       data: NonEmptyData[Use.Train, Example[X, Y, M]]
@@ -331,3 +352,23 @@ final class CrossValidatedSearch[
           .map(error =>
             TrialFailure.Evaluation(FoldEvaluationError.Metric(error))
           )
+
+/** Role-bound view used only by [[CrossValidatedSearch.runUnsplit]]. It
+  * preserves Alder-owned RowIds, traversal order, batching, and the exact
+  * source fingerprint while exposing the population only to the complete
+  * resampling interpreter above.
+  */
+private final class SearchTrainingPopulation[A](
+    source: Data[Use.Unsplit, A]
+) extends Data[Use.Train, A]:
+  override def size: Long = source.size
+  override def fingerprint: DataFingerprint = source.fingerprint
+
+  override def foldRows[B](initial: B)(step: (B, RowId, A) => B): B =
+    source.foldRows(initial)(step)
+
+  override def foreachRow(step: (RowId, A) => Unit): Unit =
+    source.foreachRow(step)
+
+  override def foreachBatch(size: BatchSize)(step: RowBatch[A] => Unit): Unit =
+    source.foreachBatch(size)(step)
