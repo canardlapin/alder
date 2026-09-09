@@ -187,7 +187,9 @@ object ExperimentRoutes:
             new TVTPartitioned(learner, metric, plan, phases, split)
           )
 
-    def run(using
+    def run(
+        selection: SelectionPolicy.SingleCandidate.type
+    )(using
         Mt <:< ObjectiveMetric[Scored[Y, P, M], S]
     ): Either[
       ExperimentFailure[learner.FitError, learner.RunError],
@@ -213,7 +215,7 @@ object ExperimentRoutes:
                   )
                 case Right(validated) =>
                   validated
-                    .select(SingleCandidate)
+                    .select(selection)
                     .refit
                     .flatMap(_.test) match
                     case Left(error) =>
@@ -355,6 +357,32 @@ object ExperimentRoutes:
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
     def score: S = evaluation.score
+    def predictions: NonEmptyData[Use.Validation, Scored[Y, P, M]] =
+      evaluation.scored
+    def model: Trained[learner.Model] = trained
+    def audit: Audit = trained.audit
+
+    /** Structured projection of this validation result's retained evidence. */
+    def report: ExperimentReport[S] =
+      ExperimentReport.trainValidationTest(
+        split,
+        metric.descriptor,
+        score,
+        audit,
+        phases.root
+      )
+
+    /** Predicts with the candidate fitted on the training partition. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the candidate fitted on the training
+      * partition, preserving row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
 
     def select(
         policy: SelectionPolicy.SingleCandidate.type
@@ -483,6 +511,19 @@ object ExperimentRoutes:
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
     def model: Trained[learner.Model] = trained
+    def audit: Audit = trained.audit
+
+    /** Predicts with the candidate refitted on training plus validation. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the candidate refitted on training plus
+      * validation, preserving row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
 
     def test: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
@@ -511,6 +552,7 @@ object ExperimentRoutes:
                   metric,
                   plan,
                   phases,
+                  split,
                   receipt,
                   trained,
                   tested
@@ -531,6 +573,7 @@ object ExperimentRoutes:
       val metric: Mt,
       val plan: PlanFingerprint,
       private val phases: PhaseSeeds,
+      val split: TrainValidationTestSplit[Example[X, Y, M]],
       val selection: SelectionReceipt[L, Mt, S],
       val trained: Trained[learner.Model],
       val evaluation: ScoredEvaluation[
@@ -545,7 +588,32 @@ object ExperimentRoutes:
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
     def score: S = evaluation.score
+    def predictions: NonEmptyData[Use.Test, Scored[Y, P, M]] =
+      evaluation.scored
     def model: Trained[learner.Model] = trained
+    def audit: Audit = trained.audit
+
+    /** Structured projection of this final-test result's retained evidence. */
+    def report: ExperimentReport[S] =
+      ExperimentReport.trainValidationTest(
+        split,
+        metric.descriptor,
+        score,
+        audit,
+        phases.root
+      )
+
+    /** Predicts with the selected candidate refitted before final testing. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the selected refitted candidate,
+      * preserving row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
 
     def deploymentRefit: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
@@ -741,6 +809,7 @@ object ExperimentRoutes:
                   metric,
                   plan,
                   phases,
+                  split,
                   trained,
                   evaluation
                 )
@@ -760,6 +829,7 @@ object ExperimentRoutes:
       val metric: Mt,
       val plan: PlanFingerprint,
       private val phases: PhaseSeeds,
+      val split: Holdout[Example[X, Y, M]],
       val trained: Trained[learner.Model],
       val evaluation: ScoredEvaluation[
         Use.Test,
@@ -773,7 +843,32 @@ object ExperimentRoutes:
   )(using Schema[X]):
     val route: PrecommittedHoldoutRoute.type = PrecommittedHoldoutRoute
     def score: S = evaluation.score
+    def predictions: NonEmptyData[Use.Test, Scored[Y, P, M]] =
+      evaluation.scored
     def model: Trained[learner.Model] = trained
+    def audit: Audit = trained.audit
+
+    /** Structured projection of this precommitted result's retained evidence. */
+    def report: ExperimentReport[S] =
+      ExperimentReport.precommitted(
+        split,
+        metric.descriptor,
+        score,
+        audit,
+        phases.root
+      )
+
+    /** Predicts with the candidate fitted before the precommitted test. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the precommitted candidate, preserving
+      * row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
 
     def deploymentRefit: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
@@ -826,3 +921,15 @@ object ExperimentRoutes:
   ):
     def model: Trained[learner.Model] = trained
     def audit: Audit = trained.audit
+
+    /** Predicts with the deployment artifact refitted on all observed rows. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the deployment artifact, preserving row
+      * IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)

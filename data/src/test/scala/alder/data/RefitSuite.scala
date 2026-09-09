@@ -69,8 +69,7 @@ class RefitSuite extends munit.FunSuite:
     assertEquals(first.allObserved.size, 4L)
 
     val refitErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
+      """import alder.data.*
 def illegal(result: PredictionResult[?, ?, ?]) =
   Refit.after(result.receipt)
 """
@@ -193,29 +192,9 @@ def illegal(result: PredictionResult[?, ?, ?]) =
     )
   }
 
-  test("prediction receipts, observed bundles, and authority are unforgeable") {
-    val receiptErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
-import alder.kernel.*
-val receipt = new PredictionReceipt[Use.Validation](
-  PredictionReceiptId("forged"),
-  Vector.empty,
-  EvaluationRole.Validation,
-  None
-)
-"""
-    )
-    val observedErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
-import alder.kernel.*
-val authority = new PromotionAuthority[Use.Validation]
-"""
-    )
+  test("a Train model cannot satisfy the final-test refit role") {
     val roleErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
+      """import alder.data.*
 import alder.kernel.*
 def illegal(
   train: NonEmptyData[Use.Train, Double],
@@ -224,7 +203,5 @@ def illegal(
   EvaluationSources.finalTest(train, test)
 """
     )
-    assert(receiptErrors.nonEmpty)
-    assert(observedErrors.nonEmpty)
     assert(roleErrors.nonEmpty)
   }

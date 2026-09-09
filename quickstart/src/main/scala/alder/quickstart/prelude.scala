@@ -10,6 +10,10 @@ export alder.application.{
   Blueprint,
   Experiment,
   ExperimentFailure,
+  ExperimentPartitions,
+  ExperimentReport,
+  ExperimentReportRoute,
+  FittedComponent,
   SingleCandidate
 }
 export alder.data.{
@@ -20,5 +24,6 @@ export alder.data.{
   ValidationSpec
 }
 export alder.kernel.{Example, Seed, Trained}
+export alder.models.linear.{RidgePenalty, RidgeTolerance}
 export alder.preprocess.{Standardized, ZeroVariance}
 export alder.tune.Search

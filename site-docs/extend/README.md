@@ -5,6 +5,6 @@ Application users normally do not need this layer.
 
 - [Write an Alder extension](writing-an-extension.md) covers component choice,
   leaf fitting, audit completion, compile-negative tests, and law batteries.
-
-For target-aware application composition, read
-[Use target-aware features without leakage](../how-to/target-aware.md).
+- [Implement a target-aware encoder safely](target-aware.md) gives a complete
+  `FoldEncoder` and cross-fitting example. It is not presented as an ordinary
+  application workflow because Alder does not yet supply a concrete encoder.

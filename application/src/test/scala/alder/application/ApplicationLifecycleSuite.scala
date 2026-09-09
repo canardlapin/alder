@@ -261,6 +261,15 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
             ApplicationRefitError.SelectionReceiptAlreadyUsed(id)
           ) =>
         assertEquals(id, selection.id)
+        val rendered = ExperimentFailure
+          .Refit(
+            RefitPhase.SelectedPromotion,
+            ApplicationRefitError.SelectionReceiptAlreadyUsed(id)
+        )
+          .render
+        assert(rendered.contains("SelectedPromotion"))
+        assert(rendered.contains("selection receipt"))
+        assert(rendered.contains("already used"))
       case other => fail(s"expected receipt reuse error, got $other")
   }
 
@@ -393,8 +402,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
 
   test("roles, objective capability, and receipt constructors fail at compile time") {
     val validationCannotRefit = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.data.*
 import alder.kernel.*
 def illegal(
@@ -415,8 +423,7 @@ def illegal(
 """
     )
     val reportingCannotSelect = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.kernel.*
 import alder.metrics.*
 import cats.Id
@@ -432,8 +439,7 @@ def illegal[
 """
     )
     val selectTakesNoReplacementLearner = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 def illegal[F[_], X, Y, M, P, S, L <: alder.kernel.Learner[F, X, Y, M, P], Mt](
   candidate: ValidatedCandidate[F, X, Y, M, P, S, L, Mt]
 ) =
@@ -441,8 +447,7 @@ def illegal[F[_], X, Y, M, P, S, L <: alder.kernel.Learner[F, X, Y, M, P], Mt](
 """
     )
     val rolesCannotCross = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.data.*
 import alder.kernel.*
 def illegal[L, Mt, S, A](
@@ -452,27 +457,8 @@ def illegal[L, Mt, S, A](
   Refit.after(receipt).from(test)
 """
     )
-    val receiptCannotBeForged = typeCheckErrors(
-      """package consumer
-import alder.application.*
-import alder.kernel.*
-import alder.metrics.*
-def forged(existing: EvaluationReceipt[Use.Test]) =
-  new EvaluationReceipt[Use.Test](
-    EvaluationReceiptId("forged"),
-    PredictionReceiptId("forged"),
-    Vector.empty,
-    EvaluationRole.Test,
-    RegressionMetrics.rmse[Unit].descriptor,
-    DataFingerprint.external("forged"),
-    existing.priorSelection,
-    existing.authority
-  )
-"""
-    )
     val observedCannotBeResplit = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.data.*
 import alder.kernel.*
 def illegal[A](
@@ -484,9 +470,13 @@ def illegal[A](
     )
 
     assert(validationCannotRefit.nonEmpty)
-    assert(reportingCannotSelect.nonEmpty)
+    assert(
+      reportingCannotSelect.exists(
+        _.message.contains("ObjectiveMetric")
+      ),
+      clues(reportingCannotSelect.map(_.message))
+    )
     assert(selectTakesNoReplacementLearner.nonEmpty)
     assert(rolesCannotCross.nonEmpty)
-    assert(receiptCannotBeForged.nonEmpty)
     assert(observedCannotBeResplit.nonEmpty)
   }

@@ -6,15 +6,15 @@
     "organization": "io.github.canardlapin",
     "version": "0.1.0",
     "documentStatus": "canonical",
-    "documentDate": "2026-07-26",
+    "documentDate": "2026-08-05",
     "supersedes": ["notes1.md", "notes2.md"],
-    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility, the reviewed Scala 3.7.4 baseline amendment, and the reviewed application-layer and experiment-lifecycle amendment."
+    "provenance": "Consolidates the original RFC (notes1), the extension/dependency addendum (notes2), three review rounds that corrected the composition algebra, error model, data-role hierarchy, numerical-backend boundary, cross-fitting module boundary, and refit compatibility, the reviewed Scala 3.7.4 baseline amendment, the reviewed application-layer and experiment-lifecycle amendment, and the post-implementation application-surface reopening decision."
   },
 
   "review": {
     "status": "approvedForImplementationWithGates",
-    "date": "2026-07-26",
-    "evidence": "docs/reviews/prd-2026-07-25.md, docs/reviews/scala-3.7.4-amendment-2026-07-26.md, and docs/reviews/application-dsl-amendment-2026-07-26.md; the superseding canonical PRD SHA-256 and implementation issue graph are recorded in mote.",
+    "date": "2026-08-05",
+    "evidence": "docs/reviews/prd-2026-07-25.md, docs/reviews/scala-3.7.4-amendment-2026-07-26.md, docs/reviews/application-dsl-amendment-2026-07-26.md, and docs/reviews/application-surface-reopen-2026-08-05.md; canonical PRD identities and implementation issue graphs are recorded in mote.",
     "corrections": [
       "FeatureMap.crossFitted is implemented in alder-data as an extension on FeatureMap.type, beside the Resampler protocol and implementations; alder-kernel never depends on alder-data.",
       "FoldEncoder.fit preserves the caller's U <: Use.Fit role so cross-fitted refit workflows do not require an illicit Refit-to-Train retag.",
@@ -31,11 +31,12 @@
       "ObjectiveMetric owns its direction and score audit encoding, while every Metric retains unconditional CommutativeMonoid, partition, and permutation laws.",
       "Base alder-application never depends on alder-tune or reconstructs a tuning family; the caller supplies the concrete learner reconstructed from Study selection.",
       "Plan fingerprints are policy-tagged like every other fingerprint, and experiment phase seeds are derived by stable domain separation rather than traversal order.",
-      "Tuning erases model capabilities only: trial evaluation failures remain typed rather than being reduced to display strings."
+      "Tuning erases model capabilities only: trial evaluation failures remain typed rather than being reduced to display strings.",
+      "Post-implementation review preserves the application semantics but reopens provisional source spelling: direct core composition is the ordinary path, Blueprint is optional staged scaffolding, lifecycle results delegate prediction, and every route keeps selection visible."
     ],
     "implementationGates": [
       "Implement and law-test exact split apportionment, RankV1 allocation, duplicate-RowId rejection, non-empty validation and train-validation-test results, the precommitted Train/Test evaluation source, specialized Scored evaluation, lawful metric accumulators and identity, selection receipts, and receipt-gated refit before presenting Experiment as complete.",
-      "Implement Blueprint as exact typed wrappers around concrete Transform, FeatureMap, FoldEncoder, and Learner values; no application-layer operation may introduce a runtime stage registry, widened error channel, or second semantics.",
+      "Keep Blueprint as exact typed wrappers around concrete Transform, FeatureMap, FoldEncoder, and Learner values, but make direct core composition canonical in ordinary guides; no application-layer operation may introduce a runtime stage registry, widened error channel, or second semantics.",
       "Implement the synchronous Experiment runner and its phase-error ADT before quickstart presets; effectful execution must interpret the same state machine without unsafe execution.",
       "The first executable guide, compile-negative diagnostics, compatibility checks, and JVM, Scala.js, and Scala Native gates must pass before the application layer is considered release-ready."
     ]
@@ -418,8 +419,8 @@
   },
 
   "applicationLayer": {
-    "status": "Ratified semantic contract with deliberately provisional source spelling. Blueprint, Experiment, exact desugaring, lifecycle states, and error-preservation obligations are fixed; wrapper class names, method names, and artifact names remain provisional until compile-iteration confirms inference and diagnostics.",
-    "role": "The application layer is an optional entrance to Alder's existing component and evaluation algebra. It constructs concrete composed Learner values and executes the existing split, fit, evaluation, metric, selection, and refit protocols. It defines no fourth component trait, runtime pipeline representation, plugin interface, or alternative semantics.",
+    "status": "Ratified semantic contract with source spelling reopened after post-implementation review. Experiment, exact core expansions, lifecycle states, preparation legality, error preservation, audit identity, seed derivation, and receipt authority are fixed. Construction and result-access spelling remains provisional until semantic, diagnostic, and reader evidence passes.",
+    "role": "The application layer is an optional entrance to Alder's existing component and evaluation algebra. Ordinary application code composes the existing Transform or FeatureMap directly with a Learner; Blueprint remains optional staged scaffolding for construction that benefits from it. Experiment executes the existing split, fit, evaluation, metric, selection, and refit protocols around the resulting concrete Learner. The layer defines no fourth component trait, runtime pipeline representation, plugin interface, or alternative semantics.",
     "moduleBoundary": {
       "generic": "Provisional artifact alder-application: pure JVM/Scala.js/Scala Native module depending on alder-kernel, alder-data, and alder-metrics. It owns Blueprint, Experiment, scored evaluation integration, and application-facing lifecycle results.",
       "batteries": "Provisional artifact alder-quickstart: optional pure module depending on alder-application, alder-preprocess, alder-models-linear, and alder-ridge-linop4s. It owns the curated prelude, supervised Unit-metadata constructors, checked split-size syntax, and named standardize/ridge presets.",
@@ -430,19 +431,23 @@
     "apiStability": {
       "fixed": [
         "Blueprint is staged construction over exact core values and a completed Blueprint exposes one concrete Learner.",
+        "Direct Transform.learnWith or FeatureMap.learnWith composition is the canonical ordinary construction path; Blueprint remains an optional advanced aid and is not required by Experiment.",
         "Experiment is the typed owner of split, candidate fit, validation scoring, selection, refit, final test, and optional deployment refit.",
         "ExperimentFailure retains exact component FitError and RunError causes plus explicit lifecycle phase.",
-        "Validation and train-validation-test split roles, scored evaluation, selection evidence, and receipt-gated refit are public semantic contracts."
+        "Validation and train-validation-test split roles, scored evaluation, explicit selection evidence, and receipt-gated refit are public semantic contracts.",
+        "FeatureSchema is the single validated authority for ordered coordinate names and size; application conveniences do not introduce a competing coordinate-layout model.",
+        "Structured reports and human renderers, when present, are read-only projections of existing typed evidence and never replace audit or error ADTs."
       ],
       "provisional": [
         "The alder-application and alder-quickstart artifact and package names.",
         "The concrete state-wrapper names and the spelling of via, withFeatureMap, crossFit, insideFolds, mapOutput, learn, score, select, and run.",
-        "Rows/Fraction smart-constructor syntax and exact names of curated model presets."
+        "Rows/Fraction and scalar-domain smart-constructor syntax and exact names of curated model presets.",
+        "Zero-variance policy, ridge configuration, lifecycle prediction accessor, typed report, and human-rendering names."
       ],
-      "freezeRule": "Provisional spelling becomes public only after positive composition fixtures, compile-negative fixtures, diagnostic snapshots, Scaladoc, and all three platform builds pass. Compile iteration may simplify spelling but may not weaken the fixed semantic contract."
+      "freezeRule": "Provisional spelling becomes public only after semantic facade/core equivalence, positive composition fixtures, compile-negative fixtures, diagnostic snapshots, Scaladoc, all three platform builds, an external consumer fixture, and recorded reader evidence pass. Exact-fragment and line-count checks are only regression signals; compile iteration may simplify spelling but may not weaken the fixed semantic contract or hide a scientific decision."
     },
     "blueprint": {
-      "definition": "A Blueprint state is a final typed wrapper with a stable val whose value has the concrete component type T, FM, or L. Associated members remain available through that stable term — for example state.transform.FitError and complete.learner.Model — rather than through erased Scala 3 type projections or match-type recovery from T, FM, or L. A FoldEncoder remains concrete while crossFit immediately expands it through FeatureMap.crossFitted. No state stores a trait-typed stage list. The wrapper itself performs no fit and consumes no data; it delegates construction to existing combinators.",
+      "definition": "A Blueprint state is an optional advanced construction aid: a final typed wrapper with a stable val whose value has the concrete component type T, FM, or L. Associated members remain available through that stable term — for example state.transform.FitError and complete.learner.Model — rather than through erased Scala 3 type projections or match-type recovery from T, FM, or L. A FoldEncoder remains concrete while crossFit immediately expands it through FeatureMap.crossFitted. No state stores a trait-typed stage list. The wrapper itself performs no fit and consumes no data; it delegates construction to existing combinators. Ordinary target-blind application examples use the direct core learnWith combinator and introduce Blueprint only when staged construction materially improves the program.",
       "states": [
         {
           "state": "Empty",
@@ -488,7 +493,7 @@
       ]
     },
     "experiment": {
-      "definition": "Experiment is a typed state machine over one completed Blueprint, an explicit route R <: ExperimentRoute, an identified non-empty Data[Use.Unsplit, Example[...]], one root Seed, a route-compatible unseeded split specification, a stable exact learner value, a stable exact metric value, and an explicit selection policy where selection occurs. The state notation below omits carried F, X, Y, M, prediction, and metric-result parameters for readability; implementations retain them and use stable-term dependent members rather than erased type projections. Reporting-only Metric values may complete evaluation, but only the retained ObjectiveMetric value may authorize selection. Private constructors and route-constrained methods ensure states arise only from successful legal transitions.",
+      "definition": "Experiment is a typed state machine over one concrete Learner produced by direct composition or an optional completed Blueprint, an explicit route R <: ExperimentRoute, an identified non-empty Data[Use.Unsplit, Example[...]], one root Seed, a route-compatible unseeded split specification, a stable exact learner value, a stable exact metric value, and an explicit selection policy where selection occurs. The state notation below omits carried F, X, Y, M, prediction, and metric-result parameters for readability; implementations retain them and use stable-term dependent members rather than erased type projections. Reporting-only Metric values may complete evaluation, but only the retained ObjectiveMetric value may authorize selection. Private constructors and route-constrained methods ensure states arise only from successful legal transitions.",
       "routesType": [
         "sealed trait ExperimentRoute",
         "sealed trait ValidationCapableRoute extends ExperimentRoute",
@@ -522,7 +527,7 @@
         "Selected.refit consumes the application-owned SelectionReceipt through the narrow Refit extension, producing exactly train+validation Use.Refit data, then invokes the same learner under the selected-refit phase FitContext.",
         "Refitted.test builds EvaluationSources.finalTest from the receipt-authorized Use.Refit data and the untouched Test partition, then calls Evaluation.scored with the retained metric.",
         "Tested.deploymentRefit and PrecommittedTested.deploymentRefit consume only their exact Test EvaluationReceipt through the narrow Refit extension, produce all-observed Use.Refit data, and call the same learner under the deployment-refit phase FitContext.",
-        "Each route-specific complete runner is exactly the corresponding sequence above. It contributes no alternative split, fit, evaluation, selection, promotion, fingerprint, seed, audit, or error semantics."
+        "Each route-specific complete runner is exactly the corresponding sequence above. A runner whose route includes selection requires the selection policy explicitly in source; it never chooses SingleCandidate internally behind a no-argument run. It contributes no alternative split, fit, evaluation, selection, promotion, fingerprint, seed, audit, or error semantics."
       ],
       "scoredEvaluation": {
         "definition": [
@@ -575,7 +580,7 @@
       },
       "executionBoundary": {
         "sync": "The primary 0.1 onboarding methods execute cats.Id components and return Either[ExperimentFailure[experiment.learner.FitError, experiment.learner.RunError], ExactTerminalState] without requiring callers to name Id, EitherT, Monad, or Cats syntax.",
-        "completeMethods": "Distinct route-constrained methods have exact terminal types: validation reporting ends at Validated, validation selection ends at Selected, explicit validation refit ends at Refitted, train-validation-test ends at Tested, and precommitted holdout ends at PrecommittedTested. Deployment refit is a separate operation. There is no single generic runner whose result depends on a runtime optional-refit flag.",
+        "completeMethods": "Distinct route-constrained methods have exact terminal types: validation reporting ends at Validated, validation selection ends at Selected, explicit validation refit ends at Refitted, train-validation-test ends at Tested, and precommitted holdout ends at PrecommittedTested. Any complete method that crosses selection takes the explicit SelectionPolicy or names the selecting operation in source. Deployment refit is a separate operation. There is no single generic runner whose result depends on a runtime optional-refit flag.",
         "effectful": "Core components remain effect-polymorphic. An effectful Experiment interpreter sequences the identical state transitions in F with an explicit lawful capability; it does not hardcode IO, call unsafeRunSync, or introduce a second lifecycle.",
         "scope": "Synchronous execution is required for the first application slice. The general effectful interpreter may follow after the synchronous state machine and equivalence laws are stable."
       }
@@ -584,23 +589,25 @@
       "prelude": "One curated import exposes application constructors, checked split specifications, built-in metrics, standardization, ridge presets, and result accessors. It does not re-export every Alder implementation type.",
       "data": "Supervised.fromPairs or its final spelling constructs Example[X, Y, Unit] without making callers write Unit; explicit fromRows/fromExamples variants preserve metadata and weighted workflows. Every constructor still requires honest source identity.",
       "presets": [
-        "A standardize preset expands to the existing StandardScaler with an explicit zero-variance policy.",
-        "A ridgeLsqr preset expands to validated RidgeConfig, RidgeRegression, and Linop4sRidgeBackend.lsqr. The engine name is visible in the constructor and backend audit.",
+        "Standardization construction expands to the existing StandardScaler with a zero-variance policy supplied in a named grammatical position; an objectless verb is not the frozen policy vocabulary.",
+        "Ridge construction expands to validated RidgeConfig, RidgeRegression, and a concrete Linop4sRidgeBackend.lsqr. Penalty and backend roles are named in source, and the engine remains visible in the backend audit.",
         "There is no unnamed ambient ridge backend. Gale and other engines use separate named presets with their actual configuration and platform support."
       ],
       "validation": "Dynamic invalid values return typed constructor errors. Literal-oriented syntax may reject invalid constants at compile time, but syntax targets never justify throws, casts, or broad implicit conversions.",
       "escapeHatch": "Every preset exposes or documents its exact generic expansion, and users may substitute any compatible Transform, FeatureMap, FoldEncoder, Learner, Metric, or backend value."
     },
     "usabilityContract": {
-      "firstWorkflow": "The executable getting-started guide must construct identified supervised data, declare a ValidationSpec, build standardize plus named LSQR ridge, provide one root seed from which Experiment derives the split seed, fit, predict every validation row, compute a real metric, and stop at a typed Validated result. It must create no unused Test partition and must not silently select or refit the candidate.",
+      "firstWorkflow": "The executable getting-started guide must construct identified supervised data, declare a meaningful multi-row ValidationSpec, compose standardization directly with a named LSQR ridge through learnWith, provide one root seed from which Experiment derives the split seed, use named Experiment arguments, fit, predict every validation row, compute a real metric, and stop at a typed Validated result. It must create no unused Test partition, require no Blueprint, and must not silently select or refit the candidate.",
       "budget": "Target one import and roughly twelve non-data lines for the first successful workflow. This is a regression signal, not a mandate: it cannot override explicit identity, meaningful policy, sound ownership, or useful diagnostics.",
       "hiddenProof": ["cats.Id", "Unit metadata", "intermediate preparation brands", "concrete composition classes", "EitherT and Cats syntax", "manual widening of exact unions"],
       "visibleDecisions": ["data identity", "split size or fraction", "root seed", "plan identity", "zero-variance policy or named preset", "backend-bearing model preset", "metric choice", "explicit selection policy when validation authorizes refit"],
       "diagnostics": "Compile-negative fixtures cover illegal post-target fitting, a second target-aware boundary, fit on Evaluation data, scoring before fit, selected-route test before selected refit, a test method on ValidationRoute, selection with a reporting-only Metric, and missing metadata capabilities. Runtime-negative tests cover same-role receipt substitution and one-shot receipt reuse, including concurrent attempts, because Scala does not provide affine values. The first diagnostic or typed runtime error names the role, stage, receipt, field, or missing capability in application language.",
       "verification": [
-        "Facade and direct-core programs are observationally equal.",
+        "Facade and direct-core programs are observationally equal in outputs, exact failures, stage paths, audits, derived seeds, lineage, row identities, and receipt behavior; comparing only runtime classes is insufficient.",
         "First failure stage and lifecycle phase are both preserved.",
         "All convenience values remain nameable, passable, conditionally extensible, reusable, and repeatedly executable.",
+        "Lifecycle result prediction delegates to the exact retained Trained value without requiring model.artifact navigation.",
+        "The canonical source contract checks decisions and forbidden proof vocabulary rather than requiring exact provisional constructor fragments.",
         "JVM, Scala.js, and Scala Native tests, mdoc, Scaladoc snippets, compatibility checks, and the rendered site pass on Scala 3.7.4."
       ]
     }
@@ -880,6 +887,7 @@
     { "id": "D26", "decision": "Experiment is a private-constructor typed state machine whose shared states retain route, stable learner, and exact metric capability through partition, candidate fit, validation score, selection, receipt-gated refit, final test, and optional deployment refit. Each transition has one canonical expansion into existing core operations. ExperimentFailure adds lifecycle phase while retaining exact stable-term learner errors and Failure stage attribution.", "rationale": "A short runner is honest only if it performs the same core split, fit, evaluation, selection, and promotion operations. Retaining route and metric evidence prevents a validation-only state from acquiring a test method or a reporting metric from acquiring selection authority. Phase context and component context answer different questions and neither should erase the other." },
     { "id": "D27", "decision": "PlanFingerprint becomes policy-tagged; Experiment requires explicit plan and data identity, stores an unseeded route-specific SplitSpec, derives the sole split and later phase seeds by stable domain separation, and never chooses a backend. Named presets construct and audit a specific backend.", "rationale": "A display string, class name, hashCode, or ambient given cannot support reproducibility claims. A root seed plus an independently supplied split seed would create competing authorities. Phase separation prevents unrelated protocol changes from perturbing fitting randomness, while explicit backend-bearing presets keep convenience auditable." },
     { "id": "D28", "decision": "Metrics used for selection are stable ObjectiveMetric values that own their MetricDescriptor, objective direction, and canonical score audit encoding. Every Metric accumulator obeys unconditional CommutativeMonoid, partition, and permutation laws; order-sensitive fast accumulation requires a different future SPI. Tuning erases model capabilities only: TrialFailure retains its typed evaluation cause instead of a description String.", "rationale": "Selection receipts must say what was optimized and what failed without allowing a local encoder to change their meaning. A mode flag cannot retract a typeclass law. Model-type erasure is required for iteration; error erasure is not and would contradict Alder's explicit failure algebra." },
-    { "id": "D29", "decision": "Ship the application contract in two optional pure cross-platform layers: a generic Blueprint/Experiment module and a curated quickstart module. Semantic names and laws are ratified; exact artifact, package, state-class, method, and smart-constructor spelling remains provisional until compile and diagnostic fixtures pass.", "rationale": "Separating generic lifecycle machinery from batteries avoids forcing ridge or preprocessing dependencies on every application. Delaying spelling freeze permits inference-driven refinement without reopening the safety contract." }
+    { "id": "D29", "decision": "Ship the application contract in two optional pure cross-platform layers: a generic Blueprint/Experiment module and a curated quickstart module. Semantic names and laws are ratified; exact artifact, package, state-class, method, and smart-constructor spelling remains provisional until compile and diagnostic fixtures pass.", "rationale": "Separating generic lifecycle machinery from batteries avoids forcing ridge or preprocessing dependencies on every application. Delaying spelling freeze permits inference-driven refinement without reopening the safety contract." },
+    { "id": "D30", "decision": "Reopen the pre-0.1 application spelling after implementation review while preserving D3, D4, D20, and D24-D29 semantics. Direct learnWith composition is the canonical ordinary path; Blueprint is optional advanced scaffolding. Lifecycle results delegate prediction to their exact retained Trained value, every route exposes selection explicitly, FeatureSchema remains the sole validated coordinate-layout authority, and structured reports/renderers are projections rather than replacement evidence models. Provisional spelling freezes only after semantic equivalence, diagnostic, external-consumer, cross-platform, and reader evidence.", "rationale": "The implemented first workflow is short but still asks readers to translate implementation-oriented identifiers and wrapper structure before understanding the experiment. Refining grammatical positions and result navigation removes proof transport without hiding numerical policy, backend choice, identity, randomness, selection authority, exact errors, or audit evidence." }
   ]
 }

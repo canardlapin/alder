@@ -5,8 +5,7 @@ import alder.data.{
   Coordinates,
   Dense,
   FeatureSchema,
-  FeatureView,
-  SchemaError
+  FeatureView
 }
 import alder.kernel.*
 import cats.{Applicative, Id}
@@ -21,14 +20,14 @@ object Standardized:
   /** Feature schema for standardized dense coordinates of `A`. */
   def schema[A](using
       view: FeatureView[A]
-  ): Either[SchemaError, FeatureSchema[Standardized[A]]] =
-    FeatureSchema.named[Standardized[A]](view.names)
+  ): FeatureSchema[Standardized[A]] =
+    FeatureSchema.rebrand[Standardized[A]](view.featureSchema)
 
   /** Coordinates for `Dense[Standardized[A]]` derived from `FeatureView[A]`. */
   def coordinates[A](using
       view: FeatureView[A]
-  ): Either[SchemaError, Coordinates[Dense[Standardized[A]]]] =
-    schema[A].map(Dense.coordinates)
+  ): Coordinates[Dense[Standardized[A]]] =
+    Dense.coordinates(schema[A])
 
 /** Phantom brand for dense coordinates produced by scale-only preprocessing. */
 sealed trait Scaled[A]
@@ -36,24 +35,23 @@ sealed trait Scaled[A]
 object Scaled:
   def schema[A](using
       view: FeatureView[A]
-  ): Either[SchemaError, FeatureSchema[Scaled[A]]] =
-    FeatureSchema.named[Scaled[A]](view.names)
+  ): FeatureSchema[Scaled[A]] =
+    FeatureSchema.rebrand[Scaled[A]](view.featureSchema)
 
   def coordinates[A](using
       view: FeatureView[A]
-  ): Either[SchemaError, Coordinates[Dense[Scaled[A]]]] =
-    schema[A].map(Dense.coordinates)
+  ): Coordinates[Dense[Scaled[A]]] =
+    Dense.coordinates(schema[A])
 
 enum ZeroVariance derives CanEqual:
   case Reject
-  case EmitZero
+  case AsZero
 
 enum ScaleFitError derives CanEqual:
   case CoordinateFailure(row: RowId, cause: CoordinateError)
   case NonFinite(row: RowId, coordinate: String, value: Double)
   case NonFiniteMoment(coordinate: String)
   case ConstantCoordinate(coordinate: String)
-  case Schema(cause: SchemaError)
 
 enum ScaleRunError derives CanEqual:
   case CoordinateFailure(cause: CoordinateError)
@@ -107,12 +105,8 @@ object StandardScaler:
     */
   def sync[A](
       zeroVariance: ZeroVariance
-  )(using view: FeatureView[A]): Either[ScaleFitError, StandardScaler[Id, A]] =
-    Standardized
-      .schema[A]
-      .left
-      .map(ScaleFitError.Schema.apply)
-      .map(schema => new StandardScaler[Id, A](zeroVariance, schema))
+  )(using view: FeatureView[A]): StandardScaler[Id, A] =
+    new StandardScaler[Id, A](zeroVariance, Standardized.schema[A])
 
 /** Stable population-moment scaling without centering.
   *
@@ -159,12 +153,8 @@ object ScaleOnlyScaler:
   /** Creates a synchronous scale-only scaler. */
   def sync[A](
       zeroVariance: ZeroVariance
-  )(using view: FeatureView[A]): Either[ScaleFitError, ScaleOnlyScaler[Id, A]] =
-    Scaled
-      .schema[A]
-      .left
-      .map(ScaleFitError.Schema.apply)
-      .map(schema => new ScaleOnlyScaler[Id, A](zeroVariance, schema))
+  )(using view: FeatureView[A]): ScaleOnlyScaler[Id, A] =
+    new ScaleOnlyScaler[Id, A](zeroVariance, Scaled.schema[A])
 
 /** Immutable fitted centered standardizer. */
 final class Standardizer[A] private[alder] (
@@ -271,7 +261,7 @@ private final class Moments(
         policy match
           case ZeroVariance.Reject =>
             error = Some(ScaleFitError.ConstantCoordinate(names(index)))
-          case ZeroVariance.EmitZero =>
+          case ZeroVariance.AsZero =>
             inverse(index) = 0.0
       else
         val value = 1.0 / math.sqrt(variance)
@@ -399,5 +389,5 @@ private object ScalerComponents:
 
   private def policyName(policy: ZeroVariance): String =
     policy match
-      case ZeroVariance.Reject   => "reject"
-      case ZeroVariance.EmitZero => "emit-zero"
+      case ZeroVariance.Reject => "reject"
+      case ZeroVariance.AsZero => "as-zero"

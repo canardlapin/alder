@@ -59,14 +59,16 @@ trait CoordinateWriter:
   * prediction. Learners ordinarily need only this capability.
   */
 trait FeatureView[-A]:
+  /** Validated coordinate names, size, and fingerprint for this exact
+    * numerical representation.
+    */
+  def featureSchema: FeatureSchema[?]
+
   /** Coordinate names in the same order used by every read and write. */
-  def names: IArray[String]
+  final def names: IArray[String] = featureSchema.names
 
   /** Number of coordinates in this representation. */
-  def size: Int
-
-  /** Runtime schema fingerprint of the selected numerical feature view. */
-  def featureSchema: FeatureSchema[?]
+  final def size: Int = featureSchema.size
 
   /** Reads all coordinates into an immutable, ordered array. */
   def read(value: A): Either[CoordinateError, IArray[Double]]
@@ -108,8 +110,6 @@ trait Coordinates[A] extends FeatureView[A], CoordinateBuilder[A]:
   final def imap[B](to: A => B)(from: B => A): Coordinates[B] =
     val underlying = this
     new Coordinates[B]:
-      def names: IArray[String] = underlying.names
-      def size: Int = underlying.size
       def featureSchema: FeatureSchema[?] = underlying.featureSchema
       def read(value: B): Either[CoordinateError, IArray[Double]] =
         underlying.read(from(value))
@@ -171,8 +171,6 @@ object Coordinates:
           s"derived coordinate schema rejected: $error"
         )
     new Coordinates[A]:
-      val names: IArray[String] = coordinateNames
-      val size: Int = coordinateNames.length
       val featureSchema: FeatureSchema[?] = schema
 
       def read(value: A): Either[CoordinateError, IArray[Double]] =

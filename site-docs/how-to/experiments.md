@@ -34,7 +34,9 @@ score but cannot produce selection evidence.
 `Experiment.trainValidationTest` scores candidates on Validation, requires the
 route's selection transition, and evaluates exactly once on Test. Only the
 tested result exposes `deploymentRefit`; a merely validated candidate cannot
-fit the test partition.
+fit the test partition. Its complete shortcut keeps that authorization in
+source as `run(selection = SingleCandidate)`; the stepwise route uses
+`validated.select(SingleCandidate).refit.test`.
 
 ## Precommitted evaluation has no selection phase
 

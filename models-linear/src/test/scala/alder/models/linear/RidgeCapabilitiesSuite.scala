@@ -178,19 +178,20 @@ class RidgeCapabilitiesSuite extends FunSuite:
 
   test("Coefficients and Explain evidence are required at compile time") {
     val errors = typeCheckErrors(
-      """package consumer
-import alder.kernel.*
+      """import alder.kernel.*
 def illegal(trained: Trained[String]) =
   Coefficients[String].coefficients(trained)
 """
     )
-    assert(errors.nonEmpty)
+    assert(
+      errors.exists(_.message.contains("Coefficients")),
+      clues(errors.map(_.message))
+    )
   }
 
   test("algorithm capabilities are not lifted to a composed workflow") {
     val errors = typeCheckErrors(
-      """package consumer
-import alder.kernel.*
+      """import alder.kernel.*
 import alder.models.linear.*
 final case class Raw(x: Double)
 final case class Feature(x: Double)
@@ -202,5 +203,11 @@ def illegal(trained: Trained[WorkflowModel]) =
   Coefficients[WorkflowModel].coefficients(trained)
 """
     )
-    assert(errors.nonEmpty)
+    assert(
+      errors.exists(error =>
+        error.message.contains("Coefficients") &&
+          error.message.contains("WorkflowModel")
+      ),
+      clues(errors.map(_.message))
+    )
   }

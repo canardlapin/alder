@@ -44,6 +44,12 @@ class ExperimentRoutesSuite extends munit.FunSuite:
       DataFingerprint.external(identity)
     )
 
+  private def predictionInputs(identity: String): Data[Use.Unsplit, Double] =
+    InMemoryData.unsplit(
+      Vector(3.0, 1.0, 2.0),
+      DataFingerprint.external(identity)
+    )
+
   private def rows(value: Long): Rows =
     Rows(value) match
       case Right(result) => result
@@ -66,6 +72,12 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         case Right(value) => value
 
     assertEquals(validated.predictions.size, 2L)
+    assertEquals(validated.predict(3.0), validated.model.predict(3.0))
+    val inputs = predictionInputs("validation-prediction-inputs")
+    val inputIds =
+      inputs.foldRows(Vector.empty[RowId])((ids, id, _) => ids :+ id)
+    assertEquals(validated.predictAll(inputs), validated.model.predictAll(inputs))
+    assertEquals(validated.predictAll(inputs).map(_.map(_._1)), Right(inputIds))
     val refitted =
       validated
         .select(SingleCandidate)
@@ -73,7 +85,8 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         case Left(error)  => fail(s"unexpected refit failure: $error")
         case Right(value) => value
     assertEquals(refitted.audit.plan.render, validated.audit.plan.render)
-    assert(refitted.model.artifact.run(3.0).contains(3.0))
+    assertEquals(refitted.predict(3.0), refitted.model.predict(3.0))
+    assert(refitted.predict(3.0).contains(3.0))
   }
 
   test("train-validation-test run then deploymentRefit") {
@@ -94,18 +107,20 @@ class ExperimentRoutesSuite extends munit.FunSuite:
           learner,
           RegressionMetrics.rmse[Unit]
         )
-        .run match
+        .run(selection = SingleCandidate) match
         case Left(error)  => fail(s"unexpected TVT failure: $error")
         case Right(value) => value
 
     assertEquals(tested.evaluation.scored.size, 2L)
     assert(tested.score.value.isFinite)
+    assertEquals(tested.predict(4.0), tested.model.predict(4.0))
     val deployed =
       tested.deploymentRefit match
         case Left(error)  => fail(s"unexpected deployment refit: $error")
         case Right(value) => value
     assert(deployed.prior.score.value.isFinite)
     assertEquals(deployed.learner, learner)
+    assertEquals(deployed.predict(4.0), deployed.model.predict(4.0))
   }
 
   test("precommitted run scores without selection") {
@@ -125,6 +140,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         case Right(value) => value
     assertEquals(tested.evaluation.scored.size, 2L)
     assert(tested.score.value.isFinite)
+    assertEquals(tested.predict(5.0), tested.model.predict(5.0))
   }
 
   private final class FailingLearner
@@ -138,6 +154,47 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     )(using fitContext: FitContext): FitResult[Id, FitError, Trained[Model]] =
       val _ = data
       EitherT.leftT(fitContext.stagePath.failure("forced-candidate-fit-failure"))
+
+  private final class ConditionalPredictionLearner
+      extends Learner[Id, Double, Double, Unit, Double]:
+    type FitError = Nothing
+    type RunError = String
+    type Model = Pipe[Double, String, Double]
+
+    def fit[U <: Use.Fit](
+        data: NonEmptyData[U, Observation]
+    )(using fitContext: FitContext): FitResult[Id, FitError, Trained[Model]] =
+      val model = new Pipe[Double, String, Double]:
+        def run(value: Double): Either[Failure[String], Double] =
+          if value < 0.0 then
+            Left(fitContext.stagePath.failure("negative-input"))
+          else Right(value)
+      EitherT.right(fitContext.complete(model, data, component))
+
+  test("Validated.predict preserves the exact trained failure") {
+    val validated =
+      Experiment
+        .validation(
+          source(8, "prediction-failure"),
+          ValidationSpec(rows(2L)),
+          Seed(31L),
+          "prediction-failure-v1",
+          new ConditionalPredictionLearner,
+          RegressionMetrics.rmse[Unit]
+        )
+        .run match
+        case Left(error)  => fail(s"unexpected validation failure: $error")
+        case Right(value) => value
+
+    val throughResult = validated.predict(-1.0)
+    val throughModel = validated.model.predict(-1.0)
+    assertEquals(throughResult, throughModel)
+    throughResult match
+      case Left(failure) =>
+        assertEquals(failure.cause, "negative-input")
+        assertEquals(failure.stage, validated.audit.preparation.stage)
+      case Right(value) => fail(s"expected prediction failure, got $value")
+  }
 
   test("empty source is a definition failure") {
     val empty = InMemoryData.unsplit(
@@ -154,8 +211,15 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         RegressionMetrics.rmse[Unit]
       )
       .run match
-      case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
-        ()
+      case Left(
+            error @ ExperimentFailure.Definition(
+              ExperimentDefinitionError.EmptySource
+            )
+          ) =>
+        assertEquals(
+          error.render,
+          "experiment definition failed: source data is empty"
+        )
       case other =>
         fail(s"expected EmptySource, got $other")
   }
@@ -171,7 +235,9 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         RegressionMetrics.rmse[Unit]
       )
       .run match
-      case Left(ExperimentFailure.Split(SplitPhase.Partition, _)) => ()
+      case Left(error @ ExperimentFailure.Split(SplitPhase.Partition, _)) =>
+        assert(error.render.contains("split phase Partition"))
+        assert(error.render.contains("left no training rows"))
       case other =>
         fail(s"expected Split failure, got $other")
   }
@@ -244,7 +310,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         refitted <- validated.select(SingleCandidate).refit
         tested <- refitted.test
       yield tested
-    val direct = defined.run
+    val direct = defined.run(selection = SingleCandidate)
     (stepwise, direct) match
       case (Right(left), Right(right)) =>
         assertEquals(left.evaluation.scored.size, right.evaluation.scored.size)
@@ -273,7 +339,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         blueprint,
         RegressionMetrics.rmse[Unit]
       )
-      .run match
+      .run(selection = SingleCandidate) match
       case Left(error) => fail(s"unexpected TVT blueprint failure: $error")
       case Right(tested) =>
         assertEquals(tested.evaluation.scored.size, 2L)
@@ -314,7 +380,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         learner,
         RegressionMetrics.rmse[Unit]
       )
-      .run match
+      .run(selection = SingleCandidate) match
       case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
         ()
       case other =>
@@ -353,13 +419,43 @@ class ExperimentRoutesSuite extends munit.FunSuite:
       case Left(error) => fail(s"unexpected deployment refit: $error")
       case Right(deployed) =>
         assert(deployed.prior.score.value.isFinite)
-        assert(deployed.trained.artifact.run(1.0).contains(1.0))
+        assert(deployed.predict(1.0).contains(1.0))
+  }
+
+  test("trainValidationTest run requires an explicit selection argument") {
+    val errors = typeCheckErrors(
+      """import alder.application.*
+import alder.kernel.*
+import alder.metrics.*
+import cats.Id
+def illegal[
+  L <: Learner[Id, Double, Double, Unit, Double],
+  Mt <: ObjectiveMetric[
+    Scored[Double, Double, Unit],
+    RootMeanSquaredError
+  ]
+](
+  defined: Experiment.TVTDefined[
+    Double,
+    Double,
+    Unit,
+    Double,
+    L,
+    Mt,
+    RootMeanSquaredError
+  ]
+) = defined.run()
+"""
+    )
+    assert(
+      errors.exists(_.message.contains("selection")),
+      clues(errors.map(_.message))
+    )
   }
 
   test("Experiment Validated.select rejects reporting-only metrics at compile time") {
     val errors = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.kernel.*
 import alder.metrics.*
 import cats.Id
@@ -381,13 +477,15 @@ def illegal[
   validated.select(SingleCandidate)
 """
     )
-    assert(errors.nonEmpty)
+    assert(
+      errors.exists(_.message.contains("ObjectiveMetric")),
+      clues(errors.map(_.message))
+    )
   }
 
   test("ValidationRoute has no test method") {
     val errors = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.kernel.*
 import alder.metrics.*
 import cats.Id
@@ -408,5 +506,11 @@ def illegal[
   validated.test
 """
     )
-    assert(errors.nonEmpty)
+    assert(
+      errors.exists(error =>
+        error.message.contains("test") &&
+          error.message.contains("Validated")
+      ),
+      clues(errors.map(_.message))
+    )
   }

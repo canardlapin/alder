@@ -57,18 +57,15 @@ val prepared =
     .left
     .map(_.toString)
     .flatMap(partitions =>
-      StandardScaler.sync[Features](ZeroVariance.Reject) match
-        case Left(error) => Left(error.toString)
-        case Right(scaler) =>
-          Fit
-            .transform(
-              scaler,
-              partitions.train,
-              seed = Seed(101L),
-              plan = "standardize-features-v1"
-            )
-            .left
-            .map(_.toString)
+      Fit
+        .transform(
+          StandardScaler.sync[Features](ZeroVariance.Reject),
+          partitions.train,
+          seed = Seed(101L),
+          plan = "standardize-features-v1"
+        )
+        .left
+        .map(_.toString)
     )
 ```
 

@@ -43,21 +43,17 @@ class StandardScalerSuite extends munit.FunSuite:
   private def scaler(
       policy: ZeroVariance
   ): StandardScaler[Id, Point] =
-    StandardScaler.sync[Point](policy) match
-      case Left(error)  => fail(s"unexpected scaler construction: $error")
-      case Right(value) => value
+    StandardScaler.sync[Point](policy)
 
   private def scaleOnly(
       policy: ZeroVariance
   ): ScaleOnlyScaler[Id, Point] =
-    ScaleOnlyScaler.sync[Point](policy) match
-      case Left(error)  => fail(s"unexpected scaler construction: $error")
-      case Right(value) => value
+    ScaleOnlyScaler.sync[Point](policy)
 
   test("centered scaler has zero mean and population variance one") {
     val original =
       data(Vector(Point(1.0, 4.0), Point(2.0, 4.0), Point(3.0, 4.0)))
-    val prepared = scaler(ZeroVariance.EmitZero).fit(original)(using context).value match
+    val prepared = scaler(ZeroVariance.AsZero).fit(original)(using context).value match
       case Left(error) => fail(s"unexpected fit error: $error")
       case Right(value) => value
     val rows = TestData.rowsOf(prepared.rows).map { (id, value) =>
@@ -107,7 +103,7 @@ class StandardScalerSuite extends munit.FunSuite:
   test("nonfinite fitting and serving inputs fail explicitly") {
     val invalid =
       data(Vector(Point(1.0, 2.0), Point(Double.NaN, 3.0)))
-    scaler(ZeroVariance.EmitZero).fit(invalid)(using context).value match
+    scaler(ZeroVariance.AsZero).fit(invalid)(using context).value match
       case Left(
             Failure(
               _,
@@ -120,7 +116,7 @@ class StandardScalerSuite extends munit.FunSuite:
       case other => fail(s"expected nonfinite fit failure, got $other")
 
     val valid = data(Vector(Point(1.0, 2.0), Point(3.0, 4.0)))
-    val fitted = scaler(ZeroVariance.EmitZero).fit(valid)(using context).value match
+    val fitted = scaler(ZeroVariance.AsZero).fit(valid)(using context).value match
       case Left(error) => fail(s"unexpected fit error: $error")
       case Right(value) => value.fitted.artifact
     fitted.run(Point(Double.PositiveInfinity, 3.0)) match
@@ -170,9 +166,7 @@ class StandardScalerSuite extends munit.FunSuite:
         case Some(value) => value
         case None        => fail("test data must be nonempty")
     val houseScaler =
-      StandardScaler.sync[MixedHouse](ZeroVariance.EmitZero) match
-        case Left(error)  => fail(s"unexpected scaler construction: $error")
-        case Right(value) => value
+      StandardScaler.sync[MixedHouse](ZeroVariance.AsZero)
     val prepared =
       houseScaler.fit(houses)(using context).value match
         case Left(error)  => fail(s"unexpected mixed-house fit error: $error")
@@ -197,7 +191,7 @@ import cats.Id
 import alder.data.Coordinates
 final case class P(x: Double) derives Coordinates
 val illegal = new ScaleOnlyScaler[Id, P](
-  ZeroVariance.EmitZero,
+  ZeroVariance.AsZero,
   true
 )
 """

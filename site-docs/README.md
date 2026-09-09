@@ -19,9 +19,8 @@ fit, predict, and score.
 ## Start here
 
 [Learn Alder through one workflow](learn/workflow.md) standardizes numeric
-inputs, fits a ridge model, predicts and scores validation, selects explicitly,
-refits on authorized data, predicts from the original input type, and inspects
-the audit.
+inputs, fits a ridge model, inspects held-out predictions and a typed report,
+predicts from the original input type, then selects and refits deliberately.
 
 After that, choose a task in [How-to](how-to/README.md), read
 [Understand](understand/README.md) for the reason behind the type boundaries,

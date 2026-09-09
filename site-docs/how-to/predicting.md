@@ -1,14 +1,23 @@
 # Predict and inspect a fitted model
 
-A fitted `Trained[A]` always carries its audit. Ordinary prediction uses the
-fitted pipe. Algorithm-specific inspection uses capability evidence such as
-`Coefficients` or `Explain`. Missing evidence is a compile error, not a runtime
-"unsupported" branch.
+A lifecycle result from the [first workflow](../learn/workflow.md) predicts
+directly from the application input:
 
-## Fit a terminal ridge model
+```scala
+validated.map(_.predict(House(100.0, 3, 12.0)))
+```
 
-`Ridge.lsqr` targets dense standardized features. For direct inspection of a
-ridge model on an application type, construct `RidgeRegression` on that type:
+It delegates to the exact retained `Trained[A]`, which always carries its
+audit. The rest of this page is the advanced path for algorithm-specific
+inspection with capability evidence such as `Coefficients` or `Explain`.
+Missing evidence is a compile error, not a runtime "unsupported" branch.
+
+## Fit a terminal ridge model for advanced inspection
+
+`Ridge.lsqr` targets dense standardized features. When coefficient inspection
+requires the exact terminal model on an application type, construct
+`RidgeRegression` explicitly. This is where the guide intentionally introduces
+the backend and synchronous effect type:
 
 ```scala mdoc:silent
 import alder.data.{Fit, Holdout, InMemoryData}

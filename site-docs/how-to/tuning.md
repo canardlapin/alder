@@ -57,6 +57,12 @@ first == second
 selects with the same first-best-tie policy as `Study`. Reconstruct the concrete
 learner with `family(result.best)`.
 
+`Search` is currently the advanced tuning engine, not a quickstart façade.
+Alder will not add a smaller application wrapper until that wrapper can retain
+the exact fold fit and prediction error types rather than erasing them. The
+example below therefore keeps every scientific input visible and runs only on
+the Train partition.
+
 ```scala mdoc
 import alder.data.{Holdout, KFold}
 import alder.kernel.PlanFingerprint
