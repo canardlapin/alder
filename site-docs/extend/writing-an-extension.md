@@ -4,6 +4,9 @@ This guide is for authors implementing a transform, target-aware encoder, or
 learner. The root `AGENTS.md` file contains the full repository checklist; this
 page explains the public extension contract.
 
+For a complete `FoldEncoder` and cross-fitting example, continue with
+[Implement a target-aware encoder safely](target-aware.md).
+
 ## Choose the component
 
 - Implement `Transform` when fitting observes inputs only.

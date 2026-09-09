@@ -50,7 +50,7 @@ intentionally not complete.
 **Cause:** the training partition has zero population variance for that
 coordinate.
 
-**Action:** choose `ZeroVariance.EmitZero` when a zero standardized coordinate
+**Action:** choose `ZeroVariance.AsZero` when a zero standardized coordinate
 is meaningful, or remove the coordinate. Do not silently divide by zero.
 
 ## A backend rejects the numerical mode

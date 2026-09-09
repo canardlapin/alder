@@ -156,7 +156,12 @@ lazy val lawsNative = laws.native
 lazy val consumerFixture = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("consumer-fixture"))
-  .dependsOn(kernel, laws % Test, testkit % "test->compile")
+  .dependsOn(
+    kernel,
+    quickstart % "test->compile",
+    laws % Test,
+    testkit % "test->compile"
+  )
   .settings(strictSettings)
   .settings(
     name           := "alder-consumer-fixture",
@@ -404,6 +409,7 @@ lazy val quickstart = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     modelsLinear,
     ridgeLinop4s,
     tune,
+    laws % "test->compile",
     testkit % "test->compile"
   )
   .settings(strictSettings)

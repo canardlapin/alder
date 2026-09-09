@@ -95,6 +95,16 @@ class DenseSuite extends munit.FunSuite:
       case policy => fail(s"expected content digest policy, got $policy")
   }
 
+  test("schema rebranding preserves validated layout and fingerprint") {
+    val raw = schema[RawFeatures]("x", "y")
+    val standardized =
+      FeatureSchema.rebrand[StandardizedFeatures](raw)
+
+    assertEquals(standardized.names.toVector, Vector("x", "y"))
+    assertEquals(standardized.size, 2)
+    assertEquals(standardized.fingerprint, raw.fingerprint)
+  }
+
   test("semantic feature brands cannot be mixed") {
     val errors = typeCheckErrors(
       """import alder.data.*

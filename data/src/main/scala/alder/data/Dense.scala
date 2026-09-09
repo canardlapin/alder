@@ -65,6 +65,14 @@ object FeatureSchema:
             )
           )
 
+  /** Changes only the compile-time feature-space brand of an already
+    * validated schema. Names, size, and fingerprint remain identical.
+    */
+  private[alder] def rebrand[S](
+      schema: FeatureSchema[?]
+  ): FeatureSchema[S] =
+    new FeatureSchema[S](schema.coordinateNames, schema.fingerprint)
+
   private def copyStrings(values: IArray[String]): IArray[String] =
     IArray.tabulate(values.length)(values)
 
@@ -100,8 +108,6 @@ object Dense:
   /** Schema-bound coordinates for a dense feature space. */
   def coordinates[S](schema: FeatureSchema[S]): Coordinates[Dense[S]] =
     new Coordinates[Dense[S]]:
-      val names: IArray[String] = schema.names
-      val size: Int = schema.size
       val featureSchema: FeatureSchema[?] = schema
 
       def read(

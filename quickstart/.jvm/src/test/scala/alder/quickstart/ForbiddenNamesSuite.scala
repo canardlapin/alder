@@ -21,7 +21,13 @@ class ForbiddenNamesSuite extends FunSuite:
         "Prepared",
         "EitherT",
         "Linop4sRidgeBackend",
-        ".toString"
+        "Blueprint",
+        ".artifact",
+        ".toString",
+        ".select(",
+        ".refit",
+        ".test",
+        ".deploymentRefit"
       )
     forbidden.foreach { name =>
       assert(!firstWorkflow.contains(name), s"forbidden name present: $name")
@@ -41,20 +47,23 @@ class ForbiddenNamesSuite extends FunSuite:
     val nonDataLines = source.linesIterator
       .map(_.trim)
       .count(line => line.nonEmpty && !line.startsWith("//"))
-    val visibleTypeArguments = "\\[[^]]+\\]".r.findAllIn(source).length
-    val requiredConcepts = List(
-      "Standardize.emitZero",
-      "Ridge.lsqr",
-      "Validation.rows",
-      "Blueprint.supervised",
-      "Experiment.validation",
-      "Metrics.rmse"
+    val namedDecisions = List(
+      "zeroVariance =",
+      "penalty =",
+      "numerator =",
+      "denominator =",
+      "data =",
+      "specification =",
+      "seed =",
+      "plan =",
+      "learner =",
+      "metric ="
     )
 
-    assert(nonDataLines <= 12, s"workflow has $nonDataLines non-data lines")
-    assertEquals(visibleTypeArguments, 3)
-    requiredConcepts.foreach { concept =>
-      assert(source.contains(concept), s"missing protocol concept: $concept")
+    assert(nonDataLines <= 20, s"workflow has $nonDataLines non-data lines")
+    assert(source.contains(".learnWith("), "direct composition is not visible")
+    namedDecisions.foreach { decision =>
+      assert(source.contains(decision), s"unnamed workflow decision: $decision")
     }
   }
 

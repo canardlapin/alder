@@ -1,4 +1,10 @@
-# Use target-aware features without leakage
+# Implement a target-aware encoder safely
+
+This is an extension-author tutorial. Alder does not yet ship a concrete
+target-aware encoder for an ordinary application workflow, so the example
+implements one and necessarily uses `FoldEncoder`, `FitContext`, component
+descriptors, and an explicit effect type. Application documentation should not
+copy this machinery merely to encode a categorical feature.
 
 A fitted feature that reads targets cannot prepare a training row from a state
 that saw that row's target. In Alder, implement a `FoldEncoder`, provide a
@@ -77,17 +83,17 @@ final class FirstCoordinateLearner[S]
     )
     EitherT.rightT(context.complete(model, data, descriptor))
 
+val targetAwareScaler =
+  StandardScaler.sync[EncodedMean](ZeroVariance.AsZero)
+
 val targetAwareWorkflow =
   for
-    scaler <- StandardScaler
-      .sync[EncodedMean](ZeroVariance.EmitZero)
-      .left.map(_.toString)
     folds <- KFold[Example[String, Double, Unit]](3, shuffle = false)
       .left.map(_.toString)
   yield
     Blueprint
       .supervised[String, Double]
-      .crossFit(new MeanTargetEncoder().andThen(scaler), folds)
+      .crossFit(new MeanTargetEncoder().andThen(targetAwareScaler), folds)
       .learn(new FirstCoordinateLearner[Standardized[EncodedMean]])
 
 targetAwareWorkflow.isRight

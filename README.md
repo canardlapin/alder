@@ -19,11 +19,18 @@ final case class House(area: Double, bedrooms: Int, age: Double)
 
 val data = Supervised.fromPairs(
   Vector(
+    House(52.0, 1, 55.0) -> 185.0,
     House(60.0, 1, 40.0) -> 210.0,
+    House(68.0, 2, 35.0) -> 238.0,
     House(75.0, 2, 25.0) -> 265.0,
+    House(82.0, 2, 22.0) -> 288.0,
     House(90.0, 2, 15.0) -> 315.0,
+    House(98.0, 3, 18.0) -> 342.0,
+    House(105.0, 3, 12.0) -> 370.0,
     House(110.0, 3, 10.0) -> 390.0,
-    House(130.0, 4, 5.0) -> 470.0
+    House(120.0, 4, 8.0) -> 430.0,
+    House(130.0, 4, 5.0) -> 470.0,
+    House(145.0, 4, 3.0) -> 525.0
   ),
   "house-prices-v1"
 )
@@ -31,14 +38,21 @@ val data = Supervised.fromPairs(
 
 ```scala
 // alder-first-workflow:start
+val candidate =
+  Standardize[House](zeroVariance = ZeroVariance.AsZero).learnWith(
+    Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
+  )
+
 val validated =
   for
-    scaler <- Standardize.emitZero[House]
-    ridge <- Ridge.lsqr[House](0.1)
-    split <- Validation.rows(1L)
-    workflow = Blueprint.supervised[House, Double].via(scaler).learn(ridge)
+    split <- Validation.fraction(numerator = 1L, denominator = 4L)
     result <- Experiment.validation(
-      data, split, Seed(42L), "house-price-ridge-v1", workflow, Metrics.rmse
+      data = data,
+      specification = split,
+      seed = Seed(42L),
+      plan = "house-price-ridge-v1",
+      learner = candidate,
+      metric = Metrics.rmse
     ).run
   yield result
 // alder-first-workflow:end
@@ -46,8 +60,14 @@ val validated =
 
 The marked body is checked for exact identity with the
 [mdoc-compiled walkthrough](site-docs/learn/workflow.md). That chapter
-continues with explicit selection, authorized refit, prediction, and audit
-inspection.
+continues by inspecting held-out predictions and the typed report, predicting
+through the validated workflow, then selecting and refitting deliberately.
+
+Successful lifecycle results predict without exposing wrapper internals:
+
+```scala
+validated.map(_.predict(House(100.0, 3, 12.0)))
+```
 
 ## Choose your path
 

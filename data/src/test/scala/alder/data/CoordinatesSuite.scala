@@ -150,6 +150,27 @@ val coordinates = Coordinates.derived[Nonnumeric]
     assert(stringErrors.nonEmpty)
   }
 
+  test("FeatureView derives names and size from its validated schema") {
+    val errors = typeCheckErrors(
+      """import alder.data.*
+val schema = FeatureSchema.named[Double](IArray("x")).toOption.get
+val invalid = new FeatureView[Double]:
+  def featureSchema: FeatureSchema[?] = schema
+  override def names: IArray[String] = IArray("different")
+  override def size: Int = 99
+  def read(value: Double) = Right(IArray(value))
+  def writeTo(value: Double, destination: CoordinateWriter) = Right(())
+"""
+    )
+    assert(errors.nonEmpty)
+    assert(
+      errors.exists(error =>
+        error.message.contains("names") || error.message.contains("size")
+      ),
+      clues(errors.map(_.message))
+    )
+  }
+
   test("schema derivation is structural, policy tagged, and stable") {
     val house = summon[Schema[House]]
     val dwelling = summon[Schema[DwellingKind]]

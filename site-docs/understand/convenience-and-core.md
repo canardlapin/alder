@@ -7,8 +7,8 @@ that an extension author can construct directly.
 | Convenience | Core meaning | Drop down when you need |
 | --- | --- | --- |
 | `Supervised.fromPairs` | `Data[Use.Unsplit, Example[X, Y, Unit]]` | metadata or an explicit fingerprint policy |
-| `Standardize.emitZero` | a configured `StandardScaler` transform | another zero-variance policy or effect type |
-| `Ridge.lsqr` | `RidgeRegression` with the linop4s backend | another solver, backend, or numerical configuration |
+| `Standardize(zeroVariance = ZeroVariance.AsZero)` | a configured `StandardScaler` transform | another zero-variance policy or effect type |
+| `Ridge.lsqr(penalty = RidgePenalty.const(...))` | `RidgeRegression` with validated configuration and the linop4s backend | dynamic configuration, another solver, backend, or numerical policy |
 | `Blueprint.via` | `Transform.andThen` | a reusable component library boundary |
 | `Blueprint.learn` | `learnWith` and a terminal `Learner` | direct control of exact component member types |
 | `Experiment.validation` | split, fit, predict, metric, selection receipt, and refit protocol | custom orchestration that still preserves the same role transitions |
