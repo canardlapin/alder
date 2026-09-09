@@ -21,6 +21,29 @@ final case class CrossValidatedTrial[C, +E, S](
     objective: Either[TrialFailure[E], Double]
 )
 
+/** Audited evidence retained for one successfully scored fold. The fitted
+  * model itself is discarded, while its complete workflow audit and the exact
+  * analysis/assessment fingerprints remain available to application
+  * compilers.
+  */
+final class CrossValidatedFoldEvidence[S] private[tune] (
+    val fold: Int,
+    val score: S,
+    val audit: Audit,
+    val auditIdentity: ProtocolFingerprint,
+    val analysis: DataFingerprint,
+    val assessment: DataFingerprint
+)
+
+/** Successful fold evidence for one candidate configuration. Failed folds
+  * remain represented by [[CrossValidatedTrial.folds]] and therefore cannot
+  * be mistaken for audited successes here.
+  */
+final class CrossValidatedCandidateEvidence[C, S] private[tune] (
+    val config: C,
+    val folds: Vector[CrossValidatedFoldEvidence[S]]
+)
+
 /** Successful cross-validated search over typed configurations.
   *
   * Reconstruct the concrete learner with the caller's `family(result.best)`.
@@ -29,6 +52,7 @@ final case class CrossValidatedTrial[C, +E, S](
 final class CrossValidatedResult[C, +E, S] private[tune] (
     val best: C,
     val trials: Vector[CrossValidatedTrial[C, E, S]],
+    val evidence: Vector[CrossValidatedCandidateEvidence[C, S]],
     val audit: StudyAudit,
     val assignment: DataFingerprint,
     val resampler: ResamplerFingerprint
@@ -45,6 +69,16 @@ enum FoldEvaluationError[+FitE, +RunE] derives CanEqual:
   case Fit(failure: Failure[FitE])
   case Predict(failure: Failure[RunE])
   case Metric(error: MetricError)
+
+private final class EvaluatedFold[+E, S](
+    val outcome: FoldScore[E, S],
+    val evidence: Option[CrossValidatedFoldEvidence[S]]
+)
+
+private final class EvaluatedCandidate[C, +E, S](
+    val trial: CrossValidatedTrial[C, E, S],
+    val evidence: CrossValidatedCandidateEvidence[C, S]
+)
 
 /** High-level interpreter that expands cross-validated search into Study. */
 object Search:
@@ -177,6 +211,27 @@ final class CrossValidatedSearch[
 )(using monad: Monad[F], schema: Schema[X]):
   private type EvalE = FoldEvaluationError[Any, Any]
 
+  /** Runs complete-resampler evaluation over one whole unsplit population.
+    *
+    * This is the application boundary for cross-validation without an outer
+    * holdout. Alder owns the role transition and non-emptiness proof: callers
+    * cannot manufacture `NonEmptyData[Use.Train, A]`, and the returned search
+    * result retains no fitted model or refit authority. Every scientific
+    * assessment claim still comes exclusively from the supplied
+    * [[CompleteResampler]].
+    */
+  def runUnsplit(
+      data: Data[Use.Unsplit, Example[X, Y, M]]
+  ): F[Either[SearchError[EvalE], CrossValidatedResult[C, EvalE, S]]] =
+    if data.size <= 0L then
+      monad.pure(Left(SearchError.Resampling(DataError.EmptyData)))
+    else
+      run(
+        new NonEmptyData[Use.Train, Example[X, Y, M]](
+          new SearchTrainingPopulation(data)
+        )
+      )
+
   /** Runs cross-validated search on Train data and returns the best config. */
   def run(
       data: NonEmptyData[Use.Train, Example[X, Y, M]]
@@ -187,7 +242,8 @@ final class CrossValidatedSearch[
       case Right(planFolds) =>
         candidates
           .traverse(config => evaluateCandidate(config, planFolds))
-          .map { trials =>
+          .map { evaluated =>
+            val trials = evaluated.map(_.trial)
             val studyTrials =
               trials.map(trial => Trial(trial.config, trial.objective))
             select(studyTrials) match
@@ -197,6 +253,7 @@ final class CrossValidatedSearch[
                   new CrossValidatedResult(
                     selection.best,
                     trials,
+                    evaluated.map(_.evidence),
                     selection.audit,
                     planFolds.assignment,
                     planFolds.resampler
@@ -242,11 +299,12 @@ final class CrossValidatedSearch[
   private def evaluateCandidate(
       config: C,
       planFolds: ResamplingPlan[Use.Train, Example[X, Y, M]]
-  ): F[CrossValidatedTrial[C, EvalE, S]] =
+  ): F[EvaluatedCandidate[C, EvalE, S]] =
     val learner = family(config)
     planFolds.folds
       .traverse(fold => scoreFold(learner, fold))
-      .map { foldScores =>
+      .map { evaluated =>
+        val foldScores = evaluated.map(_.outcome)
         val objectives = foldScores.collect {
           case FoldScore.Scored(_, score) => objective(score)
         }
@@ -265,13 +323,19 @@ final class CrossValidatedSearch[
                 val mean = objectives.sum / objectives.length.toDouble
                 if mean.isFinite then Right(mean)
                 else Left(TrialFailure.NonFiniteObjective(mean))
-        CrossValidatedTrial(config, foldScores, aggregated)
+        new EvaluatedCandidate(
+          CrossValidatedTrial(config, foldScores, aggregated),
+          new CrossValidatedCandidateEvidence(
+            config,
+            evaluated.flatMap(_.evidence)
+          )
+        )
       }
 
   private def scoreFold(
       learner: L,
       fold: ResamplingFold[Use.Train, Example[X, Y, M]]
-  ): F[FoldScore[EvalE, S]] =
+  ): F[EvaluatedFold[EvalE, S]] =
     learner
       .fit(fold.analysis)(
         using Fit.context[X](seed, plan, NumericMode.Deterministic)
@@ -279,18 +343,36 @@ final class CrossValidatedSearch[
       .value
       .map {
         case Left(failure) =>
-          FoldScore.Failed(
-            fold.index,
-            TrialFailure.Evaluation(
-              FoldEvaluationError.Fit(failure.asInstanceOf[Failure[Any]])
-            )
+          new EvaluatedFold(
+            FoldScore.Failed(
+              fold.index,
+              TrialFailure.Evaluation(
+                FoldEvaluationError.Fit(failure.asInstanceOf[Failure[Any]])
+              )
+            ),
+            None
           )
         case Right(trained) =>
           scoreAssessment(learner, fold, trained) match
             case Left(failure) =>
-              FoldScore.Failed(fold.index, failure)
+              new EvaluatedFold(
+                FoldScore.Failed(fold.index, failure),
+                None
+              )
             case Right(score) =>
-              FoldScore.Scored(fold.index, score)
+              new EvaluatedFold(
+                FoldScore.Scored(fold.index, score),
+                Some(
+                  new CrossValidatedFoldEvidence(
+                    fold.index,
+                    score,
+                    trained.audit,
+                    AuditFingerprint(trained.audit),
+                    fold.analysis.fingerprint,
+                    fold.assessment.fingerprint
+                  )
+                )
+              )
       }
 
   private def scoreAssessment(
@@ -331,3 +413,23 @@ final class CrossValidatedSearch[
           .map(error =>
             TrialFailure.Evaluation(FoldEvaluationError.Metric(error))
           )
+
+/** Role-bound view used only by [[CrossValidatedSearch.runUnsplit]]. It
+  * preserves Alder-owned RowIds, traversal order, batching, and the exact
+  * source fingerprint while exposing the population only to the complete
+  * resampling interpreter above.
+  */
+private final class SearchTrainingPopulation[A](
+    source: Data[Use.Unsplit, A]
+) extends Data[Use.Train, A]:
+  override def size: Long = source.size
+  override def fingerprint: DataFingerprint = source.fingerprint
+
+  override def foldRows[B](initial: B)(step: (B, RowId, A) => B): B =
+    source.foldRows(initial)(step)
+
+  override def foreachRow(step: (RowId, A) => Unit): Unit =
+    source.foreachRow(step)
+
+  override def foreachBatch(size: BatchSize)(step: RowBatch[A] => Unit): Unit =
+    source.foreachBatch(size)(step)
