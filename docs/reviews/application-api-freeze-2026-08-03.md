@@ -3,6 +3,12 @@
 This record resolves the application-surface proposals raised while revising
 the Alder guide. `PRD.json` remains authoritative for semantic boundaries.
 
+> Status (2026-08-05): partially superseded by
+> [Application surface reopening decision](application-surface-reopen-2026-08-05.md).
+> The semantic decisions below remain historical evidence. Exact quickstart,
+> runner, policy, and result-access spelling is reopened before the first
+> non-empty compatibility baseline.
+
 ## Adopt
 
 - Use `run` as the sole one-shot verb on each defined Experiment route. The
