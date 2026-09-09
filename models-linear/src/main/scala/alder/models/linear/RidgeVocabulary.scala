@@ -8,6 +8,48 @@ enum RidgeConfigError derives CanEqual:
   case InvalidPenalty(value: Double)
   case InvalidTolerance(value: Double)
 
+/** A finite, non-negative ridge penalty. */
+opaque type RidgePenalty = Double
+
+object RidgePenalty:
+  /** Validates a dynamically supplied ridge penalty. */
+  def create(value: Double): Either[RidgeConfigError, RidgePenalty] =
+    if value.isFinite && value >= 0.0 then Right(value)
+    else Left(RidgeConfigError.InvalidPenalty(value))
+
+  /** Constructs a non-negative literal or rejects the program at compile
+    * time. Dynamic values use [[create]].
+    */
+  inline def const(inline value: Double): RidgePenalty =
+    inline if value >= 0.0 && value <= Double.MaxValue then value
+    else compiletime.error("RidgePenalty must be a non-negative literal")
+
+  extension (penalty: RidgePenalty) def value: Double = penalty
+
+  given CanEqual[RidgePenalty, RidgePenalty] = CanEqual.derived
+
+/** A finite, strictly positive ridge convergence tolerance. */
+opaque type RidgeTolerance = Double
+
+object RidgeTolerance:
+  /** Validates a dynamically supplied convergence tolerance. */
+  def create(value: Double): Either[RidgeConfigError, RidgeTolerance] =
+    if value.isFinite && value > 0.0 then Right(value)
+    else Left(RidgeConfigError.InvalidTolerance(value))
+
+  /** Constructs a positive literal or rejects the program at compile time.
+    * Dynamic values use [[create]].
+    */
+  inline def const(inline value: Double): RidgeTolerance =
+    inline if value > 0.0 && value <= Double.MaxValue then value
+    else compiletime.error("RidgeTolerance must be a positive literal")
+
+  val default: RidgeTolerance = 1.0e-10
+
+  extension (tolerance: RidgeTolerance) def value: Double = tolerance
+
+  given CanEqual[RidgeTolerance, RidgeTolerance] = CanEqual.derived
+
 /** Validated ridge hyperparameters.
   *
   * The penalty is finite and non-negative. The convergence tolerance is
@@ -20,6 +62,14 @@ final class RidgeConfig private (
 )
 
 object RidgeConfig:
+  /** Constructs a configuration from already validated scalar domains. */
+  def apply(
+      penalty: RidgePenalty,
+      fitIntercept: Boolean = true,
+      tolerance: RidgeTolerance = RidgeTolerance.default
+  ): RidgeConfig =
+    new RidgeConfig(penalty.value, fitIntercept, tolerance.value)
+
   /** Validates ridge hyperparameters before a learner or backend can observe
     * them.
     */
@@ -28,11 +78,10 @@ object RidgeConfig:
       fitIntercept: Boolean = true,
       tolerance: Double = 1.0e-10
   ): Either[RidgeConfigError, RidgeConfig] =
-    if !penalty.isFinite || penalty < 0.0 then
-      Left(RidgeConfigError.InvalidPenalty(penalty))
-    else if !tolerance.isFinite || tolerance <= 0.0 then
-      Left(RidgeConfigError.InvalidTolerance(tolerance))
-    else Right(new RidgeConfig(penalty, fitIntercept, tolerance))
+    for
+      checkedPenalty <- RidgePenalty.create(penalty)
+      checkedTolerance <- RidgeTolerance.create(tolerance)
+    yield apply(checkedPenalty, fitIntercept, checkedTolerance)
 
 /** Row-weight policy supplied to a ridge backend. */
 sealed trait RowWeights
