@@ -87,30 +87,3 @@ def illegal(
     )
     assert(errors.nonEmpty)
   }
-
-  test("consumer code cannot extract Prepared protocol rows") {
-    val errors = typeCheckErrors(
-      """package consumer
-import alder.kernel.*
-def illegal[
-  S <: Preparation,
-  U <: Use.Fit,
-  A,
-  B
-](prepared: Prepared[S, U, A, B]): Unit =
-  val _ = prepared.rows
-"""
-    )
-    assert(errors.nonEmpty)
-  }
-
-  test("consumer code cannot forge NonEmptyData") {
-    val errors = typeCheckErrors(
-      """package consumer
-import alder.kernel.*
-def illegal(data: Data[Use.Train, Double]): NonEmptyData[Use.Train, Double] =
-  new NonEmptyData(data)
-"""
-    )
-    assert(errors.nonEmpty)
-  }

@@ -311,8 +311,7 @@ class BlueprintSuite extends munit.FunSuite:
 
   test("illegal Blueprint continuations fail to compile") {
     val afterLearn = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.kernel.*
 import cats.Id
 def illegal[
@@ -326,8 +325,7 @@ def illegal[
 """
     )
     val learnerReadyVia = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.kernel.*
 import cats.Id
 def illegal[
@@ -341,8 +339,7 @@ def illegal[
 """
     )
     val incompleteCrossFit = typeCheckErrors(
-      """package consumer
-import alder.application.*
+      """import alder.application.*
 import alder.data.*
 import alder.kernel.*
 import cats.Id
@@ -352,7 +349,19 @@ def illegal(
 ) = Blueprint.supervised[Double, Double].crossFit(encoder, resampler)
 """
     )
-    assert(afterLearn.nonEmpty)
-    assert(learnerReadyVia.nonEmpty)
-    assert(incompleteCrossFit.nonEmpty)
+    assert(
+      afterLearn.exists(_.message.contains("via")),
+      clues(afterLearn.map(_.message))
+    )
+    assert(
+      learnerReadyVia.exists(error =>
+        error.message.contains("via") &&
+          error.message.contains("LearnerReady")
+      ),
+      clues(learnerReadyVia.map(_.message))
+    )
+    assert(
+      incompleteCrossFit.exists(_.message.contains("CompleteResampler")),
+      clues(incompleteCrossFit.map(_.message))
+    )
   }

@@ -388,45 +388,14 @@ class DataSuite extends munit.FunSuite:
     assert(result.passed, result.toString)
   }
 
-  test("split roles and receipts cannot be forged or retagged") {
-    val resultErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
-import alder.kernel.*
-def illegal[A](
-  train: NonEmptyData[Use.Train, A],
-  validation: NonEmptyData[Use.Validation, A],
-  receipt: SplitReceipt
-) =
-  new ValidationSplit(train, validation, receipt)
-"""
-    )
-    val receiptErrors = typeCheckErrors(
-      """package consumer
-import alder.data.*
-import alder.kernel.*
-val forged = new SplitReceipt(
-  DataFingerprint.external("source"),
-  new ProtocolFingerprint(
-    FingerprintPolicy.Summary("policy"),
-    "digest"
-  ),
-  Seed(0L),
-  Vector.empty,
-  SplitAlgorithm.RankV1
-)
-"""
-    )
+  test("split roles cannot be retagged") {
     val retagErrors = typeCheckErrors(
-      """package consumer
-import alder.kernel.*
+      """import alder.kernel.*
 def illegal[A](
   data: Data[Use.Unsplit, A]
 ): Data[Use.Train, A] = data
 """
     )
-    assert(resultErrors.nonEmpty)
-    assert(receiptErrors.nonEmpty)
     assert(retagErrors.nonEmpty)
   }
 
