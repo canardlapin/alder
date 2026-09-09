@@ -60,6 +60,197 @@ enum ExperimentFailure[+FitE, +RunE] derives CanEqual:
   case Select(phase: SelectionPhase, error: SelectionError)
   case Refit(phase: RefitPhase, error: ApplicationRefitError | RefitError)
 
+object ExperimentFailure:
+  /** Human rendering at an application edge. The typed failure remains
+    * available for pattern matching; custom leaf errors can supply stable
+    * renderers instead of relying on their `toString` implementations.
+    */
+  extension [FitE, RunE](failure: ExperimentFailure[FitE, RunE])
+    def renderWith(
+        renderFitError: FitE => String,
+        renderRunError: RunE => String
+    ): String =
+      failure match
+        case ExperimentFailure.Definition(error) =>
+          s"experiment definition failed: ${renderDefinition(error)}"
+        case ExperimentFailure.Data(phase, error) =>
+          s"experiment data phase $phase failed: ${renderDataOrRefit(error)}"
+        case ExperimentFailure.Split(phase, error) =>
+          s"experiment split phase $phase failed: ${renderData(error)}"
+        case ExperimentFailure.Fit(phase, fitted) =>
+          s"experiment fit phase $phase failed at ${fitted.stage.render}: " +
+            renderFitError(fitted.cause)
+        case ExperimentFailure.Predict(phase, error) =>
+          error match
+            case EvaluationError.PredictionFailed(prediction) =>
+              s"experiment prediction phase $phase failed at " +
+                s"${prediction.stage.render}: " +
+                renderRunError(prediction.cause)
+            case EvaluationError.FitSourceMismatch(expected, actual) =>
+              s"experiment prediction phase $phase failed: fitted source " +
+                s"${renderFingerprint(actual)} did not match expected " +
+                renderFingerprint(expected)
+            case EvaluationError.FitAuditMismatch(expected, actual) =>
+              s"experiment prediction phase $phase failed: fitted refit " +
+                s"evidence ${renderRefitEvidence(actual)} did not match " +
+                s"expected ${renderRefitEvidence(expected)}"
+        case ExperimentFailure.Metric(phase, error) =>
+          s"experiment metric phase $phase failed: ${renderMetric(error)}"
+        case ExperimentFailure.Select(phase, error) =>
+          s"experiment selection phase $phase failed: ${renderSelection(error)}"
+        case ExperimentFailure.Refit(phase, error) =>
+          s"experiment refit phase $phase failed: " +
+            renderApplicationOrRefit(error)
+
+    /** Convenient rendering for leaf error types with meaningful `toString`
+      * implementations. Use [[renderWith]] when an application owns a more
+      * stable presentation.
+      */
+    def render: String =
+      renderWith(String.valueOf, String.valueOf)
+
+  private def renderDefinition(error: ExperimentDefinitionError): String =
+    error match
+      case ExperimentDefinitionError.EmptySource => "source data is empty"
+
+  private def renderDataOrRefit(error: DataError | RefitError): String =
+    error match
+      case data: DataError   => renderData(data)
+      case refit: RefitError => renderRefit(refit)
+
+  private def renderApplicationOrRefit(
+      error: ApplicationRefitError | RefitError
+  ): String =
+    error match
+      case application: ApplicationRefitError =>
+        renderApplicationRefit(application)
+      case refit: RefitError => renderRefit(refit)
+
+  private def renderData(error: DataError): String =
+    error match
+      case DataError.EmptyData => "data is empty"
+      case DataError.InvalidRows(value) =>
+        s"row count must be positive, got $value"
+      case DataError.InvalidFraction(numerator, denominator) =>
+        s"fraction must satisfy 0 < numerator < denominator, got " +
+          s"$numerator/$denominator"
+      case DataError.InvalidThreeWayFractionSum(validation, test) =>
+        s"validation fraction $validation plus test fraction $test must be " +
+          "less than one"
+      case DataError.InvalidRankText(field, reason) =>
+        s"RankV1 field $field is invalid: ${renderRankText(reason)}"
+      case DataError.DuplicateSourceRow(id) =>
+        s"source row ${id.value} occurs more than once"
+      case DataError.EmptySplitRole(role, availableRows, policy) =>
+        s"split policy $policy assigned no rows to $role from " +
+          s"$availableRows available rows"
+      case DataError.ExhaustiveSplit(availableRows, policy) =>
+        s"split policy $policy left no training rows among " +
+          s"$availableRows available rows"
+      case DataError.InvalidHoldoutSize(requested, available) =>
+        s"holdout size $requested is invalid for $available available rows"
+      case DataError.InvalidFoldCount(requested) =>
+        s"fold count must be at least two, got $requested"
+      case DataError.TooManyFolds(requested, availableRows) =>
+        s"fold count $requested exceeds $availableRows available rows"
+      case DataError.TooFewGroups(requestedFolds, availableGroups) =>
+        s"fold count $requestedFolds exceeds $availableGroups available groups"
+      case DataError.InvalidResamplingAssignment =>
+        "resampling assignment is incomplete, duplicated, or out of range"
+      case DataError.Resample4sPopulationTooLarge(availableRows) =>
+        s"Resample4s cannot index $availableRows rows with Int ordinals"
+      case DataError.Resample4sPopulationSizeMismatch(expected, actual) =>
+        s"Resample4s population size $actual did not match expected $expected"
+      case DataError.Resample4sSeedMismatch(expected, actual) =>
+        s"Resample4s seed $actual did not match expected $expected"
+      case DataError.Resample4sPopulationFingerprintMismatch =>
+        "Resample4s population fingerprint did not match the Alder data"
+      case DataError.InvalidResample4sPopulationFingerprint(policy, digest) =>
+        s"Resample4s population fingerprint $policy:$digest is invalid"
+      case DataError.InvalidRollingWindow(initial, assessment, step) =>
+        s"rolling window requires positive initial, assessment, and step " +
+          s"sizes, got $initial, $assessment, and $step"
+      case DataError.NoRollingFolds(availableRows, initialSize) =>
+        s"rolling window with initial size $initialSize produced no folds " +
+          s"from $availableRows rows"
+
+  private def renderRankText(error: RankTextError): String =
+    error match
+      case RankTextError.UnpairedSurrogate(index) =>
+        s"unpaired surrogate at code-unit index $index"
+      case RankTextError.Utf8LengthExceedsU32(length) =>
+        s"UTF-8 length $length exceeds the unsigned 32-bit limit"
+
+  private def renderRefit(error: RefitError): String =
+    error match
+      case RefitError.EmptyEvaluationSource(role) =>
+        s"$role evaluation source is empty"
+      case RefitError.DuplicateObservedRow(id) =>
+        s"observed row ${id.value} occurs in more than one source"
+      case RefitError.MissingPriorRefitAudit =>
+        "the fitted data has no prior refit audit"
+      case RefitError.PriorRefitWasNotSelected =>
+        "the prior validation result was not selected"
+      case RefitError.PriorSourcesMustEndInValidation(actual) =>
+        s"prior sources must end in Validation, got ${actual.mkString(" -> ")}"
+      case RefitError.PriorFingerprintMismatch(expected, actual) =>
+        s"prior source fingerprint ${renderFingerprint(actual)} did not " +
+          s"match expected ${renderFingerprint(expected)}"
+
+  private def renderApplicationRefit(error: ApplicationRefitError): String =
+    error match
+      case ApplicationRefitError.SelectionReceiptMismatch(receipt) =>
+        s"selection receipt ${receipt.render} does not authorize these rows"
+      case ApplicationRefitError.EvaluationReceiptMismatch(receipt) =>
+        s"evaluation receipt ${receipt.render} does not authorize these rows"
+      case ApplicationRefitError.SelectionReceiptAlreadyUsed(receipt) =>
+        s"selection receipt ${receipt.render} was already used"
+      case ApplicationRefitError.EvaluationReceiptAlreadyUsed(receipt) =>
+        s"evaluation receipt ${receipt.render} was already used"
+
+  private def renderMetric(error: MetricError): String =
+    error match
+      case MetricError.Empty => "metric received no observations"
+      case MetricError.NonFiniteTruth(value) =>
+        s"truth is non-finite: $value"
+      case MetricError.NonFinitePrediction(value) =>
+        s"prediction is non-finite: $value"
+      case MetricError.NonFiniteResidual(truth, prediction) =>
+        s"residual is non-finite for truth $truth and prediction $prediction"
+      case MetricError.NonFiniteSquaredError(value) =>
+        s"squared error is non-finite: $value"
+      case MetricError.NonFiniteWeight(value) =>
+        s"weight is non-finite: $value"
+      case MetricError.NegativeWeight(value) =>
+        s"weight is negative: $value"
+      case MetricError.NonFiniteWeightedValue(value, weight) =>
+        s"weighted value is non-finite for value $value and weight $weight"
+      case MetricError.ZeroTotalWeight => "total metric weight is zero"
+      case MetricError.NonFiniteResult => "metric result is non-finite"
+
+  private def renderSelection(error: SelectionError): String =
+    error match
+      case SelectionError.ReportingMetricCannotSelect =>
+        "a reporting-only metric cannot authorize selection"
+
+  private def renderRefitEvidence(value: Option[RefitEvidence]): String =
+    value match
+      case None => "none"
+      case Some(evidence) =>
+        val selection = evidence.selection match
+          case None          => "none"
+          case Some(receipt) => receipt.render
+        s"evaluation=${evidence.evaluation.render}, selection=$selection"
+
+  private def renderFingerprint(value: DataFingerprint): String =
+    val policy = value.policy match
+      case FingerprintPolicy.ContentDigest(algorithm) =>
+        s"content-digest:$algorithm"
+      case FingerprintPolicy.SourceIdentity(uri, version) =>
+        s"source-identity:$uri@$version"
+      case FingerprintPolicy.Summary(policyId) => s"summary:$policyId"
+    s"$policy:${value.digest}"
+
 object Experiment:
 
   export ExperimentRoutes.{
@@ -425,6 +616,28 @@ object Experiment:
     def model: Trained[learner.Model] = trained
     def audit: Audit = trained.audit
 
+    /** Structured projection of this validation result's retained evidence. */
+    def report: ExperimentReport[S] =
+      ExperimentReport.validation(
+        split,
+        metric.descriptor,
+        score,
+        audit,
+        phases.root
+      )
+
+    /** Predicts with the candidate fitted on the training partition. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the candidate fitted on the training
+      * partition, preserving row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
+
     def select(
         policy: SelectionPolicy.SingleCandidate.type
     )(using
@@ -558,5 +771,18 @@ object Experiment:
   ):
     def model: Trained[learner.Model] = trained
     def audit: Audit = trained.audit
+
+    /** Predicts with the candidate refitted on training plus validation. */
+    def predict(input: X): Either[Failure[learner.RunError], P] =
+      trained.predict(input)
+
+    /** Predicts every input row with the candidate refitted on training plus
+      * validation, preserving row IDs and traversal order.
+      */
+    def predictAll[U <: Use](
+        data: Data[U, X]
+    ): Either[Failure[learner.RunError], Vector[(RowId, P)]] =
+      trained.predictAll(data)
+
     // Retained for TrainValidationTestRoute.test / deploymentRefit.
     private[application] def phaseSeeds: PhaseSeeds = phases
