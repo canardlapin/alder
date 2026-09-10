@@ -111,15 +111,15 @@ lazy val compatibilitySettings = Seq(
 
 /** The compatibility-sensitive core protocol: Pipe, Failure, data roles,
   * Prepared + preparation scopes, Trained, Transform, FeatureMap, FoldEncoder,
-  * Learner, FitContext, audit contracts, capability typeclasses.
-  * Depends on cats-core only (D12 forbidden-dependency policy).
+  * Learner, FitContext, audit contracts, capability typeclasses. Depends on
+  * cats-core only (D12 forbidden-dependency policy).
   */
 lazy val kernel = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("kernel"))
   .settings(strictSettings)
   .settings(
-    name := "alder-kernel",
+    name                                    := "alder-kernel",
     libraryDependencies += "org.typelevel" %%% "cats-core" % catsV
   )
 
@@ -150,8 +150,8 @@ lazy val lawsJVM    = laws.jvm.settings(compatibilitySettings)
 lazy val lawsJS     = laws.js
 lazy val lawsNative = laws.native
 
-/** External-package consumer fixtures that prove SPI usability outside
-  * `package alder`. Not published.
+/** External-package consumer fixtures that prove SPI usability outside `package
+  * alder`. Not published.
   */
 lazy val consumerFixture = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
@@ -159,13 +159,13 @@ lazy val consumerFixture = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .dependsOn(
     kernel,
     quickstart % "test->compile",
-    laws % Test,
-    testkit % "test->compile"
+    laws       % Test,
+    testkit    % "test->compile"
   )
   .settings(strictSettings)
   .settings(
-    name           := "alder-consumer-fixture",
-    publish / skip := true,
+    name                                    := "alder-consumer-fixture",
+    publish / skip                          := true,
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -206,7 +206,7 @@ lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     name := "alder-data",
     libraryDependencies ++= Seq(
       "org.scalameta"  %%% "munit"      % munitV      % Test,
-      "org.scalacheck" %%% "scalacheck"       % scalacheckV % Test
+      "org.scalacheck" %%% "scalacheck" % scalacheckV % Test
     )
   )
 
@@ -222,7 +222,7 @@ lazy val dataJVM =
     data.jvm
       .settings(
         libraryDependencies ++= Seq(
-          "io.github.canardlapin" %% "resample4s-core" % resample4sV,
+          "io.github.canardlapin" %% "resample4s-core"    % resample4sV,
           "io.github.canardlapin" %% "resample4s-designs" % resample4sV % Test
         )
       )
@@ -236,7 +236,7 @@ lazy val dataJS =
   else
     data.js.settings(
       libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "resample4s-core" % resample4sV,
+        "io.github.canardlapin" %%% "resample4s-core"    % resample4sV,
         "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
       )
     )
@@ -249,7 +249,7 @@ lazy val dataNative =
   else
     data.native.settings(
       libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "resample4s-core" % resample4sV,
+        "io.github.canardlapin" %%% "resample4s-core"    % resample4sV,
         "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
       )
     )
@@ -346,7 +346,7 @@ lazy val modelsLinear = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .dependsOn(kernel, data, testkit % "test->compile")
   .settings(strictSettings)
   .settings(
-    name := "alder-models-linear",
+    name                                    := "alder-models-linear",
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -362,8 +362,8 @@ lazy val ridgeGale = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(modelsLinear, testkit % "test->compile")
   .settings(strictSettings)
   .settings(
-    name           := "alder-ridge-gale",
-    publish / skip := true,
+    name                                    := "alder-ridge-gale",
+    publish / skip                          := true,
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -386,7 +386,7 @@ lazy val ridgeLinop4s =
     .dependsOn(modelsLinear, testkit % "test->compile")
     .settings(strictSettings)
     .settings(
-      name := "alder-ridge-linop4s",
+      name                                    := "alder-ridge-linop4s",
       libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
     )
 
@@ -409,12 +409,12 @@ lazy val quickstart = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     modelsLinear,
     ridgeLinop4s,
     tune,
-    laws % "test->compile",
+    laws    % "test->compile",
     testkit % "test->compile"
   )
   .settings(strictSettings)
   .settings(
-    name := "alder-quickstart",
+    name                                    := "alder-quickstart",
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -432,7 +432,7 @@ lazy val tune = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .dependsOn(kernel, data, metrics, testkit % "test->compile")
   .settings(strictSettings)
   .settings(
-    name := "alder-tune",
+    name                                    := "alder-tune",
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -465,12 +465,12 @@ lazy val codec = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("codec"))
   .dependsOn(
     kernel,
-    laws % "test->compile",
+    laws    % "test->compile",
     testkit % "test->compile"
   )
   .settings(strictSettings)
   .settings(
-    name := "alder-codec",
+    name                                    := "alder-codec",
     libraryDependencies += "org.scalameta" %%% "munit" % munitV % Test
   )
 
@@ -492,8 +492,8 @@ lazy val benchmarks = project
   )
   .settings(strictSettings)
   .settings(
-    name           := "alder-benchmarks",
-    publish / skip := true,
+    name                                   := "alder-benchmarks",
+    publish / skip                         := true,
     libraryDependencies += "org.scalameta" %% "munit" % munitV % Test
   )
 
@@ -633,3 +633,7 @@ addCommandAlias(
      |;tuneLawsJVM/Compile/doc
      |;codecJVM/Compile/doc""".stripMargin
 )
+
+addCommandAlias("fmt", ";scalafmtAll;scalafmtSbt")
+
+addCommandAlias("fmtCheck", ";scalafmtCheckAll;scalafmtSbtCheck")
