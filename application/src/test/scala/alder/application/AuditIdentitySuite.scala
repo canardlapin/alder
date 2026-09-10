@@ -7,11 +7,10 @@ import munit.FunSuite
 
 /** Gate 6: behaviour-changing policies alter audit identity. */
 class AuditIdentitySuite extends FunSuite:
-  private final class Passthrough
-      extends Transform.Leaf[Id, Double, Double]:
+  private final class Passthrough extends Transform.Leaf[Id, Double, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Fitted = Pipe[Double, Nothing, Double]
+    type Fitted   = Pipe[Double, Nothing, Double]
 
     protected def descriptor: ComponentDescriptor =
       ComponentDescriptor(

@@ -20,8 +20,8 @@ trait Transform[F[_], X, Z]:
     Prepared[Preparation.Reusable, U, Fitted, Z]
   ]
 
-  /** Transform composition is closed (composition algebra row 2). The
-    * singleton receiver type retains this stage's precise error members.
+  /** Transform composition is closed (composition algebra row 2). The singleton
+    * receiver type retains this stage's precise error members.
     */
   final def andThen[W, R <: Transform[F, Z, W]](right: R)(using
       Monad[F]
@@ -124,8 +124,8 @@ object Transform:
       }
 
 /** Sequential composition of two target-blind transforms. Knows nothing
-  * algorithm-specific: only preparation scope, row identity, audit
-  * composition, child contexts, error widening, and lineage.
+  * algorithm-specific: only preparation scope, row identity, audit composition,
+  * child contexts, error widening, and lineage.
   */
 final class ThenTransform[
     F[_],
@@ -191,9 +191,8 @@ final class ThenTransform[
         trainedOn = data,
         component = AlderComponents.composeTransform,
         preparation = lineage,
-        children =
-          first.fitted.audit.flattenedTransformSequence ++
-            second.fitted.audit.flattenedTransformSequence,
+        children = first.fitted.audit.flattenedTransformSequence ++
+          second.fitted.audit.flattenedTransformSequence,
         shape = AuditShape.TransformSequence
       )
       new Prepared(trained, second.rows, lineage)

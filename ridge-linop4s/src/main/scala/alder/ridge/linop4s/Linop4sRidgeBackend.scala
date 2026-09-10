@@ -17,10 +17,10 @@ enum Linop4sRidgeStrategy derives CanEqual:
 
 /** linop4s-backed matrix-free ridge solver.
   *
-  * `LSQR` solves the weighted, damped least-squares operator. `NormalCG`
-  * solves normal equations and therefore requires a strictly positive ridge
-  * penalty. The iteration limit and numerical mode are validated at fit time
-  * and recorded in the backend fingerprint.
+  * `LSQR` solves the weighted, damped least-squares operator. `NormalCG` solves
+  * normal equations and therefore requires a strictly positive ridge penalty.
+  * The iteration limit and numerical mode are validated at fit time and
+  * recorded in the backend fingerprint.
   */
 final class Linop4sRidgeBackend[F[_]](
     val strategy: Linop4sRidgeStrategy,
@@ -34,12 +34,12 @@ final class Linop4sRidgeBackend[F[_]](
       "linop4s",
       "0.1.0-SNAPSHOT",
       AuditValue.record(
-        "strategy" -> AuditValue.text(strategy.toString),
+        "strategy"      -> AuditValue.text(strategy.toString),
         "maxIterations" -> AuditValue.integer(maxIterations.toLong),
-        "numericMode" -> AuditValue.text(numericMode.toString),
-        "intercept" -> AuditValue.text("weighted-centering"),
-        "weights" -> AuditValue.text("matrix-free-sqrt-diagonal"),
-        "damping" -> AuditValue.text("sqrt(lambda)")
+        "numericMode"   -> AuditValue.text(numericMode.toString),
+        "intercept"     -> AuditValue.text("weighted-centering"),
+        "weights"       -> AuditValue.text("matrix-free-sqrt-diagonal"),
+        "damping"       -> AuditValue.text("sqrt(lambda)")
       )
     )
 
@@ -54,11 +54,13 @@ final class Linop4sRidgeBackend[F[_]](
       if maxIterations <= 0 then
         Left(RidgeBackendError.InvalidIterationLimit(maxIterations))
       else if context.numericMode != numericMode then
-        Left(RidgeBackendError.NumericModeMismatch(numericMode, context.numericMode))
+        Left(
+          RidgeBackendError
+            .NumericModeMismatch(numericMode, context.numericMode)
+        )
       else if strategy == Linop4sRidgeStrategy.NormalCG &&
         config.penalty <= 0.0
-      then
-        Left(RidgeBackendError.RequiresPositivePenalty(solverId))
+      then Left(RidgeBackendError.RequiresPositivePenalty(solverId))
       else
         RidgeProblem
           .materialize(data, features, weights)
@@ -69,49 +71,47 @@ final class Linop4sRidgeBackend[F[_]](
       problem: RidgeProblem,
       config: RidgeConfig
   ): Either[RidgeBackendError, RidgeSolution] =
-    val domain = Dense.real("ridge-coefficients", problem.columns)
+    val domain   = Dense.real("ridge-coefficients", problem.columns)
     val codomain = Dense.real("ridge-observations", problem.rows)
     val operator =
       AdjointOp.primitive[Double, Array[Double], Array[Double]](
         "alder-weighted-centered-design",
         domain,
         codomain
-      )(
-        coefficients =>
-          val result = new Array[Double](problem.rows)
-          var row = 0
-          while row < problem.rows do
-            var value = 0.0
-            var column = 0
-            while column < problem.columns do
-              value +=
-                problem.centeredFeature(
-                  row,
-                  column,
-                  config.fitIntercept
-                ) * coefficients(column)
-              column += 1
-            result(row) = math.sqrt(problem.weights(row)) * value
-            row += 1
-          result
-      )(
-        residuals =>
-          val result = new Array[Double](problem.columns)
-          var row = 0
-          while row < problem.rows do
-            val scaled =
-              math.sqrt(problem.weights(row)) * residuals(row)
-            var column = 0
-            while column < problem.columns do
-              result(column) +=
-                problem.centeredFeature(
-                  row,
-                  column,
-                  config.fitIntercept
-                ) * scaled
-              column += 1
-            row += 1
-          result
+      )(coefficients =>
+        val result = new Array[Double](problem.rows)
+        var row    = 0
+        while row < problem.rows do
+          var value  = 0.0
+          var column = 0
+          while column < problem.columns do
+            value +=
+              problem.centeredFeature(
+                row,
+                column,
+                config.fitIntercept
+              ) * coefficients(column)
+            column += 1
+          result(row) = math.sqrt(problem.weights(row)) * value
+          row += 1
+        result
+      )(residuals =>
+        val result = new Array[Double](problem.columns)
+        var row    = 0
+        while row < problem.rows do
+          val scaled =
+            math.sqrt(problem.weights(row)) * residuals(row)
+          var column = 0
+          while column < problem.columns do
+            result(column) +=
+              problem.centeredFeature(
+                row,
+                column,
+                config.fitIntercept
+              ) * scaled
+            column += 1
+          row += 1
+        result
       )
     val response = Array.tabulate(problem.rows) { row =>
       math.sqrt(problem.weights(row)) *
@@ -161,7 +161,7 @@ final class Linop4sRidgeBackend[F[_]](
     val coefficients = IArray.from(result.value)
     val intercept =
       if config.fitIntercept then
-        var value = problem.targetMean
+        var value  = problem.targetMean
         var column = 0
         while column < problem.columns do
           value -=

@@ -70,7 +70,7 @@ final class StandardScaler[F[_], A](
 
   type FitError = ScaleFitError | ScaleRunError
   type RunError = ScaleRunError
-  type Fitted = Standardizer[A]
+  type Fitted   = Standardizer[A]
 
   protected def descriptor: ComponentDescriptor =
     ScalerComponents.centered(zeroVariance, outputSchema)
@@ -121,7 +121,7 @@ final class ScaleOnlyScaler[F[_], A](
 
   type FitError = ScaleFitError | ScaleRunError
   type RunError = ScaleRunError
-  type Fitted = ScaleOnlyStandardizer[A]
+  type Fitted   = ScaleOnlyStandardizer[A]
 
   protected def descriptor: ComponentDescriptor =
     ScalerComponents.scaleOnly(zeroVariance, outputSchema)
@@ -194,8 +194,7 @@ final class ScaleOnlyStandardizer[A] private[alder] (
         value,
         view,
         schema,
-        (raw, index) =>
-          raw(index) * inverseStandardDeviation(index)
+        (raw, index) => raw(index) * inverseStandardDeviation(index)
       )
       .left
       .map(stage.failure)
@@ -216,9 +215,8 @@ private object ScalerRun:
           case Some((name, invalid)) =>
             Left(ScaleRunError.NonFiniteInput(name, invalid))
           case None =>
-            val scaled = IArray.tabulate(raw.length)(index =>
-              scaledAt(raw, index)
-            )
+            val scaled =
+              IArray.tabulate(raw.length)(index => scaledAt(raw, index))
             firstNonFinite(scaled, view.names) match
               case Some((name, _)) =>
                 Left(ScaleRunError.NonFiniteOutput(name))
@@ -233,7 +231,7 @@ private object ScalerRun:
       values: IArray[Double],
       names: IArray[String]
   ): Option[(String, Double)] =
-    var index = 0
+    var index                            = 0
     var result: Option[(String, Double)] = None
     while index < values.length && result.isEmpty do
       val value = values(index)
@@ -250,8 +248,8 @@ private final class Moments(
   def inverseStandardDeviation(
       policy: ZeroVariance
   ): Either[ScaleFitError, IArray[Double]] =
-    val inverse = new Array[Double](mean.length)
-    var index = 0
+    val inverse                      = new Array[Double](mean.length)
+    var index                        = 0
     var error: Option[ScaleFitError] = None
     while index < mean.length && error.isEmpty do
       val variance = m2(index) / count.toDouble
@@ -266,8 +264,7 @@ private final class Moments(
       else
         val value = 1.0 / math.sqrt(variance)
         if value.isFinite then inverse(index) = value
-        else
-          error = Some(ScaleFitError.NonFiniteMoment(names(index)))
+        else error = Some(ScaleFitError.NonFiniteMoment(names(index)))
       index += 1
     error match
       case Some(value) => Left(value)
@@ -278,7 +275,7 @@ private object Moments:
       data: NonEmptyData[U, A]
   )(using view: FeatureView[A]): Either[ScaleFitError, Moments] =
     val means = new Array[Double](view.size)
-    val m2 = new Array[Double](view.size)
+    val m2    = new Array[Double](view.size)
     val result = data.data.foldRows[
       Either[ScaleFitError, Long]
     ](Right(0L)) {
@@ -309,17 +306,17 @@ private object Moments:
       means: Array[Double],
       m2: Array[Double]
   ): Either[ScaleFitError, Long] =
-    val count = priorCount + 1L
-    var index = 0
+    val count                        = priorCount + 1L
+    var index                        = 0
     var error: Option[ScaleFitError] = None
     while index < values.length && error.isEmpty do
       val value = values(index)
       if !value.isFinite then
         error = Some(ScaleFitError.NonFinite(row, names(index), value))
       else
-        val delta = value - means(index)
+        val delta    = value - means(index)
         val nextMean = means(index) + delta / count.toDouble
-        val nextM2 = m2(index) + delta * (value - nextMean)
+        val nextM2   = m2(index) + delta * (value - nextMean)
         if !nextMean.isFinite || !nextM2.isFinite then
           error = Some(ScaleFitError.NonFiniteMoment(names(index)))
         else
@@ -371,8 +368,8 @@ private object ScalerComponents:
       ComponentVersion("0.1.0-SNAPSHOT"),
       AuditValue.record(
         "zeroVariance" -> AuditValue.text(policyName(policy)),
-        "centered" -> AuditValue.bool(centered),
-        "variance" -> AuditValue.text("population"),
+        "centered"     -> AuditValue.bool(centered),
+        "variance"     -> AuditValue.text("population"),
         "featureFingerprintPolicy" -> AuditValue.text(
           featureFingerprint.policy match
             case FingerprintPolicy.ContentDigest(algorithm) =>

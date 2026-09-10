@@ -89,7 +89,7 @@ trait ArtifactCodec[A]:
                 s"unexpected artifact magic '$magic'"
               )
             )
-        id <- reader.string
+        id      <- reader.string
         version <- reader.int
         found = s"$id@$version"
         _ <-
@@ -105,10 +105,10 @@ trait ArtifactCodec[A]:
               )
             )
           else Right(())
-        auditBytes <- reader.payload
+        auditBytes    <- reader.payload
         artifactBytes <- reader.payload
-        audit <- AuditBinaryCodec.decode(auditBytes)
-        artifact <- decodeArtifact(IArray.from(artifactBytes))
+        audit         <- AuditBinaryCodec.decode(auditBytes)
+        artifact      <- decodeArtifact(IArray.from(artifactBytes))
       yield new Trained(artifact, audit)
     decoded.flatMap(reader.finish)
 

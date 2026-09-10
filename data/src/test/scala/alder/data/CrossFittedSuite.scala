@@ -46,7 +46,9 @@ class CrossFittedSuite extends munit.FunSuite:
       case Right(value) => value
       case Left(error)  => fail(s"unexpected KFold error: $error")
 
-  test("crossFitted excludes every row from the state producing its OOF value") {
+  test(
+    "crossFitted excludes every row from the state producing its OOF value"
+  ) {
     val data = examples[Use.Train](6)
     val feature =
       FeatureMap.crossFitted(new VisibilityEncoder, kfold(3))
@@ -55,16 +57,18 @@ class CrossFittedSuite extends munit.FunSuite:
     result match
       case Left(failure) => fail(s"unexpected cross-fit failure: $failure")
       case Right(prepared) =>
-        val learnerReady
-            : Prepared[
-              Preparation.LearnerReady,
-              Use.Train,
-              feature.Fitted,
-              Example[VisibilityValue, Double, String]
-            ] = prepared
+        val learnerReady: Prepared[
+          Preparation.LearnerReady,
+          Use.Train,
+          feature.Fitted,
+          Example[VisibilityValue, Double, String]
+        ] = prepared
         val rows = rowsOf(learnerReady.rows)
         assertEquals(rows.map(_._1), Vector.range(0, 6).map(_.toLong))
-        assertEquals(rows.map(_._2.target), Vector(0.0, 10.0, 20.0, 30.0, 40.0, 50.0))
+        assertEquals(
+          rows.map(_._2.target),
+          Vector(0.0, 10.0, 20.0, 30.0, 40.0, 50.0)
+        )
         assertEquals(
           rows.map(_._2.meta),
           Vector("m0", "m1", "m2", "m3", "m4", "m5")
@@ -130,13 +134,12 @@ class CrossFittedSuite extends munit.FunSuite:
     result match
       case Left(failure) => fail(s"unexpected refit failure: $failure")
       case Right(prepared) =>
-        val refit
-            : Prepared[
-              Preparation.LearnerReady,
-              Use.Refit,
-              feature.Fitted,
-              Example[VisibilityValue, Double, String]
-            ] = prepared
+        val refit: Prepared[
+          Preparation.LearnerReady,
+          Use.Refit,
+          feature.Fitted,
+          Example[VisibilityValue, Double, String]
+        ] = prepared
         assertEquals(rowsOf(refit.rows).length, 4)
   }
 

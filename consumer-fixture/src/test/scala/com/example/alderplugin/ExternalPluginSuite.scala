@@ -73,7 +73,9 @@ class ExternalPluginSuite extends munit.FunSuite:
     )
   }
 
-  test("external Transform.learnWith(Learner) fits and retains example component identity") {
+  test(
+    "external Transform.learnWith(Learner) fits and retains example component identity"
+  ) {
     val data =
       trainExamples(
         Vector(
@@ -165,8 +167,8 @@ def forged(existing: EvaluationReceipt[Use.Test]) =
     )
 
     val fixtures = Vector(
-      "NonEmptyData" -> nonEmptyErrors,
-      "ValidationSplit" -> splitErrors,
+      "NonEmptyData"      -> nonEmptyErrors,
+      "ValidationSplit"   -> splitErrors,
       "PredictionReceipt" -> predictionReceiptErrors,
       "EvaluationReceipt" -> evaluationReceiptErrors
     )
@@ -182,7 +184,9 @@ def forged(existing: EvaluationReceipt[Use.Test]) =
     }
   }
 
-  test("external application package uses only the documented quickstart surface") {
+  test(
+    "external application package uses only the documented quickstart surface"
+  ) {
     import alder.quickstart.*
 
     final case class House(area: Double, bedrooms: Int, age: Double)
@@ -219,6 +223,9 @@ def forged(existing: EvaluationReceipt[Use.Test]) =
     result match
       case Left(error) => fail(s"unexpected external workflow failure: $error")
       case Right(validated) =>
-        assertEquals(validated.report.partitions, ExperimentPartitions.Validation(9L, 3L))
+        assertEquals(
+          validated.report.partitions,
+          ExperimentPartitions.Validation(9L, 3L)
+        )
         assert(validated.predict(House(100.0, 3, 12.0)).isRight)
   }

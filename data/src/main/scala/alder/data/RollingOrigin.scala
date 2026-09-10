@@ -62,7 +62,10 @@ object RollingOrigin:
               val foldResults = starts.zipWithIndex.map { (start, foldIndex) =>
                 val analysisRows = ordered.take(start)
                 val assessmentRows =
-                  ordered.slice(start, math.min(start + assessmentSize, ordered.length))
+                  ordered.slice(
+                    start,
+                    math.min(start + assessmentSize, ordered.length)
+                  )
                 val foldAssignment = Fingerprints.assignment(
                   data.fingerprint,
                   seed,
@@ -102,7 +105,7 @@ object RollingOrigin:
               )((result, fold) =>
                 for
                   accepted <- result
-                  value <- fold
+                  value    <- fold
                 yield accepted :+ value
               )
               combined.map { folds =>

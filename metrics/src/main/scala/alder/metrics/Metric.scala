@@ -7,17 +7,17 @@ import cats.kernel.CommutativeMonoid
 opaque type MetricId = String
 
 object MetricId:
-  def apply(value: String): MetricId = value
+  def apply(value: String): MetricId          = value
   extension (id: MetricId) def render: String = id
-  given CanEqual[MetricId, MetricId] = CanEqual.derived
+  given CanEqual[MetricId, MetricId]          = CanEqual.derived
 
 /** Version of a metric's semantics and accumulator policy. */
 opaque type MetricVersion = String
 
 object MetricVersion:
-  def apply(value: String): MetricVersion = value
+  def apply(value: String): MetricVersion               = value
   extension (version: MetricVersion) def render: String = version
-  given CanEqual[MetricVersion, MetricVersion] = CanEqual.derived
+  given CanEqual[MetricVersion, MetricVersion]          = CanEqual.derived
 
 /** Numeric contract promised by a metric implementation. */
 enum MetricNumericPolicy derives CanEqual:
@@ -73,8 +73,8 @@ enum MetricError derives CanEqual:
   case ZeroTotalWeight
   case NonFiniteResult
 
-/** A streaming metric whose accumulator can be combined in any partition
-  * shape. Numerical metrics use Alder's exact superaccumulator by default.
+/** A streaming metric whose accumulator can be combined in any partition shape.
+  * Numerical metrics use Alder's exact superaccumulator by default.
   */
 trait Metric[-A, +S]:
   type Acc
@@ -142,39 +142,38 @@ private[metrics] sealed trait MetricProblem derives CanEqual:
 
 private[metrics] object MetricProblem:
   private final case class Truth(firstBits: Long) extends MetricProblem:
-    val rank: Int = 1
+    val rank: Int                = 1
     val secondBits: Option[Long] = None
 
-  private final case class Prediction(firstBits: Long)
-      extends MetricProblem:
-    val rank: Int = 2
+  private final case class Prediction(firstBits: Long) extends MetricProblem:
+    val rank: Int                = 2
     val secondBits: Option[Long] = None
 
   private final case class Residual(
       firstBits: Long,
       predictionBits: Long
   ) extends MetricProblem:
-    val rank: Int = 3
+    val rank: Int                = 3
     val secondBits: Option[Long] = Some(predictionBits)
 
   private final case class Squared(firstBits: Long) extends MetricProblem:
-    val rank: Int = 4
+    val rank: Int                = 4
     val secondBits: Option[Long] = None
 
   private final case class Weight(firstBits: Long) extends MetricProblem:
-    val rank: Int = 5
+    val rank: Int                = 5
     val secondBits: Option[Long] = None
 
   private final case class NegativeWeight(firstBits: Long)
       extends MetricProblem:
-    val rank: Int = 6
+    val rank: Int                = 6
     val secondBits: Option[Long] = None
 
   private final case class Weighted(
       firstBits: Long,
       weightBits: Long
   ) extends MetricProblem:
-    val rank: Int = 7
+    val rank: Int                = 7
     val secondBits: Option[Long] = Some(weightBits)
 
   def truth(value: Double): MetricProblem =
@@ -244,9 +243,9 @@ private[metrics] object MetricProblem:
       right: Option[Long]
   ): Int =
     (left, right) match
-      case (None, None)               => 0
-      case (None, Some(_))            => -1
-      case (Some(_), None)            => 1
+      case (None, None)              => 0
+      case (None, Some(_))           => -1
+      case (Some(_), None)           => 1
       case (Some(left), Some(right)) => compareBits(left, right)
 
 private[metrics] object MetricProblems:

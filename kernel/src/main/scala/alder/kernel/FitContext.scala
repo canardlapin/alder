@@ -1,8 +1,8 @@
 package alder.kernel
 
-/** Framework-owned fitting context. A final class, never a trait: third
-  * parties consume it and can never implement it, so it can gain compatible
-  * methods without breaking plugins (D11).
+/** Framework-owned fitting context. A final class, never a trait: third parties
+  * consume it and can never implement it, so it can gain compatible methods
+  * without breaking plugins (D11).
   *
   * Seeds and stage paths derive from the root seed and stable stage ordinals,
   * so parenthesization of a composition cannot change them.
@@ -134,9 +134,9 @@ private[alder] object AlderComponents:
       id = ComponentId("alder.map.feature-output"),
       version = ComponentVersion("0.1.0-SNAPSHOT"),
       parameters = AuditValue.record(
-        "function" -> AuditValue.text(name),
+        "function"        -> AuditValue.text(name),
         "functionVersion" -> AuditValue.text(version),
-        "identity" -> AuditValue.text("named")
+        "identity"        -> AuditValue.text("named")
       ),
       backend = backend
     )
@@ -166,7 +166,7 @@ private[alder] object AlderComponents:
       parameters = AuditValue.record(
         "resamplerPolicy" -> AuditValue.text(resampler.policy.toString),
         "resamplerDigest" -> AuditValue.text(resampler.digest),
-        "foldCount" -> AuditValue.integer(foldCount.toLong)
+        "foldCount"       -> AuditValue.integer(foldCount.toLong)
       ),
       backend = backend
     )

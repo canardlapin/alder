@@ -13,7 +13,7 @@ class SearchSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, Double, Unit]]
@@ -82,7 +82,9 @@ class SearchSuite extends munit.FunSuite:
           selected.evidence.forall(_.folds.forall(_.assessment.digest.nonEmpty))
         )
         assert(
-          selected.evidence.forall(_.folds.forall(_.auditIdentity.digest.nonEmpty))
+          selected.evidence.forall(
+            _.folds.forall(_.auditIdentity.digest.nonEmpty)
+          )
         )
         assert(selected.trials.forall(_.folds.length == 3))
         assert(
@@ -102,14 +104,14 @@ class SearchSuite extends munit.FunSuite:
       rows,
       DataFingerprint.external("search-unsplit-complete")
     )
-    val fitted = scala.collection.mutable.ArrayBuffer.empty[Set[Double]]
+    val fitted   = scala.collection.mutable.ArrayBuffer.empty[Set[Double]]
     val assessed = scala.collection.mutable.ArrayBuffer.empty[Double]
 
     final class RecordingLearner
         extends Learner[Id, Double, Double, Unit, Double]:
       type FitError = Nothing
       type RunError = Nothing
-      type Model = Pipe[Double, Nothing, Double]
+      type Model    = Pipe[Double, Nothing, Double]
 
       def fit[U <: Use.Fit](
           fold: NonEmptyData[U, Example[Double, Double, Unit]]
@@ -168,7 +170,7 @@ class SearchSuite extends munit.FunSuite:
         assertEquals(fitted.map(_.size).toVector, Vector(8, 8, 8))
         assertEquals(assessed.sorted.toVector, rows.map(_.input))
         fitted.zipWithIndex.foreach { (analysis, fold) =>
-          val start = fold * 4
+          val start      = fold * 4
           val assessment = assessed.slice(start, start + 4).toSet
           assertEquals(analysis.intersect(assessment), Set.empty[Double])
         }
@@ -202,7 +204,7 @@ class SearchSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = String
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, Double, Unit]]
@@ -252,7 +254,7 @@ class SearchSuite extends munit.FunSuite:
       extends Learner[Id, Double, String, Unit, String]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, String]
+    type Model    = Pipe[Double, Nothing, String]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, String, Unit]]
@@ -275,7 +277,7 @@ class SearchSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = String
-    type Model = Pipe[Double, String, Double]
+    type Model    = Pipe[Double, String, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, Double, Unit]]

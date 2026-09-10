@@ -9,7 +9,7 @@ final class AddConstant[F[_]](val amount: Double)(using Applicative[F])
     extends Transform.Leaf[F, Double, Double]:
   type FitError = Nothing
   type RunError = Nothing
-  type Fitted = Pipe[Double, Nothing, Double]
+  type Fitted   = Pipe[Double, Nothing, Double]
 
   protected def descriptor: ComponentDescriptor =
     ComponentDescriptor(
@@ -35,7 +35,7 @@ final class MeanLearner[F[_]](using Applicative[F])
     extends Learner[F, Double, Double, Unit, Double]:
   type FitError = Nothing
   type RunError = Nothing
-  type Model = Pipe[Double, Nothing, Double]
+  type Model    = Pipe[Double, Nothing, Double]
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[Double, Double, Unit]]

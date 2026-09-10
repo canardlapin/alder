@@ -22,7 +22,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Observation]
@@ -34,8 +34,10 @@ class ExperimentRoutesSuite extends munit.FunSuite:
 
   private val learner = new IdentityLearner
 
-  private def source(count: Int, identity: String)
-      : Data[Use.Unsplit, Observation] =
+  private def source(
+      count: Int,
+      identity: String
+  ): Data[Use.Unsplit, Observation] =
     InMemoryData.unsplit(
       Vector.tabulate(count) { index =>
         val value = index.toDouble + 1.0
@@ -76,7 +78,10 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     val inputs = predictionInputs("validation-prediction-inputs")
     val inputIds =
       inputs.foldRows(Vector.empty[RowId])((ids, id, _) => ids :+ id)
-    assertEquals(validated.predictAll(inputs), validated.model.predictAll(inputs))
+    assertEquals(
+      validated.predictAll(inputs),
+      validated.model.predictAll(inputs)
+    )
     assertEquals(validated.predictAll(inputs).map(_.map(_._1)), Right(inputIds))
     val refitted =
       validated
@@ -147,19 +152,21 @@ class ExperimentRoutesSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = String
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Observation]
     )(using fitContext: FitContext): FitResult[Id, FitError, Trained[Model]] =
       val _ = data
-      EitherT.leftT(fitContext.stagePath.failure("forced-candidate-fit-failure"))
+      EitherT.leftT(
+        fitContext.stagePath.failure("forced-candidate-fit-failure")
+      )
 
   private final class ConditionalPredictionLearner
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = String
-    type Model = Pipe[Double, String, Double]
+    type Model    = Pipe[Double, String, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Observation]
@@ -187,7 +194,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         case Right(value) => value
 
     val throughResult = validated.predict(-1.0)
-    val throughModel = validated.model.predict(-1.0)
+    val throughModel  = validated.model.predict(-1.0)
     assertEquals(throughResult, throughModel)
     throughResult match
       case Left(failure) =>
@@ -272,8 +279,8 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     val stepwise =
       for
         partitioned <- defined.partition
-        fitted <- partitioned.fitCandidate
-        validated <- fitted.validate
+        fitted      <- partitioned.fitCandidate
+        validated   <- fitted.validate
       yield validated
     val direct = defined.run
     (stepwise, direct) match
@@ -305,10 +312,10 @@ class ExperimentRoutesSuite extends munit.FunSuite:
     val stepwise =
       for
         partitioned <- defined.partition
-        fitted <- partitioned.fitCandidate
-        validated <- fitted.validate
-        refitted <- validated.select(SingleCandidate).refit
-        tested <- refitted.test
+        fitted      <- partitioned.fitCandidate
+        validated   <- fitted.validate
+        refitted    <- validated.select(SingleCandidate).refit
+        tested      <- refitted.test
       yield tested
     val direct = defined.run(selection = SingleCandidate)
     (stepwise, direct) match
@@ -322,7 +329,7 @@ class ExperimentRoutesSuite extends munit.FunSuite:
 
   test("trainValidationTest and precommitted accept Blueprint.Complete") {
     val scaleLearner = learner
-    val blueprint = Blueprint.supervised[Double, Double].learn(scaleLearner)
+    val blueprint    = Blueprint.supervised[Double, Double].learn(scaleLearner)
     val tvt =
       TrainValidationTestSpec(
         SplitAmount.Count(rows(2L)),
@@ -381,7 +388,9 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         RegressionMetrics.rmse[Unit]
       )
       .run(selection = SingleCandidate) match
-      case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
+      case Left(
+            ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)
+          ) =>
         ()
       case other =>
         fail(s"expected TVT EmptySource, got $other")
@@ -395,7 +404,9 @@ class ExperimentRoutesSuite extends munit.FunSuite:
         RegressionMetrics.rmse[Unit]
       )
       .run match
-      case Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)) =>
+      case Left(
+            ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)
+          ) =>
         ()
       case other =>
         fail(s"expected precommitted EmptySource, got $other")
@@ -453,7 +464,9 @@ def illegal[
     )
   }
 
-  test("Experiment Validated.select rejects reporting-only metrics at compile time") {
+  test(
+    "Experiment Validated.select rejects reporting-only metrics at compile time"
+  ) {
     val errors = typeCheckErrors(
       """import alder.application.*
 import alder.kernel.*

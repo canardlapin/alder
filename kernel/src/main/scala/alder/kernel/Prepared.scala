@@ -13,7 +13,7 @@ sealed trait Preparation
 
 object Preparation:
   sealed trait LearnerReady extends Preparation
-  sealed trait Reusable extends LearnerReady
+  sealed trait Reusable     extends LearnerReady
 
 /** The hinge of the design: a fitted artifact together with the training rows
   * that are safe to pass downstream — which are NOT necessarily the replay of
@@ -35,15 +35,15 @@ object Prepared:
 
   /** Correct-by-construction Reusable factory (D5): takes the fitted pipe and
     * the fitting data and performs the replay itself, so the input-only replay
-    * law cannot be violated. Replay failure surfaces so the caller can embed
-    * it in its FitError. Score-reuse shortcuts belong to alder.unsafe.spi.
+    * law cannot be violated. Replay failure surfaces so the caller can embed it
+    * in its FitError. Score-reuse shortcuts belong to alder.unsafe.spi.
     */
   private[alder] def replayed[U <: Use.Fit, E, X, Z, P <: Pipe[X, E, Z]](
       fitted: Trained[P],
       data: NonEmptyData[U, X],
       lineage: PreparationLineage
   ): Either[Failure[E], Prepared[Preparation.Reusable, U, P, Z]] =
-    val pipe = fitted.artifact
+    val pipe    = fitted.artifact
     val builder = Vector.newBuilder[(RowId, Z)]
     val failed =
       data.data.foldRows[Option[Failure[E]]](None) {

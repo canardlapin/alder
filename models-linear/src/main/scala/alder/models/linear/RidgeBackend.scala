@@ -56,8 +56,7 @@ private[alder] object RidgeProblem:
   ): Either[RidgeBackendError, RidgeProblem] =
     if data.size > Int.MaxValue.toLong then
       Left(RidgeBackendError.TooManyRows(data.size))
-    else if features.size == 0 then
-      Left(RidgeBackendError.EmptyCoordinateSpace)
+    else if features.size == 0 then Left(RidgeBackendError.EmptyCoordinateSpace)
     else
       val expectedRows = data.size.toInt
       val suppliedWeights = rowWeights match
@@ -72,8 +71,8 @@ private[alder] object RidgeProblem:
             )
           )
         case _ =>
-          val ids = new Array[RowId](expectedRows)
-          val design = new Array[Double](expectedRows * features.size)
+          val ids     = new Array[RowId](expectedRows)
+          val design  = new Array[Double](expectedRows * features.size)
           val targets = new Array[Double](expectedRows)
           val weights = new Array[Double](expectedRows)
           var nextRow = 0
@@ -85,15 +84,13 @@ private[alder] object RidgeProblem:
               if !weight.isFinite || weight < 0.0 then
                 failure = Some(RidgeBackendError.InvalidWeight(id, weight))
               else if !example.target.isFinite then
-                failure =
-                  Some(
-                    RidgeBackendError.NonFiniteTarget(id, example.target)
-                  )
+                failure = Some(
+                  RidgeBackendError.NonFiniteTarget(id, example.target)
+                )
               else
                 features.read(example.input) match
                   case Left(error) =>
-                    failure =
-                      Some(RidgeBackendError.Coordinate(id, error))
+                    failure = Some(RidgeBackendError.Coordinate(id, error))
                   case Right(values) =>
                     var column = 0
                     while column < values.length && failure.isEmpty do
@@ -106,8 +103,7 @@ private[alder] object RidgeProblem:
                             value
                           )
                         )
-                      else
-                        design(nextRow * features.size + column) = value
+                      else design(nextRow * features.size + column) = value
                       column += 1
                     targets(nextRow) = example.target
                     weights(nextRow) = weight
@@ -120,8 +116,8 @@ private[alder] object RidgeProblem:
               if !weightSum.isFinite || weightSum <= 0.0 then
                 Left(RidgeBackendError.NonPositiveTotalWeight(weightSum))
               else
-                val means = new Array[Double](features.size)
-                var row = 0
+                val means       = new Array[Double](features.size)
+                var row         = 0
                 var targetTotal = 0.0
                 while row < expectedRows do
                   val weight = weights(row)
@@ -157,11 +153,11 @@ private[alder] object RidgeProblem:
       penalty: Double
   ): (Double, Double) =
     var objective = 0.0
-    val gradient = new Array[Double](problem.columns)
-    var row = 0
+    val gradient  = new Array[Double](problem.columns)
+    var row       = 0
     while row < problem.rows do
       var prediction = intercept
-      var column = 0
+      var column     = 0
       while column < problem.columns do
         prediction += problem.feature(row, column) * coefficients(column)
         column += 1
@@ -174,8 +170,8 @@ private[alder] object RidgeProblem:
         column += 1
       row += 1
     var coefficientNorm = 0.0
-    var column = 0
-    var kktSquared = 0.0
+    var column          = 0
+    var kktSquared      = 0.0
     while column < problem.columns do
       val coefficient = coefficients(column)
       coefficientNorm += coefficient * coefficient

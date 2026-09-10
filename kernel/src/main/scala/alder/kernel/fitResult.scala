@@ -3,8 +3,8 @@ package alder.kernel
 import cats.{Functor, Id}
 import cats.data.EitherT
 
-/** The result of fitting: an effect around either a stage-attributed failure
-  * or a fitted value.
+/** The result of fitting: an effect around either a stage-attributed failure or
+  * a fitted value.
   */
 type FitResult[F[_], E, A] = EitherT[F, Failure[E], A]
 

@@ -70,8 +70,8 @@ class BaselineSuite extends FunSuite:
       }
     val data = Supervised.fromPairs(pairs, "bench-ridge")
     val elapsed = millis {
-      val scaler = Standardize[Point](zeroVariance = ZeroVariance.AsZero)
-      val ridge = Ridge.lsqr[Point](penalty = RidgePenalty.const(0.1))
+      val scaler    = Standardize[Point](zeroVariance = ZeroVariance.AsZero)
+      val ridge     = Ridge.lsqr[Point](penalty = RidgePenalty.const(0.1))
       val candidate = scaler.learnWith(ridge)
       val result =
         for

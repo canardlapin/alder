@@ -39,7 +39,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
   ) extends Learner[Id, Double, Double, String, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Observation]
@@ -152,8 +152,8 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
   }
 
   test("phase seeds are stable, plan-scoped, and domain separated") {
-    val plan = PlanFingerprint.content("sha256", "phase-plan")
-    val first = PhaseSeeds(Seed(99L), plan)
+    val plan   = PlanFingerprint.content("sha256", "phase-plan")
+    val first  = PhaseSeeds(Seed(99L), plan)
     val replay = PhaseSeeds(Seed(99L), plan)
     assertEquals(first.split, replay.split)
     assertEquals(first.candidateFit, replay.candidateFit)
@@ -226,8 +226,8 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
       ) match
         case Left(error)  => fail(s"unexpected split error: $error")
         case Right(value) => value
-    val first = validationCandidate(split)
-    val replay = validationCandidate(split)
+    val first     = validationCandidate(split)
+    val replay    = validationCandidate(split)
     val selection = first.select(SingleCandidate)
     assert(selection.learner eq first.learner)
 
@@ -240,7 +240,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
 
     val promoted =
       Refit.after(selection).from(first.evaluation.allObserved) match
-        case Left(error) => fail(s"unexpected promotion error: $error")
+        case Left(error)  => fail(s"unexpected promotion error: $error")
         case Right(value) => value
     assertEquals(promoted.size, 6L)
     promoted.refit match
@@ -265,7 +265,7 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
           .Refit(
             RefitPhase.SelectedPromotion,
             ApplicationRefitError.SelectionReceiptAlreadyUsed(id)
-        )
+          )
           .render
         assert(rendered.contains("SelectedPromotion"))
         assert(rendered.contains("selection receipt"))
@@ -362,7 +362,9 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
         )
   }
 
-  test("precommitted Train/Test evaluation permits deployment refit without selection") {
+  test(
+    "precommitted Train/Test evaluation permits deployment refit without selection"
+  ) {
     val split =
       Split.holdout(
         source(6, "precommitted-source"),
@@ -400,7 +402,9 @@ class ApplicationLifecycleSuite extends munit.FunSuite:
     )
   }
 
-  test("roles, objective capability, and receipt constructors fail at compile time") {
+  test(
+    "roles, objective capability, and receipt constructors fail at compile time"
+  ) {
     val validationCannotRefit = typeCheckErrors(
       """import alder.application.*
 import alder.data.*

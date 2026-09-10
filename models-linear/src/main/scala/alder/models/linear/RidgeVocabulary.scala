@@ -17,8 +17,8 @@ object RidgePenalty:
     if value.isFinite && value >= 0.0 then Right(value)
     else Left(RidgeConfigError.InvalidPenalty(value))
 
-  /** Constructs a non-negative literal or rejects the program at compile
-    * time. Dynamic values use [[create]].
+  /** Constructs a non-negative literal or rejects the program at compile time.
+    * Dynamic values use [[create]].
     */
   inline def const(inline value: Double): RidgePenalty =
     inline if value >= 0.0 && value <= Double.MaxValue then value
@@ -52,8 +52,8 @@ object RidgeTolerance:
 
 /** Validated ridge hyperparameters.
   *
-  * The penalty is finite and non-negative. The convergence tolerance is
-  * finite and strictly positive.
+  * The penalty is finite and non-negative. The convergence tolerance is finite
+  * and strictly positive.
   */
 final class RidgeConfig private (
     val penalty: Double,
@@ -79,7 +79,7 @@ object RidgeConfig:
       tolerance: Double = 1.0e-10
   ): Either[RidgeConfigError, RidgeConfig] =
     for
-      checkedPenalty <- RidgePenalty.create(penalty)
+      checkedPenalty   <- RidgePenalty.create(penalty)
       checkedTolerance <- RidgeTolerance.create(tolerance)
     yield apply(checkedPenalty, fitIntercept, checkedTolerance)
 
@@ -102,14 +102,13 @@ object RowWeights:
     case Empty
     case Invalid(index: Int, value: Double)
 
-  /** Copies and validates a non-empty sequence of finite, non-negative
-    * weights.
+  /** Copies and validates a non-empty sequence of finite, non-negative weights.
     */
   def byRow(values: IArray[Double]): Either[Error, ByRow] =
     val owned = IArray.from(values)
     if owned.isEmpty then Left(Error.Empty)
     else
-      var index = 0
+      var index                  = 0
       var invalid: Option[Error] = None
       while index < owned.length && invalid.isEmpty do
         val value = owned(index)

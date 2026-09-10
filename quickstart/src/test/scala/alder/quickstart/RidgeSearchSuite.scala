@@ -13,7 +13,9 @@ import munit.FunSuite
 class RidgeSearchSuite extends FunSuite:
   final case class Point(x: Double) derives Coordinates, Schema
 
-  test("Search.crossValidated tunes ridge penalty without retaining fold models") {
+  test(
+    "Search.crossValidated tunes ridge penalty without retaining fold models"
+  ) {
     val rows =
       Vector.tabulate(30) { index =>
         val x = index.toDouble

@@ -37,12 +37,11 @@ extension [F[_], X, Y, M, P](
     ]:
       def fit[U <: Use.Fit](
           data: NonEmptyData[U, Example[X, Y, M]]
-      )(using context: FitContext)
-          : FitResult[
-            F,
-            learner.FitError,
-            Trained[Pipe[X, learner.RunError, P]]
-          ] =
+      )(using context: FitContext): FitResult[
+        F,
+        learner.FitError,
+        Trained[Pipe[X, learner.RunError, P]]
+      ] =
         learner.fit(data).map { trained =>
           val erased: Pipe[X, learner.RunError, P] = trained.artifact
           new Trained(erased, trained.audit)

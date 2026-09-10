@@ -96,7 +96,7 @@ class ExperimentFailureRenderingSuite extends munit.FunSuite:
       MetricError.NonFiniteResult
     ).map(error => metric(error).render)
 
-    val selection = SelectionReceiptId("selection")
+    val selection  = SelectionReceiptId("selection")
     val evaluation = EvaluationReceiptId("evaluation")
     val applicationRefitErrors = Vector(
       ApplicationRefitError.SelectionReceiptMismatch(selection),
@@ -152,7 +152,11 @@ class ExperimentFailureRenderingSuite extends munit.FunSuite:
     assert(rendered.forall(!_.contains("DataFingerprint@")), clues(rendered))
     assert(rendered.forall(!_.contains("RefitEvidence@")), clues(rendered))
     assert(rendered.exists(_.contains("source-identity:dataset@v1:source")))
-    assert(rendered.exists(_.contains("selection receipt selection was already used")))
+    assert(
+      rendered.exists(
+        _.contains("selection receipt selection was already used")
+      )
+    )
     assert(rendered.exists(_.contains("reporting-only metric")))
   }
 

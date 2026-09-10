@@ -11,13 +11,13 @@ sealed trait ExperimentRoute
 sealed trait ValidationCapableRoute extends ExperimentRoute
 
 sealed trait ValidationRoute extends ValidationCapableRoute
-object ValidationRoute extends ValidationRoute
+object ValidationRoute       extends ValidationRoute
 
 sealed trait TrainValidationTestRoute extends ValidationCapableRoute
-object TrainValidationTestRoute extends TrainValidationTestRoute
+object TrainValidationTestRoute       extends TrainValidationTestRoute
 
 sealed trait PrecommittedHoldoutRoute extends ExperimentRoute
-object PrecommittedHoldoutRoute extends PrecommittedHoldoutRoute
+object PrecommittedHoldoutRoute       extends PrecommittedHoldoutRoute
 
 /** Lifecycle-phase markers retained beside exact component failures. */
 enum DataPhase derives CanEqual:
@@ -430,14 +430,14 @@ object Experiment:
     ] =
       val _ = ev
       if data.size <= 0L then
-        Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource))
+        Left(
+          ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)
+        )
       else
         Split
           .validation(data, specification, phases.split)
           .left
-          .map(error =>
-            ExperimentFailure.Split(SplitPhase.Partition, error)
-          )
+          .map(error => ExperimentFailure.Split(SplitPhase.Partition, error))
           .map(split =>
             new Partitioned(
               ValidationRoute,
@@ -509,9 +509,7 @@ object Experiment:
           plan = plan
         )
         .left
-        .map(failure =>
-          ExperimentFailure.Fit(FitPhase.Candidate, failure)
-        )
+        .map(failure => ExperimentFailure.Fit(FitPhase.Candidate, failure))
         .map(trained =>
           new CandidateFitted(
             ValidationRoute,
@@ -549,9 +547,7 @@ object Experiment:
       EvaluationSources
         .validation(split.train, split.validation.data)
         .left
-        .map(error =>
-          ExperimentFailure.Data(DataPhase.Source, error)
-        )
+        .map(error => ExperimentFailure.Data(DataPhase.Source, error))
         .flatMap { sources =>
           Evaluation.scored(trained, sources, metric) match
             case Left(ScoredEvaluationError.Prediction(error)) =>
@@ -614,7 +610,7 @@ object Experiment:
     def predictions: NonEmptyData[Use.Validation, Scored[Y, P, M]] =
       evaluation.scored
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
     /** Structured projection of this validation result's retained evidence. */
     def report: ExperimentReport[S] =
@@ -770,7 +766,7 @@ object Experiment:
       val trained: Trained[learner.Model]
   ):
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
     /** Predicts with the candidate refitted on training plus validation. */
     def predict(input: X): Either[Failure[learner.RunError], P] =

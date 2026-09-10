@@ -1,8 +1,8 @@
 package alder.kernel
 
 /** Stage identity within a normalized logical plan. Allocation is plan-shaped,
-  * never runtime-nesting-shaped, so `(a andThen b) andThen c` and
-  * `a andThen (b andThen c)` produce the same paths (D2).
+  * never runtime-nesting-shaped, so `(a andThen b) andThen c` and `a andThen (b
+  * andThen c)` produce the same paths (D2).
   */
 final case class StagePath(segments: Vector[Int]) derives CanEqual:
   def child(ordinal: Int): StagePath = StagePath(segments :+ ordinal)
@@ -24,7 +24,7 @@ object StagePath:
   */
 final case class Failure[+E] private[alder] (stage: StagePath, cause: E):
   def map[E2](f: E => E2): Failure[E2] = Failure(stage, f(cause))
-  def widen[E2 >: E]: Failure[E2] = this
+  def widen[E2 >: E]: Failure[E2]      = this
 
 /** An immutable, pure, already-fitted, locally executable computation with an
   * explicit error channel. Error composition is by union: errors accumulate

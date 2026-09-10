@@ -62,7 +62,7 @@ class SpaceStudySuite extends munit.FunSuite:
   test("primitive search-space conveniences retain validation") {
     val grid =
       for
-        rates <- Space.logUniform(1.0e-4, 1.0)
+        rates  <- Space.logUniform(1.0e-4, 1.0)
         depths <- Space.intRange(1, 4)
         space = (depths, rates).mapN((depth, rate) => (depth, rate))
         candidates <- Grid.candidates(space, continuousPoints = 3)
@@ -84,7 +84,7 @@ class SpaceStudySuite extends munit.FunSuite:
   }
 
   test("positive literal constructors reject invalid programs") {
-    val validInt = PositiveInt.const(3)
+    val validInt    = PositiveInt.const(3)
     val validDouble = PositiveDouble.const(0.25)
     assertEquals(validInt.toInt, 3)
     assertEquals(validDouble.toDouble, 0.25)
@@ -145,9 +145,8 @@ class SpaceStudySuite extends munit.FunSuite:
       case Left(StudyError.NoSuccessfulTrial(failures)) =>
         assertEquals(failures.length, 2)
         assert(
-          failures.forall {
-            case TrialFailure.NonFiniteObjective(value) =>
-              value.isNaN
+          failures.forall { case TrialFailure.NonFiniteObjective(value) =>
+            value.isNaN
           }
         )
       case other =>

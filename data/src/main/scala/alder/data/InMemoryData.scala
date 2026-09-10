@@ -2,9 +2,9 @@ package alder.data
 
 import alder.kernel.*
 
-/** An immutable, ownership-safe in-memory Data implementation. The input
-  * Vector is already persistent; rows and their stable ids are never exposed
-  * as a mutable collection.
+/** An immutable, ownership-safe in-memory Data implementation. The input Vector
+  * is already persistent; rows and their stable ids are never exposed as a
+  * mutable collection.
   */
 final class InMemoryData[+U <: Use, +A] private[data] (
     private val rows: Vector[(RowId, A)],
@@ -27,9 +27,9 @@ final class InMemoryData[+U <: Use, +A] private[data] (
       val batchLength = math.min(size.value, rows.length - batchOffset)
       step(
         new RowBatch[A]:
-          def length: Int = batchLength
+          def length: Int              = batchLength
           def rowId(index: Int): RowId = rows(batchOffset + index)._1
-          def value(index: Int): A = rows(batchOffset + index)._2
+          def value(index: Int): A     = rows(batchOffset + index)._2
       )
       offset += batchLength
 

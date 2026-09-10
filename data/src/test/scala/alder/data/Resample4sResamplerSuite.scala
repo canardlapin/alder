@@ -16,7 +16,7 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     def apply(meta: AdapterMeta): String = meta.group
 
   private given Hash[String] with
-    def hash(value: String): Int = value.hashCode()
+    def hash(value: String): Int                  = value.hashCode()
     def eqv(left: String, right: String): Boolean = left == right
 
   private def alderFingerprint(label: String): DataFingerprint =
@@ -65,8 +65,8 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
       Resample4sResampler.populationFingerprint(data.fingerprint) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected population failure: $error")
-    Resample4sResampler.fromCompiled[A](compiled, population)(
-      using DigestAlgorithm.fnv1a64
+    Resample4sResampler.fromCompiled[A](compiled, population)(using
+      DigestAlgorithm.fnv1a64
     ) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected receipt failure: $error")
@@ -80,8 +80,10 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
       case Right(value) => value
       case Left(error)  => fail(s"unexpected adapter failure: $error")
 
-  test("exact-once plans construct CompleteResampler without a coverage check") {
-    val data = train(Vector.range(0, 12))
+  test(
+    "exact-once plans construct CompleteResampler without a coverage check"
+  ) {
+    val data     = train(Vector.range(0, 12))
     val compiled = exactCompiled(12, 4, 91L)
     val population =
       Resample4sResampler.populationFingerprint(data.fingerprint) match
@@ -97,11 +99,13 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     assertEquals(plan(complete, data, 91L).foldCount, 4)
   }
 
-  test("adapter laws cover rows once, keep folds disjoint, and reconstruct order") {
-    val data = train(Vector.range(0, 17))
+  test(
+    "adapter laws cover rows once, keep folds disjoint, and reconstruct order"
+  ) {
+    val data      = train(Vector.range(0, 17))
     val resampler = adapter(data, folds = 5, seed = 77L)
-    val first = plan(resampler, data, 77L)
-    val replay = plan(resampler, data, 77L)
+    val first     = plan(resampler, data, 77L)
+    val replay    = plan(resampler, data, 77L)
 
     assertEquals(first.assignment.digest, replay.assignment.digest)
     val assessments =
@@ -112,7 +116,7 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     )
     assertEquals(assessments.map(_._1).distinct.length, 17)
     first.folds.foreach { fold =>
-      val analysis = rowsOf(fold.analysis).map(_._1)
+      val analysis   = rowsOf(fold.analysis).map(_._1)
       val assessment = rowsOf(fold.assessment).map(_._1)
       assertEquals(analysis, analysis.sorted)
       assertEquals(assessment, assessment.sorted)
@@ -121,11 +125,13 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     }
   }
 
-  test("adapter retains the policy-tagged Resample4s receipt in cross-fit lineage") {
+  test(
+    "adapter retains the policy-tagged Resample4s receipt in cross-fit lineage"
+  ) {
     val values = Vector.tabulate(8) { index =>
       Example(index.toDouble, index.toDouble, s"m$index")
     }
-    val data = train(values)
+    val data      = train(values)
     val resampler = adapter(data, folds = 4, seed = 101L)
     val feature =
       FeatureMap.crossFitted(new VisibilityEncoder, resampler)
@@ -186,8 +192,8 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     val resampler =
       Resample4sResampler.fromCompiled[
         Example[Int, Int, AdapterMeta]
-      ](compiled, population)(
-        using DigestAlgorithm.fnv1a64
+      ](compiled, population)(using
+        DigestAlgorithm.fnv1a64
       ) match
         case Right(value) => value
         case Left(error)  => fail(s"unexpected receipt failure: $error")
@@ -196,13 +202,14 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     val groupFolds = groupedPlan.folds.flatMap { fold =>
       rowsOf(fold.assessment).map(row => row._2.meta.group -> fold.index)
     }
-    groupFolds.groupMap(_._1)(_._2).values.foreach(indices =>
-      assertEquals(indices.distinct.length, 1)
-    )
+    groupFolds
+      .groupMap(_._1)(_._2)
+      .values
+      .foreach(indices => assertEquals(indices.distinct.length, 1))
   }
 
   test("bound plan rejects seed, size, and population identity mismatches") {
-    val data = train(Vector.range(0, 8), "first")
+    val data      = train(Vector.range(0, 8), "first")
     val resampler = adapter(data, folds = 4, seed = 9L)
     assertEquals(
       resampler.split(data, AlderSeed(10L)),
@@ -236,7 +243,9 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     )
   }
 
-  test("Holdout, Bootstrap, and repeated exact plans cannot mint completeness") {
+  test(
+    "Holdout, Bootstrap, and repeated exact plans cannot mint completeness"
+  ) {
     val errors = typeCheckErrors(
       """import alder.data.*
 import resample4s.core.*
@@ -267,10 +276,10 @@ def repeated(
       Gen.choose(Long.MinValue, Long.MaxValue)
     ) { (rowCount, selector, rawSeed) =>
       val foldCount = 2 + selector % (rowCount - 1)
-      val data = train(Vector.range(0, rowCount), s"generated-$rowCount")
+      val data      = train(Vector.range(0, rowCount), s"generated-$rowCount")
       val resampler = adapter(data, foldCount, rawSeed)
-      val observed = plan(resampler, data, rawSeed)
-      val replay = plan(resampler, data, rawSeed)
+      val observed  = plan(resampler, data, rawSeed)
+      val replay    = plan(resampler, data, rawSeed)
       val assessments =
         observed.folds.flatMap(fold => rowsOf(fold.assessment))
       val coverage =
@@ -278,7 +287,7 @@ def repeated(
           Vector.range(0, rowCount).map(_.toLong)
       val unique = assessments.map(_._1).distinct.length == rowCount
       val complements = observed.folds.forall { fold =>
-        val analysis = rowsOf(fold.analysis).map(_._1).toSet
+        val analysis   = rowsOf(fold.analysis).map(_._1).toSet
         val assessment = rowsOf(fold.assessment).map(_._1).toSet
         analysis.intersect(assessment).isEmpty &&
         analysis.size + assessment.size == rowCount

@@ -9,10 +9,10 @@ package alder.kernel
 sealed trait Use
 
 object Use:
-  sealed trait Unsplit extends Use
-  sealed trait Fit extends Use
-  sealed trait Train extends Fit
-  sealed trait Refit extends Fit
+  sealed trait Unsplit    extends Use
+  sealed trait Fit        extends Use
+  sealed trait Train      extends Fit
+  sealed trait Refit      extends Fit
   sealed trait Evaluation extends Use
   sealed trait Validation extends Evaluation
-  sealed trait Test extends Evaluation
+  sealed trait Test       extends Evaluation

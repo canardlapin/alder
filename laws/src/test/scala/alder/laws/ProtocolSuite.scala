@@ -9,8 +9,7 @@ enum ToyRunError derives CanEqual:
 enum ToyFitError derives CanEqual:
   case Replay(cause: ToyRunError)
 
-/** A fitted mean-shift pipe holding the stage identity it received at fit
-  * time.
+/** A fitted mean-shift pipe holding the stage identity it received at fit time.
   */
 final class ShiftPipe(val shift: Double, stage: StagePath)
     extends Pipe[Double, ToyRunError, Double]:
@@ -27,7 +26,7 @@ final class MeanShift[F[_]](using cats.Applicative[F])
 
   type FitError = ToyFitError
   type RunError = ToyRunError
-  type Fitted = ShiftPipe
+  type Fitted   = ShiftPipe
 
   protected def descriptor: ComponentDescriptor = MeanShift.descriptor
 
@@ -66,7 +65,7 @@ class ProtocolSuite extends munit.FunSuite:
     )
 
   test("leaf fit: prepared rows are the replay of the fitted pipe") {
-    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val data   = TestData.train(1.0, 2.0, 3.0, 6.0)
     val result = MeanShift[Id]().fit(data)(using rootContext()).value
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
@@ -79,11 +78,11 @@ class ProtocolSuite extends munit.FunSuite:
   }
 
   test("composed transform: chained pipe, chained audit, distinct stages") {
-    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val data     = TestData.train(1.0, 2.0, 3.0, 6.0)
     val composed = MeanShift[Id]().andThen(MeanShift[Id]())
-    val result = composed.fit(data)(using rootContext()).value
+    val result   = composed.fit(data)(using rootContext()).value
     result match
-      case Left(failure) => fail(s"unexpected failure: $failure")
+      case Left(failure)   => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
         // second stage sees zero-mean rows, so its shift is zero
         assertEquals(
@@ -105,34 +104,36 @@ class ProtocolSuite extends munit.FunSuite:
   }
 
   test("run failure carries the failing stage's path") {
-    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val data     = TestData.train(1.0, 2.0, 3.0, 6.0)
     val composed = MeanShift[Id]().andThen(MeanShift[Id]())
-    val result = composed.fit(data)(using rootContext()).value
+    val result   = composed.fit(data)(using rootContext()).value
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
         prepared.fitted.artifact.run(Double.NaN) match
-          case Right(value) => fail(s"expected failure, got $value")
+          case Right(value)  => fail(s"expected failure, got $value")
           case Left(failure) =>
             // NaN fails in the first stage, at child path /0
             assertEquals(failure.stage, StagePath.root.child(0))
             assertEquals(failure.cause, ToyRunError.NonFinite)
   }
 
-  test("transform association preserves flat audit, lineage, seeds, and output") {
-    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
-    val a = MeanShift[Id]()
-    val b = MeanShift[Id]()
-    val c = MeanShift[Id]()
-    val leftAssociated = a.andThen(b).andThen(c)
+  test(
+    "transform association preserves flat audit, lineage, seeds, and output"
+  ) {
+    val data            = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val a               = MeanShift[Id]()
+    val b               = MeanShift[Id]()
+    val c               = MeanShift[Id]()
+    val leftAssociated  = a.andThen(b).andThen(c)
     val rightAssociated = a.andThen(b.andThen(c))
 
-    val left = leftAssociated.fit(data)(using rootContext()).value
+    val left  = leftAssociated.fit(data)(using rootContext()).value
     val right = rightAssociated.fit(data)(using rootContext()).value
 
     (left, right) match
       case (Right(leftPrepared), Right(rightPrepared)) =>
-        val leftAudit = leftPrepared.fitted.audit
+        val leftAudit  = leftPrepared.fitted.audit
         val rightAudit = rightPrepared.fitted.audit
         assertEquals(leftAudit.children.length, 3)
         assertEquals(rightAudit.children.length, 3)
@@ -161,7 +162,7 @@ class ProtocolSuite extends munit.FunSuite:
   }
 
   test("derived stage seeds include the normalized plan fingerprint") {
-    val data = TestData.train(1.0, 2.0, 3.0, 6.0)
+    val data      = TestData.train(1.0, 2.0, 3.0, 6.0)
     val transform = MeanShift[Id]().andThen(MeanShift[Id]())
     val first =
       transform

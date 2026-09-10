@@ -7,8 +7,8 @@ import cats.data.EitherT
 
 /** Immutable fitted ridge predictor.
   *
-  * Prediction reads features through the same `FeatureView` representation
-  * used at fit time and attributes failures to the learner's stage path.
+  * Prediction reads features through the same `FeatureView` representation used
+  * at fit time and attributes failures to the learner's stage path.
   */
 final class RidgeModel[X] private[linear] (
     val solution: RidgeSolution,
@@ -21,8 +21,8 @@ final class RidgeModel[X] private[linear] (
       .left
       .map(error => stage.failure(RidgePredictionError.Coordinate(error)))
       .flatMap { values =>
-        var prediction = solution.intercept
-        var column = 0
+        var prediction                                     = solution.intercept
+        var column                                         = 0
         var failure: Option[Failure[RidgePredictionError]] = None
         while column < values.length && failure.isEmpty do
           val coordinate = values(column)
@@ -35,8 +35,7 @@ final class RidgeModel[X] private[linear] (
                 )
               )
             )
-          else
-            prediction += coordinate * solution.coefficient(column)
+          else prediction += coordinate * solution.coefficient(column)
           column += 1
         failure.toLeft(prediction).flatMap { result =>
           if result.isFinite then Right(result)
@@ -59,7 +58,7 @@ final class RidgeRegression[F[_], X, M](
 ) extends Learner[F, X, Double, M, Double]:
   type FitError = RidgeBackendError
   type RunError = RidgePredictionError
-  type Model = RidgeModel[X]
+  type Model    = RidgeModel[X]
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]]
@@ -82,10 +81,10 @@ final class RidgeRegression[F[_], X, M](
       ComponentId(id),
       ComponentVersion("0.1.0-SNAPSHOT"),
       AuditValue.record(
-        "penalty" -> AuditValue.decimal(config.penalty),
+        "penalty"      -> AuditValue.decimal(config.penalty),
         "fitIntercept" -> AuditValue.bool(config.fitIntercept),
-        "tolerance" -> AuditValue.decimal(config.tolerance),
-        "featureView" -> features.featureViewDescriptor
+        "tolerance"    -> AuditValue.decimal(config.tolerance),
+        "featureView"  -> features.featureViewDescriptor
       ),
       backend.fingerprint
     )
@@ -98,8 +97,8 @@ object RidgeRegression:
   )(using FeatureView[X]): RidgeRegression[Id, X, M] =
     new RidgeRegression[Id, X, M](config, backend)
 
-/** Ridge learner using non-negative weights obtained from observation
-  * metadata through an auditable [[alder.kernel.WeightPolicy]].
+/** Ridge learner using non-negative weights obtained from observation metadata
+  * through an auditable [[alder.kernel.WeightPolicy]].
   */
 final class WeightedRidgeRegression[F[_], X, M](
     val config: RidgeConfig,
@@ -111,7 +110,7 @@ final class WeightedRidgeRegression[F[_], X, M](
 ) extends Learner[F, X, Double, M, Double]:
   type FitError = RidgeBackendError
   type RunError = RidgePredictionError
-  type Model = RidgeModel[X]
+  type Model    = RidgeModel[X]
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Double, M]]
@@ -124,7 +123,7 @@ final class WeightedRidgeRegression[F[_], X, M](
       )
     else
       val values = new Array[Double](data.size.toInt)
-      var index = 0
+      var index  = 0
       data.data.foreachRow { (_, example) =>
         values(index) = weightPolicy(example.meta)
         index += 1
@@ -148,11 +147,11 @@ final class WeightedRidgeRegression[F[_], X, M](
               ComponentId("alder.ridge.weighted"),
               ComponentVersion("0.1.0-SNAPSHOT"),
               AuditValue.record(
-                "penalty" -> AuditValue.decimal(config.penalty),
+                "penalty"      -> AuditValue.decimal(config.penalty),
                 "fitIntercept" -> AuditValue.bool(config.fitIntercept),
-                "tolerance" -> AuditValue.decimal(config.tolerance),
-                "weights" -> weightPolicy.descriptor.asAuditValue,
-                "featureView" -> features.featureViewDescriptor
+                "tolerance"    -> AuditValue.decimal(config.tolerance),
+                "weights"      -> weightPolicy.descriptor.asAuditValue,
+                "featureView"  -> features.featureViewDescriptor
               ),
               backend.fingerprint
             )

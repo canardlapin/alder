@@ -25,8 +25,7 @@ object PositiveDouble:
     inline if value > 0.0 then value
     else compiletime.error("PositiveDouble must be a positive literal")
 
-  extension (value: PositiveDouble)
-    def toDouble: Double = value
+  extension (value: PositiveDouble) def toDouble: Double = value
 
   private[tune] def fromValidated(value: Double): PositiveDouble = value
 
@@ -48,8 +47,7 @@ object PositiveInt:
 
   val one: PositiveInt = 1
 
-  extension (value: PositiveInt)
-    def toInt: Int = value
+  extension (value: PositiveInt) def toInt: Int = value
 
   private[tune] def fromValidated(value: Int): PositiveInt = value
 
@@ -62,12 +60,13 @@ object PositiveInt:
   * stringly typed parameter names.
   */
 sealed trait Space[+A]:
-  /** Transforms every candidate while preserving the underlying search shape. */
+  /** Transforms every candidate while preserving the underlying search shape.
+    */
   final def map[B](f: A => B): Space[B] =
     Space.Mapped(this, f)
 
 object Space:
-  private final case class Constant[A](value: A) extends Space[A]
+  private final case class Constant[A](value: A)        extends Space[A]
   private final case class Choice[A](values: Vector[A]) extends Space[A]
   private final case class IntegerRange(
       minimum: PositiveInt,
@@ -109,15 +108,14 @@ object Space:
     for
       validatedMinimum <- PositiveInt.create(minimum)
       validatedMaximum <- PositiveInt.create(maximum)
-      space <- validatedIntRange(validatedMinimum, validatedMaximum)
+      space            <- validatedIntRange(validatedMinimum, validatedMaximum)
     yield space
 
   private def validatedIntRange(
       minimum: PositiveInt,
       maximum: PositiveInt
   ): Either[NumericSpaceError, Space[PositiveInt]] =
-    if minimum.toInt <= maximum.toInt then
-      Right(IntegerRange(minimum, maximum))
+    if minimum.toInt <= maximum.toInt then Right(IntegerRange(minimum, maximum))
     else
       Left(
         NumericSpaceError.ReversedIntBounds(
@@ -133,8 +131,7 @@ object Space:
   ): Either[NumericSpaceError, Space[PositiveDouble]] =
     validatedLogUniform(minimum, maximum)
 
-  /** Positive log-uniform interval with runtime validation of primitive
-    * bounds.
+  /** Positive log-uniform interval with runtime validation of primitive bounds.
     */
   @targetName("logUniformFromDouble")
   def logUniform(
@@ -194,7 +191,7 @@ object Space:
           }
       case Product(left, right) =>
         for
-          leftValue <- grid(left, continuousPoints)
+          leftValue  <- grid(left, continuousPoints)
           rightValue <- grid(right, continuousPoints)
         yield (leftValue, rightValue)
       case Mapped(source, f) =>
@@ -210,14 +207,14 @@ object Space:
         val (next, index) = random.nextInt(values.length)
         (next, values(index))
       case IntegerRange(minimum, maximum) =>
-        val width = maximum.toInt - minimum.toInt + 1
+        val width          = maximum.toInt - minimum.toInt + 1
         val (next, offset) = random.nextInt(width)
         val value =
           PositiveInt.fromValidated(minimum.toInt + offset)
         (next, value)
       case LogUniform(minimum, maximum) =>
         val (next, unit) = random.nextUnitDouble
-        val logMinimum = math.log(minimum.toDouble)
+        val logMinimum   = math.log(minimum.toDouble)
         val sampled =
           math.exp(
             logMinimum +
@@ -226,7 +223,7 @@ object Space:
         val value = PositiveDouble.fromValidated(sampled)
         (next, value)
       case Product(left, right) =>
-        val (afterLeft, leftValue) = draw(left, random)
+        val (afterLeft, leftValue)   = draw(left, random)
         val (afterRight, rightValue) = draw(right, afterLeft)
         (afterRight, (leftValue, rightValue))
       case Mapped(source, f) =>
@@ -267,7 +264,7 @@ object RandomSearch:
   ): Vector[A] =
     val output = Vector.newBuilder[A]
     var random = StableRandom(seed.value)
-    var index = 0
+    var index  = 0
     while index < trials.toInt do
       val (next, value) = Space.draw(space, random)
       output += value
@@ -289,7 +286,7 @@ object RandomSearch:
 private[tune] final class StableRandom private (private val state: Long):
   def nextLong: (StableRandom, Long) =
     val nextState = state + 0x9e3779b97f4a7c15L
-    var mixed = nextState
+    var mixed     = nextState
     mixed = (mixed ^ (mixed >>> 30)) * 0xbf58476d1ce4e5b9L
     mixed = (mixed ^ (mixed >>> 27)) * 0x94d049bb133111ebL
     val value = mixed ^ (mixed >>> 31)
@@ -297,12 +294,12 @@ private[tune] final class StableRandom private (private val state: Long):
 
   def nextInt(bound: Int): (StableRandom, Int) =
     val (next, value) = nextLong
-    val nonNegative = value >>> 1
+    val nonNegative   = value >>> 1
     (next, (nonNegative % bound.toLong).toInt)
 
   def nextUnitDouble: (StableRandom, Double) =
     val (next, value) = nextLong
-    val unit = (value >>> 11).toDouble * 1.1102230246251565e-16
+    val unit          = (value >>> 11).toDouble * 1.1102230246251565e-16
     (next, unit)
 
 private[tune] object StableRandom:

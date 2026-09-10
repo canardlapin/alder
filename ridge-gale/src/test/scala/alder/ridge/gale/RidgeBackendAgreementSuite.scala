@@ -8,9 +8,7 @@ import alder.testkit.TestData
 import cats.Id
 import gale.backend.PureBackend
 
-final case class RidgePoint(x: Double, z: Double)
-    derives Coordinates,
-      CanEqual
+final case class RidgePoint(x: Double, z: Double) derives Coordinates, CanEqual
 
 final case class WeightedMeta(weight: Double)
 
@@ -62,10 +60,9 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
     Example[RidgePoint, Double, WeightedMeta]
   ] =
     TestData.nonEmpty(
-      rows.zipWithIndex.map {
-        case ((input, target, weight), index) =>
-          RowId(index.toLong) ->
-            Example(input, target, WeightedMeta(weight))
+      rows.zipWithIndex.map { case ((input, target, weight), index) =>
+        RowId(index.toLong) ->
+          Example(input, target, WeightedMeta(weight))
       },
       fingerprint
     ) match
@@ -107,7 +104,7 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
     new RidgeRegression[Id, RidgePoint, Unit](ridgeConfig, backend)
       .fit(training)(using context)
       .value match
-      case Left(error) => fail(s"unexpected ridge failure: $error")
+      case Left(error)    => fail(s"unexpected ridge failure: $error")
       case Right(trained) => trained.artifact
 
   private def fitWeighted(
@@ -122,7 +119,7 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
       ridgeConfig,
       backend
     ).fit(training)(using context).value match
-      case Left(error) => fail(s"unexpected weighted ridge failure: $error")
+      case Left(error)    => fail(s"unexpected weighted ridge failure: $error")
       case Right(trained) => trained.artifact
 
   private def prediction(
@@ -151,9 +148,7 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
     val objectives = models.map(_.solution.objective)
     objectives match
       case reference +: others =>
-        others.foreach(value =>
-          assertEqualsDouble(value, reference, tolerance)
-        )
+        others.foreach(value => assertEqualsDouble(value, reference, tolerance))
       case _ => fail("agreement requires at least one objective")
     models.foreach { model =>
       assert(model.solution.kktResidual.isFinite)
@@ -164,10 +159,10 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
   test("all backends agree on full-rank predictions and objectives") {
     val training = data(
       Vector(
-        RidgePoint(0.0, 0.0) -> 1.0,
-        RidgePoint(1.0, 0.0) -> 3.0,
-        RidgePoint(0.0, 1.0) -> 0.5,
-        RidgePoint(1.0, 1.0) -> 2.5,
+        RidgePoint(0.0, 0.0)  -> 1.0,
+        RidgePoint(1.0, 0.0)  -> 3.0,
+        RidgePoint(0.0, 1.0)  -> 0.5,
+        RidgePoint(1.0, 1.0)  -> 2.5,
         RidgePoint(2.0, -1.0) -> 5.5
       )
     )
@@ -247,10 +242,10 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
   test("zero-penalty QR and LSQR agree with the analytic OLS solution") {
     val training = data(
       Vector(
-        RidgePoint(0.0, 0.0) -> 1.0,
-        RidgePoint(1.0, 0.0) -> 3.0,
-        RidgePoint(0.0, 1.0) -> 0.5,
-        RidgePoint(1.0, 1.0) -> 2.5,
+        RidgePoint(0.0, 0.0)  -> 1.0,
+        RidgePoint(1.0, 0.0)  -> 3.0,
+        RidgePoint(0.0, 1.0)  -> 0.5,
+        RidgePoint(1.0, 1.0)  -> 2.5,
         RidgePoint(2.0, -1.0) -> 5.5
       )
     )
@@ -306,7 +301,8 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
                 Double.PositiveInfinity
               )
             )
-          ) => ()
+          ) =>
+        ()
       case other => fail(s"expected non-finite prediction failure, got $other")
   }
 
@@ -329,7 +325,8 @@ class RidgeBackendAgreementSuite extends munit.FunSuite:
                 SolverId.Linop4sCG
               )
             )
-          ) => ()
+          ) =>
+        ()
       case other => fail(s"expected positive-penalty rejection, got $other")
   }
 

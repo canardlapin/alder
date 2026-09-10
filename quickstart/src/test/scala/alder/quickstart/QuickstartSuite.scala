@@ -23,22 +23,23 @@ class QuickstartSuite extends FunSuite:
       area: Double,
       bedrooms: Int,
       age: Double
-  ) derives Coordinates, Schema
+  ) derives Coordinates,
+        Schema
 
   private val houseRows =
     Vector(
-      House(52.0, 1, 55.0) -> 185.0,
-      House(60.0, 1, 40.0) -> 210.0,
-      House(68.0, 2, 35.0) -> 238.0,
-      House(75.0, 2, 25.0) -> 265.0,
-      House(82.0, 2, 22.0) -> 288.0,
-      House(90.0, 2, 15.0) -> 315.0,
-      House(98.0, 3, 18.0) -> 342.0,
+      House(52.0, 1, 55.0)  -> 185.0,
+      House(60.0, 1, 40.0)  -> 210.0,
+      House(68.0, 2, 35.0)  -> 238.0,
+      House(75.0, 2, 25.0)  -> 265.0,
+      House(82.0, 2, 22.0)  -> 288.0,
+      House(90.0, 2, 15.0)  -> 315.0,
+      House(98.0, 3, 18.0)  -> 342.0,
       House(105.0, 3, 12.0) -> 370.0,
       House(110.0, 3, 10.0) -> 390.0,
-      House(120.0, 4, 8.0) -> 430.0,
-      House(130.0, 4, 5.0) -> 470.0,
-      House(145.0, 4, 3.0) -> 525.0
+      House(120.0, 4, 8.0)  -> 430.0,
+      House(130.0, 4, 5.0)  -> 470.0,
+      House(145.0, 4, 3.0)  -> 525.0
     )
 
   private def houses(identity: String) =
@@ -65,8 +66,8 @@ class QuickstartSuite extends FunSuite:
   test("standardize plus LSQR ridge validates through Experiment") {
     val data = houses("quickstart-house-prices")
 
-    val scaler = Standardize[House](zeroVariance = ZeroVariance.AsZero)
-    val ridge = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
+    val scaler    = Standardize[House](zeroVariance = ZeroVariance.AsZero)
+    val ridge     = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
     val candidate = scaler.learnWith(ridge)
     val result =
       for
@@ -124,9 +125,9 @@ class QuickstartSuite extends FunSuite:
   }
 
   test("Blueprint and direct composition are observationally equivalent") {
-    val data = houses("quickstart-equivalence")
+    val data   = houses("quickstart-equivalence")
     val scaler = Standardize[House](zeroVariance = ZeroVariance.AsZero)
-    val ridge = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
+    val ridge  = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
     val facade =
       Blueprint.supervised[House, Double].via(scaler).learn(ridge).learner
     val direct = scaler.learnWith(ridge)
@@ -178,7 +179,7 @@ class QuickstartSuite extends FunSuite:
       directValidated.report.components.map(_.descriptor.id.render)
     )
 
-    val input = House(100.0, 3, 12.0)
+    val input   = House(100.0, 3, 12.0)
     val invalid = House(Double.NaN, 3, 12.0)
     assertEquals(facadeValidated.predict(input), directValidated.predict(input))
     (facadeValidated.predict(invalid), directValidated.predict(invalid)) match
@@ -231,7 +232,7 @@ class QuickstartSuite extends FunSuite:
       "quickstart-failure-equivalence"
     )
     val scaler = Standardize[House](zeroVariance = ZeroVariance.Reject)
-    val ridge = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
+    val ridge  = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
     val direct = scaler.learnWith(ridge)
     val facade =
       Blueprint.supervised[House, Double].via(scaler).learn(ridge).learner
@@ -282,18 +283,18 @@ class QuickstartSuite extends FunSuite:
   test("precommitted holdout scores test without selection") {
     val data = Supervised.fromPairs(
       Vector(
-        House(60.0, 1, 40.0) -> 210.0,
-        House(75.0, 2, 25.0) -> 265.0,
-        House(90.0, 2, 15.0) -> 315.0,
+        House(60.0, 1, 40.0)  -> 210.0,
+        House(75.0, 2, 25.0)  -> 265.0,
+        House(90.0, 2, 15.0)  -> 315.0,
         House(110.0, 3, 10.0) -> 390.0,
-        House(130.0, 4, 5.0) -> 470.0,
-        House(150.0, 4, 2.0) -> 520.0
+        House(130.0, 4, 5.0)  -> 470.0,
+        House(150.0, 4, 2.0)  -> 520.0
       ),
       "quickstart-precommitted"
     )
 
-    val scaler = Standardize[House](zeroVariance = ZeroVariance.AsZero)
-    val ridge = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
+    val scaler    = Standardize[House](zeroVariance = ZeroVariance.AsZero)
+    val ridge     = Ridge.lsqr[House](penalty = RidgePenalty.const(0.1))
     val candidate = scaler.learnWith(ridge)
     val result =
       for

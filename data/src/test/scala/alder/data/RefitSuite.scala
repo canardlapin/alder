@@ -56,7 +56,7 @@ class RefitSuite extends munit.FunSuite:
     val train = data[Use.Train](0L, "train", 1.0, 2.0)
     val validation =
       data[Use.Validation](2L, "validation", 3.0, 4.0)
-    val first = validationResult(train, validation)
+    val first  = validationResult(train, validation)
     val replay = validationResult(train, validation)
 
     assertEquals(first.receipt.id, replay.receipt.id)
@@ -118,7 +118,7 @@ def illegal(result: PredictionResult[?, ?, ?]) =
 
   test("precommitted Test sources retain an honest Train+Test manifest") {
     val train = data[Use.Train](0L, "train", 1.0, 2.0)
-    val test = data[Use.Test](2L, "test", 3.0)
+    val test  = data[Use.Test](2L, "test", 3.0)
     val sources =
       EvaluationSources.precommittedTest(train, test.data) match
         case Left(error)  => fail(s"unexpected source error: $error")
@@ -136,8 +136,8 @@ def illegal(result: PredictionResult[?, ?, ?]) =
 
   test("prediction rejects a model fitted on another source") {
     val expectedTrain = data[Use.Train](0L, "expected-train", 1.0)
-    val otherTrain = data[Use.Train](0L, "other-train", 1.0)
-    val validation = data[Use.Validation](1L, "validation", 2.0)
+    val otherTrain    = data[Use.Train](0L, "other-train", 1.0)
+    val validation    = data[Use.Validation](1L, "validation", 2.0)
     val sources =
       EvaluationSources.validation(expectedTrain, validation.data) match
         case Left(error)  => fail(s"unexpected source error: $error")
@@ -151,7 +151,7 @@ def illegal(result: PredictionResult[?, ?, ?]) =
   }
 
   test("failed prediction emits no PredictionResult or receipt") {
-    val train = data[Use.Train](0L, "train", 1.0)
+    val train      = data[Use.Train](0L, "train", 1.0)
     val validation = data[Use.Validation](1L, "validation", 2.0)
     val sources =
       EvaluationSources.validation(train, validation.data) match
@@ -172,7 +172,7 @@ def illegal(result: PredictionResult[?, ?, ?]) =
 
   test("final-test sources require selected receipt-backed Refit data") {
     val unaudited = data[Use.Refit](0L, "unaudited-refit", 1.0)
-    val test = data[Use.Test](1L, "test", 2.0)
+    val test      = data[Use.Test](1L, "test", 2.0)
     assertEquals(
       EvaluationSources.finalTest(unaudited, test.data),
       Left(RefitError.MissingPriorRefitAudit)

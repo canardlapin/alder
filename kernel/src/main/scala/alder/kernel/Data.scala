@@ -33,9 +33,9 @@ trait RowBatch[+A]:
 object RowBatch:
   private[alder] def fromRows[A](rows: Vector[(RowId, A)]): RowBatch[A] =
     new RowBatch[A]:
-      def length: Int = rows.length
+      def length: Int              = rows.length
       def rowId(index: Int): RowId = rows(index)._1
-      def value(index: Int): A = rows(index)._2
+      def value(index: Int): A     = rows(index)._2
 
 /** Proof of nonemptiness, required by every fitting signature. Constructed only
   * by Alder's splitting and preparation protocols.
@@ -44,7 +44,7 @@ final class NonEmptyData[+U <: Use, +A] private[alder] (
     val data: Data[U, A],
     private[alder] val refit: Option[RefitAudit] = None
 ):
-  def size: Long = data.size
+  def size: Long                   = data.size
   def fingerprint: DataFingerprint = data.fingerprint
 
 /** Internal in-memory rows used by preparation factories (replay, out-of-fold
@@ -68,7 +68,7 @@ private[alder] final class MappedData[U <: Use, A, B](
     source: Data[U, A],
     f: A => B
 ) extends Data[U, B]:
-  def size: Long = source.size
+  def size: Long                   = source.size
   def fingerprint: DataFingerprint = source.fingerprint
   def foldRows[C](initial: C)(step: (C, RowId, B) => C): C =
     source.foldRows(initial)((acc, id, value) => step(acc, id, f(value)))
@@ -118,13 +118,12 @@ private[alder] object DataOperations:
     ](Right(Map.empty)) {
       case (Left(error), _, _) => Left(error)
       case (Right(rows), id, example) =>
-        if rows.contains(id) then
-          Left(PreparationError.DuplicateInputRow(id))
+        if rows.contains(id) then Left(PreparationError.DuplicateInputRow(id))
         else Right(rows.updated(id, (example.target, example.meta)))
     }
     val restored = originals.flatMap { available =>
-      val builder = Vector.newBuilder[(RowId, Example[Z, Y, M])]
-      val seen = scala.collection.mutable.HashSet.empty[RowId]
+      val builder   = Vector.newBuilder[(RowId, Example[Z, Y, M])]
+      val seen      = scala.collection.mutable.HashSet.empty[RowId]
       var remaining = available
       val walked =
         prepared.data.foldRows[Option[PreparationError]](None) {
@@ -148,8 +147,7 @@ private[alder] object DataOperations:
           if remaining.isEmpty then Right(builder.result())
           else Left(PreparationError.MissingPreparedRows(remaining.size))
     }
-    restored
-      .left
+    restored.left
       .map(stage.failure)
       .map(rows =>
         new NonEmptyData(

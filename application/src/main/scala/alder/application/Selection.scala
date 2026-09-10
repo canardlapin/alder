@@ -40,8 +40,8 @@ final class ValidatedCandidate[
   def select(
       policy: SelectionPolicy.SingleCandidate.type
   ): SelectionReceipt[L, Mt, S] =
-    val _ = policy
-    val metric = evaluation.metric
+    val _            = policy
+    val metric       = evaluation.metric
     val auditedScore = metric.auditScore(evaluation.score)
     val id = ReceiptHash.selection(
       evaluation.plan,
@@ -122,8 +122,8 @@ final class SelectedRefitPromotion[
 ):
   /** Promotes only the validation bundle bound to this selection receipt.
     *
-    * The retained [[SelectionReceipt.learner]] is the only algorithm the
-    * safe API exposes for the subsequent fit on promoted data.
+    * The retained [[SelectionReceipt.learner]] is the only algorithm the safe
+    * API exposes for the subsequent fit on promoted data.
     */
   def from[A](
       observed: AllObserved[Use.Validation, A]
@@ -135,8 +135,7 @@ final class SelectedRefitPromotion[
       receipt.sources,
       receipt.evaluation,
       Some(receipt.id),
-      RefitEvaluationClaim
-        .ArtifactNotEvaluatedOnAuthorizingValidation
+      RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingValidation
     )
     Promotion
       .refit(receipt.authority, observed, audit)

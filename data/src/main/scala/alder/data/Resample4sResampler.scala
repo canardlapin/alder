@@ -7,9 +7,9 @@ import resample4s.core.*
 /** Interpretation of Resample4s ordinal plans as Alder row partitions.
   *
   * The `complete` constructor is total because `Coverage.ExactOnce` proves
-  * exactly-once assessment coverage over the whole plan. It performs no
-  * runtime coverage validation. Size, seed, and population-fingerprint checks
-  * remain split-time compatibility checks between a bound plan and Alder data.
+  * exactly-once assessment coverage over the whole plan. It performs no runtime
+  * coverage validation. Size, seed, and population-fingerprint checks remain
+  * split-time compatibility checks between a bound plan and Alder data.
   */
 object Resample4sResampler:
   /** Bind an exact-once plan and its verification receipt as a complete Alder
@@ -24,7 +24,8 @@ object Resample4sResampler:
   ): CompleteResampler[A] =
     new Resample4sCompleteResampler(plan, ReceiptMapping.render(receipt))
 
-  /** Generate the receipt and bind its plan without allowing them to diverge. */
+  /** Generate the receipt and bind its plan without allowing them to diverge.
+    */
   def fromCompiled[A](
       compiled: Compiled[Split[Selection], Coverage.ExactOnce],
       population: Fingerprint
@@ -54,18 +55,19 @@ object Resample4sResampler:
     type Key = groupOf.Key
     val accepted = scala.collection.mutable.ArrayBuffer.empty[Key]
     val byHash =
-      scala.collection.mutable.HashMap.empty[Int, scala.collection.mutable.ArrayBuffer[Int]]
+      scala.collection.mutable.HashMap
+        .empty[Int, scala.collection.mutable.ArrayBuffer[Int]]
     val codes = new Array[Int](rows.length)
     var index = 0
     while index < rows.length do
       val key: Key = groupOf(rows(index)._2.meta)
-      val hash = keyHash.hash(key)
+      val hash     = keyHash.hash(key)
       val candidates =
         byHash.getOrElseUpdate(
           hash,
           scala.collection.mutable.ArrayBuffer.empty[Int]
         )
-      var found = -1
+      var found          = -1
       var candidateIndex = 0
       while candidateIndex < candidates.length && found < 0 do
         val acceptedIndex = candidates(candidateIndex)
@@ -155,13 +157,12 @@ private final class Resample4sCompleteResampler[A](
               assessmentFingerprint,
               data.refit
             )
-          yield
-            accepted :+ new ResamplingFold(
-              foldIndex,
-              analysis,
-              assessment,
-              receipt.assignment
-            )
+          yield accepted :+ new ResamplingFold(
+            foldIndex,
+            analysis,
+            assessment,
+            receipt.assignment
+          )
         }
       }
       .map(folds =>
@@ -261,12 +262,12 @@ private object ReceiptMapping:
     if value.isEmpty then None
     else
       val normalized = if value.length % 2 == 0 then value else s"0$value"
-      val bytes = new Array[Byte](normalized.length / 2)
-      var index = 0
-      var valid = true
+      val bytes      = new Array[Byte](normalized.length / 2)
+      var index      = 0
+      var valid      = true
       while index < bytes.length && valid do
         val high = nibble(normalized.charAt(index * 2))
-        val low = nibble(normalized.charAt(index * 2 + 1))
+        val low  = nibble(normalized.charAt(index * 2 + 1))
         if high < 0 || low < 0 then valid = false
         else bytes(index) = ((high << 4) | low).toByte
         index += 1
@@ -279,7 +280,7 @@ private object ReceiptMapping:
     else -1
 
   private def stableHash(value: String): Long =
-    var hash = 0xcbf29ce484222325L
+    var hash  = 0xcbf29ce484222325L
     var index = 0
     while index < value.length do
       hash = (hash ^ value.charAt(index).toLong) * 0x100000001b3L
@@ -287,9 +288,9 @@ private object ReceiptMapping:
     hash
 
   private def hex(value: IArray[Byte]): String =
-    val digits = "0123456789abcdef"
+    val digits  = "0123456789abcdef"
     val builder = new StringBuilder(value.length * 2)
-    var index = 0
+    var index   = 0
     while index < value.length do
       val byte = value(index).toInt & 0xff
       builder.append(digits.charAt(byte >>> 4))

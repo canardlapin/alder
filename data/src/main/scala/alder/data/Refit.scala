@@ -127,7 +127,7 @@ object EvaluationSources:
     val heldOutRows = DataRows.collect(heldOut)
     if heldOutRows.isEmpty then Left(RefitError.EmptyEvaluationSource(role))
     else
-      val fittedRows = DataRows.collect(fitted.data)
+      val fittedRows   = DataRows.collect(fitted.data)
       val observedRows = fittedRows ++ heldOutRows
       firstDuplicate(observedRows) match
         case Some(id) => Left(RefitError.DuplicateObservedRow(id))
@@ -194,8 +194,8 @@ final class AllObserved[
 /** Reproducible evidence that every held-out row produced a prediction.
   *
   * A prediction receipt grants no refit authority. Scoring in
-  * `alder-application` must finish successfully before stronger evidence can
-  * be minted.
+  * `alder-application` must finish successfully before stronger evidence can be
+  * minted.
   */
 final class PredictionReceipt[
     U <: Use.Evaluation
@@ -209,8 +209,8 @@ final class PredictionReceipt[
 /** One original held-out observation paired with its successful prediction. */
 final case class Predicted[+A, +B](observation: A, prediction: B)
 
-/** Successful held-out predictions plus the exact observed-data bundle to
-  * which later scored evidence may be bound.
+/** Successful held-out predictions plus the exact observed-data bundle to which
+  * later scored evidence may be bound.
   */
 final class PredictionResult[
     U <: Use.Evaluation,
@@ -226,7 +226,8 @@ final class PredictionResult[
 )
 
 object Prediction:
-  /** Predicts every held-out value with a model fitted on the declared source. */
+  /** Predicts every held-out value with a model fitted on the declared source.
+    */
   def run[
       U <: Use.Evaluation,
       A,
@@ -285,9 +286,7 @@ object Prediction:
             .run(input(value))
             .left
             .map(EvaluationError.PredictionFailed(_))
-            .map(prediction =>
-              rows :+ (id, Predicted(value, prediction))
-            )
+            .map(prediction => rows :+ (id, Predicted(value, prediction)))
       }
       predictions.map { rows =>
         val authority = new PromotionAuthority[U]
@@ -365,8 +364,7 @@ private[alder] final class PromotionAuthority[
   private[alder] def consume[A](
       observed: AllObserved[U, A]
   ): Either[PromotionError, Unit] =
-    if this ne observed.authority then
-      Left(PromotionError.AuthorityMismatch)
+    if this ne observed.authority then Left(PromotionError.AuthorityMismatch)
     else if !used.compareAndSet(false, true) then
       Left(PromotionError.AuthorityAlreadyUsed)
     else Right(())
@@ -375,7 +373,8 @@ private[alder] enum PromotionError derives CanEqual:
   case AuthorityMismatch
   case AuthorityAlreadyUsed
 
-/** Data-owned promotion primitive used only by the application receipt layer. */
+/** Data-owned promotion primitive used only by the application receipt layer.
+  */
 private[alder] object Promotion:
   def refit[U <: Use.Evaluation, A](
       authority: PromotionAuthority[U],

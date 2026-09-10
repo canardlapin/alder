@@ -19,7 +19,7 @@ final class FeatureSchema[S] private (
     private val coordinateNames: IArray[String],
     val fingerprint: SchemaFingerprint
 ):
-  def size: Int = coordinateNames.length
+  def size: Int             = coordinateNames.length
   def names: IArray[String] = coordinateNames
 
   def validate(value: Dense[S]): Either[DenseError, Unit] =
@@ -38,8 +38,8 @@ object FeatureSchema:
   def named[S](names: IArray[String]): Either[SchemaError, FeatureSchema[S]] =
     if names.isEmpty then Left(SchemaError.Empty)
     else
-      var index = 0
-      var seen = Set.empty[String]
+      var index                      = 0
+      var seen                       = Set.empty[String]
       var error: Option[SchemaError] = None
       while index < names.length && error.isEmpty do
         val name = names(index)
@@ -65,8 +65,8 @@ object FeatureSchema:
             )
           )
 
-  /** Changes only the compile-time feature-space brand of an already
-    * validated schema. Names, size, and fingerprint remain identical.
+  /** Changes only the compile-time feature-space brand of an already validated
+    * schema. Names, size, and fingerprint remain identical.
     */
   private[alder] def rebrand[S](
       schema: FeatureSchema[?]
@@ -79,16 +79,16 @@ object FeatureSchema:
   private def escape(value: String): String =
     s"${value.length}:$value"
 
-/** Immutable dense coordinates retaining both a semantic compile-time brand
-  * and the runtime schema that validates their dimension.
+/** Immutable dense coordinates retaining both a semantic compile-time brand and
+  * the runtime schema that validates their dimension.
   */
 final class Dense[S] private (
     private val coordinates: IArray[Double],
     val schema: FeatureSchema[S]
 ):
-  def size: Int = coordinates.length
+  def size: Int                 = coordinates.length
   def apply(index: Int): Double = coordinates(index)
-  def values: IArray[Double] = coordinates
+  def values: IArray[Double]    = coordinates
 
 object Dense:
   def from[S](
@@ -135,7 +135,7 @@ object Dense:
               )
             )
           else
-            var index = 0
+            var index                          = 0
             var error: Option[CoordinateError] = None
             while index < values.length && error.isEmpty do
               destination.write(index, names(index), values(index)) match

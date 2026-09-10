@@ -2,13 +2,13 @@ package alder.quickstart
 
 import munit.FunSuite
 
-/** Source-level guide checks use the repository filesystem and therefore
-  * belong to the JVM test configuration. The workflow itself remains in the
-  * shared suite and compiles on JVM, Scala.js, and Scala Native.
+/** Source-level guide checks use the repository filesystem and therefore belong
+  * to the JVM test configuration. The workflow itself remains in the shared
+  * suite and compiles on JVM, Scala.js, and Scala Native.
   */
 class ForbiddenNamesSuite extends FunSuite:
   test("first workflow has one import and avoids internal proof names") {
-    val text = read(workflowPath)
+    val text          = read(workflowPath)
     val firstWorkflow = marked(text)
     val forbidden =
       List(
@@ -73,10 +73,10 @@ class ForbiddenNamesSuite extends FunSuite:
     finally source.close()
 
   private def marked(text: String): String =
-    val start = "// alder-first-workflow:start"
-    val end = "// alder-first-workflow:end"
+    val start      = "// alder-first-workflow:start"
+    val end        = "// alder-first-workflow:end"
     val startIndex = text.indexOf(start)
-    val endIndex = text.indexOf(end, startIndex)
+    val endIndex   = text.indexOf(end, startIndex)
     assert(startIndex >= 0, s"missing marker: $start")
     assert(endIndex >= 0, s"missing marker: $end")
     text.substring(startIndex, endIndex + end.length)

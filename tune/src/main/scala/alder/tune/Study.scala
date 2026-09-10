@@ -60,8 +60,10 @@ final class Study[F[_], C, A, E] private (
     strategy: SearchStrategy,
     objectiveDirection: ObjectiveDirection,
     seed: Option[Seed],
-    evaluate: (C, NonEmptyData[Use.Train, A]) =>
-      F[Either[TrialFailure[E], Double]]
+    evaluate: (
+        C,
+        NonEmptyData[Use.Train, A]
+    ) => F[Either[TrialFailure[E], Double]]
 )(using monad: Monad[F]):
 
   /** Evaluates every candidate on the supplied training data and selects the
@@ -85,9 +87,8 @@ final class Study[F[_], C, A, E] private (
   private def select(
       trials: Vector[Trial[C, E]]
   ): Either[StudyError[E], Selection[C, E]] =
-    val successful = trials.collect {
-      case trial @ Trial(_, Right(objective)) =>
-        (trial, objective)
+    val successful = trials.collect { case trial @ Trial(_, Right(objective)) =>
+      (trial, objective)
     }
     successful.reduceOption { (best, candidate) =>
       val candidateIsBetter = objectiveDirection match
@@ -115,8 +116,8 @@ final class Study[F[_], C, A, E] private (
       case None =>
         Left(
           StudyError.NoSuccessfulTrial(
-            trials.collect {
-              case Trial(_, Left(failure)) => failure
+            trials.collect { case Trial(_, Left(failure)) =>
+              failure
             }
           )
         )
@@ -132,8 +133,10 @@ object Study:
       strategy: GridStrategy,
       objectiveDirection: ObjectiveDirection
   )(
-      evaluate: (C, NonEmptyData[Use.Train, A]) =>
-        F[Either[TrialFailure[E], Double]]
+      evaluate: (
+          C,
+          NonEmptyData[Use.Train, A]
+      ) => F[Either[TrialFailure[E], Double]]
   )(using Monad[F]): Study[F, C, A, E] =
     new Study(
       Grid.candidates(space, strategy),
@@ -154,8 +157,10 @@ object Study:
       seed: Seed,
       objectiveDirection: ObjectiveDirection
   )(
-      evaluate: (C, NonEmptyData[Use.Train, A]) =>
-        F[Either[TrialFailure[E], Double]]
+      evaluate: (
+          C,
+          NonEmptyData[Use.Train, A]
+      ) => F[Either[TrialFailure[E], Double]]
   )(using Monad[F]): Study[F, C, A, E] =
     new Study(
       RandomSearch.candidates(space, trials, seed),

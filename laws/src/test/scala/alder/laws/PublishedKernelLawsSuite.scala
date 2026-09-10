@@ -13,9 +13,7 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
 
   private def encodeDouble(value: Double): IArray[Byte] =
     val bits = java.lang.Double.doubleToRawLongBits(value)
-    IArray.tabulate(8)(index =>
-      (bits >>> (56 - index * 8)).toByte
-    )
+    IArray.tabulate(8)(index => (bits >>> (56 - index * 8)).toByte)
 
   private def decodeDouble(
       bytes: IArray[Byte]
@@ -23,7 +21,7 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
     if bytes.length != 8 then
       Left(CodecError.Malformed("unexpected double payload"))
     else
-      var bits = 0L
+      var bits  = 0L
       var index = 0
       while index < bytes.length do
         bits = (bits << 8) | (bytes(index).toLong & 0xffL)
@@ -39,15 +37,13 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
     )
 
   private val transformData = TestData.train(1.0, 2.0, 3.0, 6.0)
-  private val transform = MeanShift[Id]()
+  private val transform     = MeanShift[Id]()
 
   private given doubleEq: Eq[Double] = Eq.fromUniversalEquals
   private given stringEq: Eq[String] = Eq.fromUniversalEquals
-  private given toyRunEq
-      : Eq[Either[Failure[ToyRunError], Double]] =
+  private given toyRunEq: Eq[Either[Failure[ToyRunError], Double]] =
     Eq.fromUniversalEquals
-  private given totalRunEq
-      : Eq[Either[Failure[Nothing], Double]] =
+  private given totalRunEq: Eq[Either[Failure[Nothing], Double]] =
     Eq.fromUniversalEquals
 
   private val transformLaws =
@@ -60,16 +56,15 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
       ShiftPipe
     ]:
       def original: NonEmptyData[Use.Train, Double] = transformData
-      def fitOnce
-          : Either[
-            Failure[ToyFitError],
-            Prepared[
-              Preparation.Reusable,
-              Use.Train,
-              ShiftPipe,
-              Double
-            ]
-          ] =
+      def fitOnce: Either[
+        Failure[ToyFitError],
+        Prepared[
+          Preparation.Reusable,
+          Use.Train,
+          ShiftPipe,
+          Double
+        ]
+      ] =
         transform.fit(transformData)(using rootContext).value
 
   checkAll("MeanShift Transform", new TransformTests(transformLaws).all)
@@ -100,22 +95,20 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
       ToyRunError,
       ShiftPipe
     ]:
-      def original
-          : NonEmptyData[
-            Use.Train,
-            Example[Double, Double, String]
-          ] = exampleData
+      def original: NonEmptyData[
+        Use.Train,
+        Example[Double, Double, String]
+      ] = exampleData
       def servingInputs: Vector[Double] = Vector(-1.0, 0.0, 4.0)
-      def fitOnce
-          : Either[
-            Failure[ToyFitError | PreparationError],
-            Prepared[
-              Preparation.Reusable,
-              Use.Train,
-              ShiftPipe,
-              Example[Double, Double, String]
-            ]
-          ] =
+      def fitOnce: Either[
+        Failure[ToyFitError | PreparationError],
+        Prepared[
+          Preparation.Reusable,
+          Use.Train,
+          ShiftPipe,
+          Example[Double, Double, String]
+        ]
+      ] =
         featureMap.fit(exampleData)(using rootContext).value
 
   checkAll(
@@ -223,15 +216,12 @@ class PublishedKernelLawsSuite extends DisciplineSuite:
           value: ShiftPipe
       ): Either[CodecError, IArray[Byte]] =
         val immutable = encodeDouble(value.shift)
-        pluginArray =
-          Array.tabulate(immutable.length)(immutable(_))
+        pluginArray = Array.tabulate(immutable.length)(immutable(_))
         Right(IArray.unsafeFromArray(pluginArray))
       def decodeArtifact(
           bytes: IArray[Byte]
       ): Either[CodecError, ShiftPipe] =
-        decodeDouble(bytes).map(shift =>
-          new ShiftPipe(shift, StagePath.root)
-        )
+        decodeDouble(bytes).map(shift => new ShiftPipe(shift, StagePath.root))
 
     val encoded = aliasingCodec.encode(trainedShift) match
       case Left(error)  => fail(s"unexpected encode error: $error")

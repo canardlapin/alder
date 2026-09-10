@@ -16,9 +16,9 @@ class RidgeVocabularySuite extends munit.FunSuite:
   }
 
   test("validated ridge scalar domains support literal and dynamic paths") {
-    val penalty = RidgePenalty.const(0.1)
+    val penalty   = RidgePenalty.const(0.1)
     val tolerance = RidgeTolerance.const(1.0e-8)
-    val config = RidgeConfig(penalty, tolerance = tolerance)
+    val config    = RidgeConfig(penalty, tolerance = tolerance)
 
     assertEquals(config.penalty, 0.1)
     assertEquals(config.tolerance, 1.0e-8)

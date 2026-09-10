@@ -3,9 +3,9 @@ package alder.kernel
 import cats.Monad
 
 /** The terminal learning algorithm. It may depend on all training targets
-  * because its in-sample predictions are not passed downstream; the moment
-  * they are (calibration, stacking), the whole chain must be cross-fitted
-  * through the explicit CrossFit protocol.
+  * because its in-sample predictions are not passed downstream; the moment they
+  * are (calibration, stacking), the whole chain must be cross-fitted through
+  * the explicit CrossFit protocol.
   */
 trait Learner[F[_], X, Y, M, P]:
   type FitError
@@ -106,8 +106,7 @@ final class LearnedWith[
         trainedOn = data,
         component = AlderComponents.learnedWith,
         preparation = prepared.lineage,
-        children =
-          prepared.fitted.audit.flattenedPreparationSequence ++
-            Vector(model.audit),
+        children = prepared.fitted.audit.flattenedPreparationSequence ++
+          Vector(model.audit),
         shape = AuditShape.WorkflowSequence
       )

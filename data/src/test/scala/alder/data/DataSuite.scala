@@ -16,11 +16,12 @@ given TimeOf[TestMeta] with
   def apply(meta: TestMeta): Int = meta.time
 
 given Hash[Int] with
-  def hash(value: Int): Int = value
+  def hash(value: Int): Int               = value
   def eqv(left: Int, right: Int): Boolean = left == right
 
 given Order[Int] with
-  def compare(left: Int, right: Int): Int = java.lang.Integer.compare(left, right)
+  def compare(left: Int, right: Int): Int =
+    java.lang.Integer.compare(left, right)
 
 class DataSuite extends munit.FunSuite:
   private def fingerprint(label: String): DataFingerprint =
@@ -93,9 +94,14 @@ class DataSuite extends munit.FunSuite:
     assertEquals(context.numericMode, NumericMode.Deterministic)
   }
 
-  test("in-memory batched access preserves rows without materialized row copies") {
+  test(
+    "in-memory batched access preserves rows without materialized row copies"
+  ) {
     val data =
-      InMemoryData.unsplit(Vector("a", "b", "c", "d", "e"), fingerprint("batch"))
+      InMemoryData.unsplit(
+        Vector("a", "b", "c", "d", "e"),
+        fingerprint("batch")
+      )
     var batches = Vector.empty[Vector[(Long, String)]]
     data.foreachBatch(BatchSize.const(2)) { batch =>
       val rows = Vector.tabulate(batch.length)(index =>
@@ -116,15 +122,15 @@ class DataSuite extends munit.FunSuite:
   test("holdout is deterministic, disjoint, complete, and order preserving") {
     val source =
       InMemoryData.unsplit(Vector.range(0, 10), fingerprint("numbers"))
-    val first = Holdout.split(source, testSize = 3, Seed(42L))
+    val first  = Holdout.split(source, testSize = 3, Seed(42L))
     val second = Holdout.split(source, testSize = 3, Seed(42L))
 
     (first, second) match
       case (Right(left), Right(right)) =>
-        val leftTrain = rowsOf(left.train.data)
-        val leftTest = rowsOf(left.test.data)
+        val leftTrain  = rowsOf(left.train.data)
+        val leftTest   = rowsOf(left.test.data)
         val rightTrain = rowsOf(right.train.data)
-        val rightTest = rowsOf(right.test.data)
+        val rightTest  = rowsOf(right.test.data)
         assertEquals(leftTrain, rightTrain)
         assertEquals(leftTest, rightTest)
         assertEquals(leftTrain.map(_._1), leftTrain.map(_._1).sorted)
@@ -229,7 +235,9 @@ class DataSuite extends munit.FunSuite:
     )
   }
 
-  test("split specifications use exact reduced-rational total-N apportionment") {
+  test(
+    "split specifications use exact reduced-rational total-N apportionment"
+  ) {
     val reduced = fraction(6L, 15L)
     assertEquals(reduced.numerator, 2L)
     assertEquals(reduced.denominator, 5L)
@@ -242,7 +250,7 @@ class DataSuite extends munit.FunSuite:
     )
 
     val validation = fraction(1L, 3L)
-    val test = fraction(1L, 5L)
+    val test       = fraction(1L, 5L)
     val specification =
       TrainValidationTestSpec(
         SplitAmount.Proportion(validation),
@@ -373,13 +381,13 @@ class DataSuite extends munit.FunSuite:
         case Left(_) => false
         case Right(result) =>
           val trainIds = rowsOf(result.train.data).map(_._1)
-          val testIds = rowsOf(result.test.data).map(_._1)
+          val testIds  = rowsOf(result.test.data).map(_._1)
           trainIds == trainIds.sorted &&
           testIds == testIds.sorted &&
           trainIds.toSet.intersect(testIds.toSet).isEmpty &&
           (trainIds ++ testIds).sorted ==
             Vector.range(0, rowCount).map(_.toLong) &&
-          result.receipt.partitions.map(_.count).sum == rowCount.toLong
+            result.receipt.partitions.map(_.count).sum == rowCount.toLong
     }
     val result = Test.check(
       Test.Parameters.default.withMinSuccessfulTests(100),
@@ -408,10 +416,13 @@ def illegal[A](
 
     assertEquals(plan.foldCount, 3)
     val assessments = plan.folds.flatMap(fold => rowsOf(fold.assessment.data))
-    assertEquals(assessments.map(_._1).sorted, Vector.range(0, 10).map(_.toLong))
+    assertEquals(
+      assessments.map(_._1).sorted,
+      Vector.range(0, 10).map(_.toLong)
+    )
     assertEquals(assessments.map(_._1).distinct.length, 10)
     plan.folds.foreach { fold =>
-      val analysisIds = rowsOf(fold.analysis.data).map(_._1).toSet
+      val analysisIds   = rowsOf(fold.analysis.data).map(_._1).toSet
       val assessmentIds = rowsOf(fold.assessment.data).map(_._1).toSet
       assertEquals(analysisIds.intersect(assessmentIds), Set.empty[Long])
       assertEquals(analysisIds.size + assessmentIds.size, 10)
@@ -429,9 +440,9 @@ def illegal[A](
     val kfold = KFold[Int](4) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected KFold config error: $error")
-    val first = planOf(kfold, data, Seed(99L))
+    val first  = planOf(kfold, data, Seed(99L))
     val replay = planOf(kfold, data, Seed(99L))
-    val other = planOf(kfold, data, Seed(100L))
+    val other  = planOf(kfold, data, Seed(100L))
 
     assertEquals(first.assignment.digest, replay.assignment.digest)
     assertNotEquals(first.assignment.digest, other.assignment.digest)
@@ -480,7 +491,7 @@ def illegal[A](
       Gen.choose(Long.MinValue, Long.MaxValue)
     ) { (rowCount, selector, rawSeed) =>
       val foldCount = 2 + selector % (rowCount - 1)
-      val data = train(Vector.range(0, rowCount))
+      val data      = train(Vector.range(0, rowCount))
       val result =
         KFold[Int](foldCount).flatMap(_.split(data, Seed(rawSeed)))
       result match
@@ -493,7 +504,7 @@ def illegal[A](
               Vector.range(0, rowCount).map(_.toLong)
           val unique = assessments.map(_._1).distinct.length == rowCount
           val complements = plan.folds.forall { fold =>
-            val analysis = rowsOf(fold.analysis.data).map(_._1).toSet
+            val analysis   = rowsOf(fold.analysis.data).map(_._1).toSet
             val assessment = rowsOf(fold.assessment.data).map(_._1).toSet
             analysis.intersect(assessment).isEmpty &&
             analysis.size + assessment.size == rowCount
@@ -556,9 +567,9 @@ def illegal[A](
 
     assertEquals(plan.foldCount, 2)
     plan.folds.foreach { fold =>
-      val analysisTimes = rowsOf(fold.analysis.data).map(_._2.meta.time)
+      val analysisTimes   = rowsOf(fold.analysis.data).map(_._2.meta.time)
       val assessmentTimes = rowsOf(fold.assessment.data).map(_._2.meta.time)
-      val latestAnalysis = analysisTimes.foldLeft(Int.MinValue)(math.max)
+      val latestAnalysis  = analysisTimes.foldLeft(Int.MinValue)(math.max)
       val earliestAssessment =
         assessmentTimes.foldLeft(Int.MaxValue)(math.min)
       assert(latestAnalysis < earliestAssessment)

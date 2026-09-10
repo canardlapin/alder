@@ -46,13 +46,13 @@ class MetricSuite extends munit.FunSuite:
       Scored(-1.0e150, 0.0, ()),
       Scored(5.0, 4.0, ())
     )
-    val metric = RegressionMetrics.rmse[Unit]
+    val metric  = RegressionMetrics.rmse[Unit]
     val forward = metric.evaluate(scored)
     val reverse = metric.evaluate(scored.reverse)
     assertEquals(forward, reverse)
 
-    val left = metric.accumulate(scored.take(2))
-    val right = metric.accumulate(scored.drop(2))
+    val left   = metric.accumulate(scored.take(2))
+    val right  = metric.accumulate(scored.drop(2))
     val merged = metric.accumulator.combine(left, right)
     assertEquals(metric.finish(merged), forward)
   }

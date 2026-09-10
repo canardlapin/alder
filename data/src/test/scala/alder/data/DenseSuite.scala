@@ -9,7 +9,7 @@ sealed trait StandardizedFeatures
 class DenseSuite extends munit.FunSuite:
   private def schema[S](names: String*): FeatureSchema[S] =
     FeatureSchema.named[S](IArray.from(names)) match
-      case Left(error) => fail(s"unexpected schema error: $error")
+      case Left(error)  => fail(s"unexpected schema error: $error")
       case Right(value) => value
 
   test("feature schemas reject empty and ambiguous coordinate names") {
@@ -38,14 +38,17 @@ class DenseSuite extends munit.FunSuite:
       case Right(value) =>
         assertEquals(value.size, 2)
         assertEquals(value.values.toVector, Vector(1.0, 2.0))
-        assertEquals(value.schema.fingerprint.digest, features.fingerprint.digest)
+        assertEquals(
+          value.schema.fingerprint.digest,
+          features.fingerprint.digest
+        )
   }
 
   test("same semantic brand still requires the expected runtime schema") {
     val xy = schema[RawFeatures]("x", "y")
     val uv = schema[RawFeatures]("u", "v")
     val value = Dense.from(IArray(1.0, 2.0), uv) match
-      case Left(error) => fail(s"unexpected dense error: $error")
+      case Left(error)  => fail(s"unexpected dense error: $error")
       case Right(dense) => dense
 
     assertEquals(
@@ -63,8 +66,10 @@ class DenseSuite extends munit.FunSuite:
   test("feature schema and dense values take immutable ownership") {
     val mutableNames = Array("x", "y")
     val features =
-      FeatureSchema.named[RawFeatures](IArray.unsafeFromArray(mutableNames)) match
-        case Left(error) => fail(s"unexpected schema error: $error")
+      FeatureSchema.named[RawFeatures](
+        IArray.unsafeFromArray(mutableNames)
+      ) match
+        case Left(error)  => fail(s"unexpected schema error: $error")
         case Right(value) => value
     val mutableValues = Array(1.0, 2.0)
     val dense =
@@ -72,7 +77,7 @@ class DenseSuite extends munit.FunSuite:
         IArray.unsafeFromArray(mutableValues),
         features
       ) match
-        case Left(error) => fail(s"unexpected dense error: $error")
+        case Left(error)  => fail(s"unexpected dense error: $error")
         case Right(value) => value
 
     mutableNames(0) = "changed"
@@ -82,9 +87,9 @@ class DenseSuite extends munit.FunSuite:
   }
 
   test("feature schema fingerprints are order-sensitive and stable") {
-    val xy = schema[RawFeatures]("x", "y")
+    val xy     = schema[RawFeatures]("x", "y")
     val replay = schema[RawFeatures]("x", "y")
-    val yx = schema[RawFeatures]("y", "x")
+    val yx     = schema[RawFeatures]("y", "x")
 
     assertEquals(xy.fingerprint.digest, "d70b7f9805733ab6")
     assertEquals(replay.fingerprint.digest, xy.fingerprint.digest)

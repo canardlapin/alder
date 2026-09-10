@@ -52,11 +52,12 @@ class ReceiptConcurrencySuite extends munit.FunSuite:
       new Learner[Id, Double, Double, Unit, Double]:
         type FitError = Nothing
         type RunError = Nothing
-        type Model = Pipe[Double, Nothing, Double]
+        type Model    = Pipe[Double, Nothing, Double]
         def fit[U <: Use.Fit](
             data: NonEmptyData[U, Example[Double, Double, Unit]]
-        )(using fitContext: FitContext)
-            : FitResult[Id, FitError, Trained[Model]] =
+        )(using
+            fitContext: FitContext
+        ): FitResult[Id, FitError, Trained[Model]] =
           EitherT.right(
             fitContext.complete(Pipe.identity[Double], data, component)
           )
@@ -82,8 +83,8 @@ class ReceiptConcurrencySuite extends munit.FunSuite:
           identity
         )
     val selection = evaluated.select(SingleCandidate)
-    val ready = new CountDownLatch(2)
-    val start = new CountDownLatch(1)
+    val ready     = new CountDownLatch(2)
+    val start     = new CountDownLatch(1)
 
     def attempt() =
       Future {
@@ -92,7 +93,7 @@ class ReceiptConcurrencySuite extends munit.FunSuite:
         Refit.after(selection).from(evaluated.evaluation.allObserved)
       }
 
-    val first = attempt()
+    val first  = attempt()
     val second = attempt()
     ready.await()
     start.countDown()

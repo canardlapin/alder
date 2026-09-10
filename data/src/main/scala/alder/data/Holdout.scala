@@ -24,7 +24,7 @@ final class Fraction private (
     other match
       case fraction: Fraction =>
         numerator == fraction.numerator &&
-          denominator == fraction.denominator
+        denominator == fraction.denominator
       case _ => false
 
   override def hashCode(): Int =
@@ -150,7 +150,7 @@ object TrainValidationTestSpec:
           BigInt(validationFraction.numerator) *
             BigInt(testFraction.denominator) +
             BigInt(testFraction.numerator) *
-              BigInt(validationFraction.denominator)
+            BigInt(validationFraction.denominator)
         val denominator =
           BigInt(validationFraction.denominator) *
             BigInt(testFraction.denominator)
@@ -171,7 +171,7 @@ object TrainValidationTestSpec:
   ): Either[DataError, TrainValidationTestSpec] =
     for
       validationRows <- Rows(validation)
-      testRows <- Rows(test)
+      testRows       <- Rows(test)
       specification <- apply(
         SplitAmount.Count(validationRows),
         SplitAmount.Count(testRows)
@@ -376,8 +376,8 @@ object Split:
     val rows = DataRows.collect(data)
     for
       encodedFingerprint <- RankV1.encode(data.fingerprint)
-      _ <- rejectDuplicateRows(rows)
-      counts <- countsFor(rows.length.toLong, policy)
+      _                  <- rejectDuplicateRows(rows)
+      counts             <- countsFor(rows.length.toLong, policy)
       ranked = rows.zipWithIndex
         .map { (row, sourceIndex) =>
           (
@@ -425,7 +425,7 @@ object Split:
             apportioned(availableRows, testAmount)
           )
     val available = BigInt(availableRows)
-    val train = available - validation - test
+    val train     = available - validation - test
     if validation + test >= available then
       Left(DataError.ExhaustiveSplit(availableRows, policy))
     else
@@ -523,7 +523,7 @@ object Holdout:
 
 private[data] object RankV1:
   private val offset = 0xcbf29ce484222325L
-  private val prime = 0x100000001b3L
+  private val prime  = 0x100000001b3L
 
   private[data] final class EncodedFingerprint(
       private[data] val bytes: Vector[Byte]
@@ -615,16 +615,15 @@ private[data] object RankV1:
           Right(())
 
   private def utf8Length(value: String): Either[RankTextError, Long] =
-    var index = 0
-    var length = 0L
+    var index                        = 0
+    var length                       = 0L
     var error: Option[RankTextError] = None
     while index < value.length && error.isEmpty do
       val codeUnit = value.charAt(index)
       if Character.isHighSurrogate(codeUnit) then
         if index + 1 >= value.length ||
-            !Character.isLowSurrogate(value.charAt(index + 1))
-        then
-          error = Some(RankTextError.UnpairedSurrogate(index))
+          !Character.isLowSurrogate(value.charAt(index + 1))
+        then error = Some(RankTextError.UnpairedSurrogate(index))
         else
           length += 4L
           index += 1
@@ -653,7 +652,7 @@ private[data] object RankV1:
       val codePoint =
         if Character.isHighSurrogate(codeUnit) then
           val high = codeUnit.toInt - 0xd800
-          val low = value.charAt(index + 1).toInt - 0xdc00
+          val low  = value.charAt(index + 1).toInt - 0xdc00
           index += 1
           0x10000 + (high << 10) + low
         else codeUnit.toInt
@@ -678,8 +677,7 @@ private[data] object RankV1:
       bytes: ArrayBuffer[Byte],
       codePoint: Int
   ): Unit =
-    if codePoint <= 0x7f then
-      bytes += codePoint.toByte
+    if codePoint <= 0x7f then bytes += codePoint.toByte
     else if codePoint <= 0x7ff then
       bytes += (0xc0 | (codePoint >>> 6)).toByte
       bytes += (0x80 | (codePoint & 0x3f)).toByte

@@ -168,21 +168,21 @@ object ExperimentRoutes:
       val metric: Mt
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
-    private val phases = PhaseSeeds(seed, plan)
+    private val phases                       = PhaseSeeds(seed, plan)
 
     def partition: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
       TVTPartitioned[X, Y, M, P, L, Mt, S]
     ] =
       if data.size <= 0L then
-        Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource))
+        Left(
+          ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)
+        )
       else
         Split
           .trainValidationTest(data, specification, phases.split)
           .left
-          .map(error =>
-            ExperimentFailure.Split(SplitPhase.Partition, error)
-          )
+          .map(error => ExperimentFailure.Split(SplitPhase.Partition, error))
           .map(split =>
             new TVTPartitioned(learner, metric, plan, phases, split)
           )
@@ -258,9 +258,7 @@ object ExperimentRoutes:
           plan = plan
         )
         .left
-        .map(failure =>
-          ExperimentFailure.Fit(FitPhase.Candidate, failure)
-        )
+        .map(failure => ExperimentFailure.Fit(FitPhase.Candidate, failure))
         .map(trained =>
           new TVTCandidateFitted(
             learner,
@@ -297,9 +295,7 @@ object ExperimentRoutes:
       EvaluationSources
         .validation(split.train, split.validation.data)
         .left
-        .map(error =>
-          ExperimentFailure.Data(DataPhase.Source, error)
-        )
+        .map(error => ExperimentFailure.Data(DataPhase.Source, error))
         .flatMap { sources =>
           Evaluation.scored(trained, sources, metric) match
             case Left(ScoredEvaluationError.Prediction(error)) =>
@@ -356,11 +352,11 @@ object ExperimentRoutes:
       ]
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
-    def score: S = evaluation.score
+    def score: S                             = evaluation.score
     def predictions: NonEmptyData[Use.Validation, Scored[Y, P, M]] =
       evaluation.scored
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
     /** Structured projection of this validation result's retained evidence. */
     def report: ExperimentReport[S] =
@@ -510,8 +506,8 @@ object ExperimentRoutes:
       private val refitData: NonEmptyData[Use.Refit, Example[X, Y, M]]
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
-    def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def model: Trained[learner.Model]        = trained
+    def audit: Audit                         = trained.audit
 
     /** Predicts with the candidate refitted on training plus validation. */
     def predict(input: X): Either[Failure[learner.RunError], P] =
@@ -532,9 +528,7 @@ object ExperimentRoutes:
       EvaluationSources
         .finalTest(refitData, split.test.data)
         .left
-        .map(error =>
-          ExperimentFailure.Data(DataPhase.Source, error)
-        )
+        .map(error => ExperimentFailure.Data(DataPhase.Source, error))
         .flatMap { sources =>
           Evaluation.scored(trained, sources, metric) match
             case Left(ScoredEvaluationError.Prediction(error)) =>
@@ -587,11 +581,11 @@ object ExperimentRoutes:
       ]
   )(using Schema[X]):
     val route: TrainValidationTestRoute.type = TrainValidationTestRoute
-    def score: S = evaluation.score
+    def score: S                             = evaluation.score
     def predictions: NonEmptyData[Use.Test, Scored[Y, P, M]] =
       evaluation.scored
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
     /** Structured projection of this final-test result's retained evidence. */
     def report: ExperimentReport[S] =
@@ -666,21 +660,21 @@ object ExperimentRoutes:
       val metric: Mt
   )(using Schema[X]):
     val route: PrecommittedHoldoutRoute.type = PrecommittedHoldoutRoute
-    private val phases = PhaseSeeds(seed, plan)
+    private val phases                       = PhaseSeeds(seed, plan)
 
     def partition: Either[
       ExperimentFailure[learner.FitError, learner.RunError],
       PrecommittedPartitioned[X, Y, M, P, L, Mt, S]
     ] =
       if data.size <= 0L then
-        Left(ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource))
+        Left(
+          ExperimentFailure.Definition(ExperimentDefinitionError.EmptySource)
+        )
       else
         Split
           .holdout(data, specification, phases.split)
           .left
-          .map(error =>
-            ExperimentFailure.Split(SplitPhase.Partition, error)
-          )
+          .map(error => ExperimentFailure.Split(SplitPhase.Partition, error))
           .map(split =>
             new PrecommittedPartitioned(
               learner,
@@ -744,9 +738,7 @@ object ExperimentRoutes:
           plan = plan
         )
         .left
-        .map(failure =>
-          ExperimentFailure.Fit(FitPhase.Candidate, failure)
-        )
+        .map(failure => ExperimentFailure.Fit(FitPhase.Candidate, failure))
         .map(trained =>
           new PrecommittedCandidateFitted(
             learner,
@@ -783,9 +775,7 @@ object ExperimentRoutes:
       EvaluationSources
         .precommittedTest(split.train, split.test.data)
         .left
-        .map(error =>
-          ExperimentFailure.Data(DataPhase.Source, error)
-        )
+        .map(error => ExperimentFailure.Data(DataPhase.Source, error))
         .flatMap { sources =>
           Evaluation.scored(trained, sources, metric) match
             case Left(ScoredEvaluationError.Prediction(error)) =>
@@ -842,13 +832,14 @@ object ExperimentRoutes:
       ]
   )(using Schema[X]):
     val route: PrecommittedHoldoutRoute.type = PrecommittedHoldoutRoute
-    def score: S = evaluation.score
+    def score: S                             = evaluation.score
     def predictions: NonEmptyData[Use.Test, Scored[Y, P, M]] =
       evaluation.scored
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
-    /** Structured projection of this precommitted result's retained evidence. */
+    /** Structured projection of this precommitted result's retained evidence.
+      */
     def report: ExperimentReport[S] =
       ExperimentReport.precommitted(
         split,
@@ -862,8 +853,8 @@ object ExperimentRoutes:
     def predict(input: X): Either[Failure[learner.RunError], P] =
       trained.predict(input)
 
-    /** Predicts every input row with the precommitted candidate, preserving
-      * row IDs and traversal order.
+    /** Predicts every input row with the precommitted candidate, preserving row
+      * IDs and traversal order.
       */
     def predictAll[U <: Use](
         data: Data[U, X]
@@ -920,7 +911,7 @@ object ExperimentRoutes:
       val prior: ScoredEvaluation[Use.Test, X, Y, M, P, S, Mt]
   ):
     def model: Trained[learner.Model] = trained
-    def audit: Audit = trained.audit
+    def audit: Audit                  = trained.audit
 
     /** Predicts with the deployment artifact refitted on all observed rows. */
     def predict(input: X): Either[Failure[learner.RunError], P] =

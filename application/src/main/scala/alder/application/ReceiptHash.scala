@@ -5,7 +5,7 @@ import alder.metrics.*
 
 private[application] object ReceiptHash:
   private val offset = 0xcbf29ce484222325L
-  private val prime = 0x100000001b3L
+  private val prime  = 0x100000001b3L
 
   def evaluation(
       plan: PlanFingerprint,
@@ -204,7 +204,7 @@ private[application] object ReceiptHash:
 
   private def hash(value: String): Long =
     var result = offset
-    var index = 0
+    var index  = 0
     while index < value.length do
       val codeUnit = value.charAt(index).toLong
       result = (result ^ ((codeUnit >>> 8) & 0xffL)) * prime
@@ -213,9 +213,9 @@ private[application] object ReceiptHash:
     result
 
   private def hex(value: Long): String =
-    val digits = "0123456789abcdef"
+    val digits  = "0123456789abcdef"
     val builder = new StringBuilder(16)
-    var shift = 60
+    var shift   = 60
     while shift >= 0 do
       builder.append(
         digits.charAt(((value >>> shift) & 0x0fL).toInt)

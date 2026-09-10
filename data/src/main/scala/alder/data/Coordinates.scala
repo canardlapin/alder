@@ -59,8 +59,8 @@ trait CoordinateWriter:
   * prediction. Learners ordinarily need only this capability.
   */
 trait FeatureView[-A]:
-  /** Validated coordinate names, size, and fingerprint for this exact
-    * numerical representation.
+  /** Validated coordinate names, size, and fingerprint for this exact numerical
+    * representation.
     */
   def featureSchema: FeatureSchema[?]
 
@@ -125,15 +125,15 @@ object Coordinates:
   /** Summons the coordinate representation for `A`. */
   def apply[A](using coordinates: Coordinates[A]): Coordinates[A] = coordinates
 
-  /** Derives coordinates for a product whose fields all have supported
-    * numeric types.
+  /** Derives coordinates for a product whose fields all have supported numeric
+    * types.
     *
     * Field labels become coordinate names and constructor order determines
     * coordinate order. Supported fields are `Double`, `Float`, `Long`, `Int`,
     * `Short`, and `Byte`; narrowing conversions reject loss or overflow.
     */
-  inline def derived[A <: Product](
-      using mirror: Mirror.ProductOf[A]
+  inline def derived[A <: Product](using
+      mirror: Mirror.ProductOf[A]
   ): Coordinates[A] =
     val coordinateNames = IArray.from(labels[mirror.MirroredElemLabels])
     instance(
@@ -145,7 +145,8 @@ object Coordinates:
           coordinateNames,
           destination,
           0
-        ).map(_ => IArray.unsafeFromArray(destination)),
+        ).map(_ => IArray.unsafeFromArray(destination))
+      ,
       (value, destination) =>
         writeElements[mirror.MirroredElemTypes](
           value,
@@ -196,7 +197,7 @@ object Coordinates:
 
   private inline def labels[Labels <: Tuple]: Vector[String] =
     inline erasedValue[Labels] match
-      case _: EmptyTuple => Vector.empty
+      case _: EmptyTuple        => Vector.empty
       case _: (label *: labels) =>
         // Mirror labels are compiler-proven String singleton types. Scala 3.3
         // does not retain that bound through this erased tuple match.
@@ -209,7 +210,7 @@ object Coordinates:
       index: Int
   ): Either[CoordinateError, Unit] =
     inline erasedValue[Elements] match
-      case _: EmptyTuple => Right(())
+      case _: EmptyTuple                => Right(())
       case _: (element *: elementsTail) =>
         // Mirror.ProductOf guarantees productElement has this declared type
         // and order. Accessing it directly avoids allocating an intermediate
@@ -234,11 +235,11 @@ object Coordinates:
       index: Int
   ): Either[CoordinateError, Unit] =
     inline erasedValue[Elements] match
-      case _: EmptyTuple => Right(())
+      case _: EmptyTuple                => Right(())
       case _: (element *: elementsTail) =>
         // See readElements: Mirror establishes this productElement type.
         val value = product.productElement(index).asInstanceOf[element]
-        val name = names(index)
+        val name  = names(index)
         summonInline[CoordinateField[element]]
           .read(value, index, name)
           .flatMap(destination.write(index, name, _))
@@ -349,7 +350,7 @@ private object CoordinateField:
         index: Int,
         name: String
     ): Either[CoordinateError, Long] =
-      val minimum = -9223372036854775808.0
+      val minimum          = -9223372036854775808.0
       val exclusiveMaximum = 9223372036854775808.0
       if !value.isFinite || value < minimum || value >= exclusiveMaximum then
         Left(
@@ -379,8 +380,7 @@ private object CoordinateField:
       else
         val magnitudeBits =
           if value == Long.MinValue then 64
-          else
-            64 - java.lang.Long.numberOfLeadingZeros(math.abs(value))
+          else 64 - java.lang.Long.numberOfLeadingZeros(math.abs(value))
         val discardedBits = math.max(0, magnitudeBits - 53)
         java.lang.Long.numberOfTrailingZeros(value) >= discardedBits
 

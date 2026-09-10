@@ -153,11 +153,10 @@ trait TransformLaws[
     P <: Pipe[X, RunE, Z]
 ]:
   def original: NonEmptyData[U, X]
-  def fitOnce
-      : Either[
-        Failure[FitE],
-        Prepared[Preparation.Reusable, U, P, Z]
-      ]
+  def fitOnce: Either[
+    Failure[FitE],
+    Prepared[Preparation.Reusable, U, P, Z]
+  ]
 
 final class TransformTests[
     U <: Use.Fit,
@@ -205,7 +204,7 @@ final class TransformTests[
   ): Boolean =
     (laws.fitOnce, laws.fitOnce) match
       case (Right(first), Right(second)) =>
-        val firstRows = LawRows.collect(first.rows)
+        val firstRows  = LawRows.collect(first.rows)
         val secondRows = LawRows.collect(second.rows)
         LawRows.same(firstRows, secondRows, eqZ) &&
         AuditSnapshot.equivalent(
@@ -234,11 +233,10 @@ trait FeatureMapLaws[
 ]:
   def original: NonEmptyData[U, Example[X, Y, M]]
   def servingInputs: Vector[X]
-  def fitOnce
-      : Either[
-        Failure[FitE],
-        Prepared[S, U, P, Example[Z, Y, M]]
-      ]
+  def fitOnce: Either[
+    Failure[FitE],
+    Prepared[S, U, P, Example[Z, Y, M]]
+  ]
 
 final class FeatureMapTests[
     S <: Preparation.LearnerReady,
@@ -292,7 +290,7 @@ final class FeatureMapTests[
   ): Boolean =
     (laws.fitOnce, laws.fitOnce) match
       case (Right(first), Right(second)) =>
-        val firstRows = LawRows.collect(first.rows)
+        val firstRows  = LawRows.collect(first.rows)
         val secondRows = LawRows.collect(second.rows)
         firstRows.length == secondRows.length &&
         firstRows.zip(secondRows).forall { (left, right) =>

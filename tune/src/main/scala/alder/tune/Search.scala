@@ -21,10 +21,9 @@ final case class CrossValidatedTrial[C, +E, S](
     objective: Either[TrialFailure[E], Double]
 )
 
-/** Audited evidence retained for one successfully scored fold. The fitted
-  * model itself is discarded, while its complete workflow audit and the exact
-  * analysis/assessment fingerprints remain available to application
-  * compilers.
+/** Audited evidence retained for one successfully scored fold. The fitted model
+  * itself is discarded, while its complete workflow audit and the exact
+  * analysis/assessment fingerprints remain available to application compilers.
   */
 final class CrossValidatedFoldEvidence[S] private[tune] (
     val fold: Int,
@@ -36,8 +35,8 @@ final class CrossValidatedFoldEvidence[S] private[tune] (
 )
 
 /** Successful fold evidence for one candidate configuration. Failed folds
-  * remain represented by [[CrossValidatedTrial.folds]] and therefore cannot
-  * be mistaken for audited successes here.
+  * remain represented by [[CrossValidatedTrial.folds]] and therefore cannot be
+  * mistaken for audited successes here.
   */
 final class CrossValidatedCandidateEvidence[C, S] private[tune] (
     val config: C,
@@ -264,8 +263,8 @@ final class CrossValidatedSearch[
   private def select(
       trials: Vector[Trial[C, EvalE]]
   ): Either[StudyError[EvalE], Selection[C, EvalE]] =
-    val successful = trials.collect {
-      case trial @ Trial(_, Right(value)) => (trial, value)
+    val successful = trials.collect { case trial @ Trial(_, Right(value)) =>
+      (trial, value)
     }
     successful.reduceOption { (best, candidate) =>
       val candidateIsBetter = metric.direction match
@@ -305,8 +304,8 @@ final class CrossValidatedSearch[
       .traverse(fold => scoreFold(learner, fold))
       .map { evaluated =>
         val foldScores = evaluated.map(_.outcome)
-        val objectives = foldScores.collect {
-          case FoldScore.Scored(_, score) => objective(score)
+        val objectives = foldScores.collect { case FoldScore.Scored(_, score) =>
+          objective(score)
         }
         val foldFailure = foldScores.collectFirst {
           case FoldScore.Failed(_, failure) => failure
@@ -337,8 +336,8 @@ final class CrossValidatedSearch[
       fold: ResamplingFold[Use.Train, Example[X, Y, M]]
   ): F[EvaluatedFold[EvalE, S]] =
     learner
-      .fit(fold.analysis)(
-        using Fit.context[X](seed, plan, NumericMode.Deterministic)
+      .fit(fold.analysis)(using
+        Fit.context[X](seed, plan, NumericMode.Deterministic)
       )
       .value
       .map {
@@ -380,7 +379,7 @@ final class CrossValidatedSearch[
       fold: ResamplingFold[Use.Train, Example[X, Y, M]],
       trained: Trained[learner.Model]
   ): Either[TrialFailure[EvalE], S] =
-    val pipe = trained.artifact
+    val pipe    = trained.artifact
     val builder = Vector.newBuilder[Scored[Y, P, M]]
     val predictionFailed =
       fold.assessment.data.foldRows[Option[Failure[learner.RunError]]](None) {
@@ -422,7 +421,7 @@ final class CrossValidatedSearch[
 private final class SearchTrainingPopulation[A](
     source: Data[Use.Unsplit, A]
 ) extends Data[Use.Train, A]:
-  override def size: Long = source.size
+  override def size: Long                   = source.size
   override def fingerprint: DataFingerprint = source.fingerprint
 
   override def foldRows[B](initial: B)(step: (B, RowId, A) => B): B =

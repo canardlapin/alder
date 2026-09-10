@@ -10,12 +10,14 @@ enum AuditValue derives CanEqual:
   case Record(fields: Vector[(String, AuditValue)])
 
 object AuditValue:
-  def integer(value: Long): AuditValue = Integer(value)
-  def decimal(value: Double): AuditValue = Decimal(value)
-  def text(value: String): AuditValue = Text(value)
-  def bool(value: Boolean): AuditValue = Bool(value)
+  def integer(value: Long): AuditValue          = Integer(value)
+  def decimal(value: Double): AuditValue        = Decimal(value)
+  def text(value: String): AuditValue           = Text(value)
+  def bool(value: Boolean): AuditValue          = Bool(value)
   def sequence(values: AuditValue*): AuditValue = Sequence(values.toVector)
-  def record(fields: (String, AuditValue)*): AuditValue = Record(fields.toVector)
+  def record(fields: (String, AuditValue)*): AuditValue = Record(
+    fields.toVector
+  )
 
 /** Role of one exact source committed by an evaluation receipt. */
 enum ObservedSourceRole derives CanEqual:
@@ -23,8 +25,7 @@ enum ObservedSourceRole derives CanEqual:
   case Validation
   case Test
 
-/** A role on which predictions may be evaluated. Train is intentionally
-  * absent.
+/** A role on which predictions may be evaluated. Train is intentionally absent.
   */
 enum EvaluationRole derives CanEqual:
   case Validation
@@ -41,7 +42,7 @@ opaque type PredictionReceiptId = String
 
 object PredictionReceiptId:
   private[alder] def apply(value: String): PredictionReceiptId = value
-  extension (id: PredictionReceiptId) def render: String = id
+  extension (id: PredictionReceiptId) def render: String       = id
   given CanEqual[PredictionReceiptId, PredictionReceiptId] = CanEqual.derived
 
 /** Stable public identity of a scored evaluation. The authority itself is
@@ -51,7 +52,7 @@ opaque type EvaluationReceiptId = String
 
 object EvaluationReceiptId:
   private[alder] def apply(value: String): EvaluationReceiptId = value
-  extension (id: EvaluationReceiptId) def render: String = id
+  extension (id: EvaluationReceiptId) def render: String       = id
   given CanEqual[EvaluationReceiptId, EvaluationReceiptId] = CanEqual.derived
 
 /** Stable public identity of an explicit model-selection decision. */
@@ -59,8 +60,8 @@ opaque type SelectionReceiptId = String
 
 object SelectionReceiptId:
   private[alder] def apply(value: String): SelectionReceiptId = value
-  extension (id: SelectionReceiptId) def render: String = id
-  given CanEqual[SelectionReceiptId, SelectionReceiptId] = CanEqual.derived
+  extension (id: SelectionReceiptId) def render: String       = id
+  given CanEqual[SelectionReceiptId, SelectionReceiptId]      = CanEqual.derived
 
 /** Explicit audit statement about the artifact produced by a refit. */
 enum RefitEvaluationClaim derives CanEqual:
@@ -82,13 +83,13 @@ final class RefitAudit private[alder] (
 opaque type ComponentId = String
 
 object ComponentId:
-  def apply(value: String): ComponentId = value
+  def apply(value: String): ComponentId          = value
   extension (id: ComponentId) def render: String = id
 
 opaque type ComponentVersion = String
 
 object ComponentVersion:
-  def apply(value: String): ComponentVersion = value
+  def apply(value: String): ComponentVersion               = value
   extension (version: ComponentVersion) def render: String = version
 
 /** What a plugin contributes to its audit: identity, version, validated
@@ -147,9 +148,9 @@ final class CrossFitLineage private[alder] (
 )
 
 /** How prepared training rows were produced. Plan-shaped and per-fold in
-  * production — never per-row (D15). Full schema is deliberately deferred
-  * until FeatureMap.crossFitted forces it (O6); this type is a final class so
-  * it can grow fields compatibly.
+  * production — never per-row (D15). Full schema is deliberately deferred until
+  * FeatureMap.crossFitted forces it (O6); this type is a final class so it can
+  * grow fields compatibly.
   */
 final class PreparationLineage private[alder] (
     val stage: StagePath,
@@ -160,7 +161,7 @@ final class PreparationLineage private[alder] (
 ):
   private[alder] def flattenedSequence: Vector[PreparationLineage] =
     shape match
-      case PreparationLineageShape.Leaf     => Vector(this)
+      case PreparationLineageShape.Leaf => Vector(this)
       case PreparationLineageShape.Sequence =>
         children.flatMap(_.flattenedSequence)
       case PreparationLineageShape.CrossFitted => Vector(this)
@@ -251,8 +252,8 @@ final class Audit private[alder] (
 final class Trained[+A] private[alder] (val artifact: A, val audit: Audit)
 
 extension [X, E, B, A <: Pipe[X, E, B]](trained: Trained[A])
-  /** Runs a trained pipe while retaining the audit wrapper for later
-    * inspection or serialization.
+  /** Runs a trained pipe while retaining the audit wrapper for later inspection
+    * or serialization.
     */
   def run(input: X): Either[Failure[E], B] =
     trained.artifact.run(input)

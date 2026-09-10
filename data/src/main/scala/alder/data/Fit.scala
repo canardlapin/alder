@@ -5,8 +5,8 @@ import cats.Id
 
 /** Application-facing construction of a root fitting context.
   *
-  * Component authors still consume `FitContext` directly. Applications can
-  * use this helper to derive the schema fingerprint and select Alder's
+  * Component authors still consume `FitContext` directly. Applications can use
+  * this helper to derive the schema fingerprint and select Alder's
   * deterministic numerical mode by default.
   */
 object Fit:
@@ -38,8 +38,8 @@ object Fit:
       numericMode
     )
 
-  /** Fits a synchronous learner without requiring application code to install
-    * a contextual value or unwrap `EitherT`.
+  /** Fits a synchronous learner without requiring application code to install a
+    * contextual value or unwrap `EitherT`.
     *
     * The learner's exact model and error types are preserved.
     */
@@ -61,8 +61,8 @@ object Fit:
     Trained[learner.Model]
   ] =
     learner
-      .fit(data)(
-        using context[X](seed, plan, numericMode)
+      .fit(data)(using
+        context[X](seed, plan, numericMode)
       )
       .toEither
 
@@ -84,8 +84,8 @@ object Fit:
     Trained[learner.Model]
   ] =
     learner
-      .fit(data)(
-        using context[X](
+      .fit(data)(using
+        context[X](
           seed,
           plan,
           NumericMode.Deterministic
@@ -117,7 +117,7 @@ object Fit:
     ]
   ] =
     transform
-      .fit(data)(
-        using context[X](seed, plan, numericMode)
+      .fit(data)(using
+        context[X](seed, plan, numericMode)
       )
       .toEither

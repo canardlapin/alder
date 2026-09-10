@@ -15,13 +15,13 @@ final class VisibilityState(
 
 final case class VisibilityValue(input: Double, fittedOn: Set[RowId])
 
-/** Instrumented encoder whose output exposes the analysis RowIds visible to
-  * its fitted state. This intentionally row-level evidence belongs in testkit,
+/** Instrumented encoder whose output exposes the analysis RowIds visible to its
+  * fitted state. This intentionally row-level evidence belongs in testkit,
   * never in production PreparationLineage.
   */
 final class VisibilityEncoder(reject: Option[Double] = None)
     extends FoldEncoder[Id, Double, Double, String, VisibilityValue]:
-  type State = VisibilityState
+  type State    = VisibilityState
   type FitError = Nothing
   type RunError = VisibilityRunError
 
@@ -86,8 +86,7 @@ object AlderGenerators:
   val finiteDouble: Gen[Double] =
     Gen.chooseNum(-1.0e6, 1.0e6)
 
-  val nonEmptyDoubles
-      : Gen[Vector[(RowId, Double)]] =
+  val nonEmptyDoubles: Gen[Vector[(RowId, Double)]] =
     Gen
       .nonEmptyListOf(finiteDouble)
       .map(_.toVector.zipWithIndex.map { (value, index) =>
@@ -108,11 +107,11 @@ final class NumericTolerance private (
   def equivalent(left: Double, right: Double): Boolean =
     if left == right then true
     else if !java.lang.Double.isFinite(left) ||
-        !java.lang.Double.isFinite(right)
+      !java.lang.Double.isFinite(right)
     then false
     else
       val difference = math.abs(left - right)
-      val scale = math.max(math.abs(left), math.abs(right))
+      val scale      = math.max(math.abs(left), math.abs(right))
       difference <= math.max(absolute, relative * scale)
 
 object NumericTolerance:
@@ -124,8 +123,6 @@ object NumericTolerance:
       Left(ToleranceError.NonFiniteAbsolute(absolute))
     else if !java.lang.Double.isFinite(relative) then
       Left(ToleranceError.NonFiniteRelative(relative))
-    else if absolute < 0.0 then
-      Left(ToleranceError.NegativeAbsolute(absolute))
-    else if relative < 0.0 then
-      Left(ToleranceError.NegativeRelative(relative))
+    else if absolute < 0.0 then Left(ToleranceError.NegativeAbsolute(absolute))
+    else if relative < 0.0 then Left(ToleranceError.NegativeRelative(relative))
     else Right(new NumericTolerance(absolute, relative))

@@ -56,7 +56,7 @@ private[alder] final class BinaryWriter:
 private[alder] final class BinaryReader(
     source: IArray[Byte]
 ):
-  private val bytes = IArray.from(source)
+  private val bytes  = IArray.from(source)
   private var offset = 0
 
   def byte: Either[CodecError, Int] =
@@ -77,23 +77,21 @@ private[alder] final class BinaryReader(
 
   def int: Either[CodecError, Int] =
     for
-      first <- byte
+      first  <- byte
       second <- byte
-      third <- byte
+      third  <- byte
       fourth <- byte
-    yield
-      (first << 24) |
-        (second << 16) |
-        (third << 8) |
-        fourth
+    yield (first << 24) |
+      (second << 16) |
+      (third << 8) |
+      fourth
 
   def long: Either[CodecError, Long] =
     for
       high <- int
-      low <- int
-    yield
-      (high.toLong << 32) |
-        (low.toLong & 0xffffffffL)
+      low  <- int
+    yield (high.toLong << 32) |
+      (low.toLong & 0xffffffffL)
 
   def double: Either[CodecError, Double] =
     long.map(java.lang.Double.longBitsToDouble)
@@ -104,7 +102,7 @@ private[alder] final class BinaryReader(
         Left(CodecError.Malformed(s"invalid string length $length"))
       else
         val builder = new scala.collection.mutable.StringBuilder
-        var index = 0
+        var index   = 0
         var result: Either[CodecError, Unit] = Right(())
         while index < length && result.isRight do
           result = int.flatMap { code =>
@@ -129,7 +127,7 @@ private[alder] final class BinaryReader(
         Left(CodecError.Malformed(s"invalid payload length $length"))
       else
         val output = new Array[Byte](length)
-        var index = 0
+        var index  = 0
         while index < length do
           output(index) = bytes(offset + index)
           index += 1
@@ -152,8 +150,8 @@ private[alder] final class BinaryReader(
       if length < 0 then
         Left(CodecError.Malformed(s"invalid vector length $length"))
       else
-        val builder = Vector.newBuilder[A]
-        var index = 0
+        val builder                          = Vector.newBuilder[A]
+        var index                            = 0
         var result: Either[CodecError, Unit] = Right(())
         while index < length && result.isRight do
           result = read.map { value =>
@@ -219,31 +217,30 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, Audit] =
     for
-      plan <- readPlanFingerprint(reader)
-      data <- readDataFingerprint(reader)
-      schema <- readSchemaFingerprint(reader)
-      seed <- reader.long.map(Seed(_))
-      backend <- readBackendFingerprint(reader)
+      plan        <- readPlanFingerprint(reader)
+      data        <- readDataFingerprint(reader)
+      schema      <- readSchemaFingerprint(reader)
+      seed        <- reader.long.map(Seed(_))
+      backend     <- readBackendFingerprint(reader)
       numericMode <- readNumericMode(reader)
       preparation <- readPreparation(reader)
-      component <- readComponent(reader)
-      children <- reader.vector(readAudit(reader))
-      refit <- reader.option(readRefit(reader))
-      shape <- readAuditShape(reader)
-    yield
-      new Audit(
-        plan,
-        data,
-        schema,
-        seed,
-        backend,
-        numericMode,
-        preparation,
-        component,
-        children,
-        refit,
-        shape
-      )
+      component   <- readComponent(reader)
+      children    <- reader.vector(readAudit(reader))
+      refit       <- reader.option(readRefit(reader))
+      shape       <- readAuditShape(reader)
+    yield new Audit(
+      plan,
+      data,
+      schema,
+      seed,
+      backend,
+      numericMode,
+      preparation,
+      component,
+      children,
+      refit,
+      shape
+    )
 
   private def writeAuditValue(
       writer: BinaryWriter,
@@ -288,7 +285,7 @@ private[kernel] object AuditBinaryCodec:
         reader
           .vector(
             for
-              name <- reader.string
+              name  <- reader.string
               value <- readAuditValue(reader)
             yield (name, value)
           )
@@ -323,7 +320,7 @@ private[kernel] object AuditBinaryCodec:
         reader.string.map(FingerprintPolicy.ContentDigest(_))
       case 1 =>
         for
-          uri <- reader.string
+          uri     <- reader.string
           version <- reader.string
         yield FingerprintPolicy.SourceIdentity(uri, version)
       case 2 =>
@@ -408,7 +405,7 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, BackendFingerprint] =
     for
-      id <- reader.string
+      id      <- reader.string
       version <- reader.string
       details <- readAuditValue(reader)
     yield BackendFingerprint(id, version, details)
@@ -505,11 +502,11 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, PreparationLineage] =
     for
-      stage <- readStage(reader)
-      scope <- readScope(reader)
+      stage    <- readStage(reader)
+      scope    <- readScope(reader)
       children <- reader.vector(readPreparation(reader))
       crossFit <- reader.option(readCrossFit(reader))
-      shape <- readPreparationShape(reader)
+      shape    <- readPreparationShape(reader)
     yield new PreparationLineage(stage, scope, children, crossFit, shape)
 
   private def writeFold(
@@ -525,17 +522,16 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, CrossFitFoldLineage] =
     for
-      index <- reader.int
-      analysis <- readDataFingerprint(reader)
-      assessment <- readDataFingerprint(reader)
+      index       <- reader.int
+      analysis    <- readDataFingerprint(reader)
+      assessment  <- readDataFingerprint(reader)
       fittedState <- readPreparation(reader)
-    yield
-      new CrossFitFoldLineage(
-        index,
-        analysis,
-        assessment,
-        fittedState
-      )
+    yield new CrossFitFoldLineage(
+      index,
+      analysis,
+      assessment,
+      fittedState
+    )
 
   private def writeResample4s(
       writer: BinaryWriter,
@@ -555,21 +551,20 @@ private[kernel] object AuditBinaryCodec:
     for
       designAlgorithm <- reader.string
       digestAlgorithm <- reader.string
-      design <- readProtocolFingerprint(reader)
-      population <- readDataFingerprint(reader)
-      labels <- reader.option(readDataFingerprint(reader))
-      planSeed <- reader.long.map(Seed(_))
-      assignment <- readDataFingerprint(reader)
-    yield
-      new Resample4sPlanReceipt(
-        designAlgorithm,
-        digestAlgorithm,
-        design,
-        population,
-        labels,
-        planSeed,
-        assignment
-      )
+      design          <- readProtocolFingerprint(reader)
+      population      <- readDataFingerprint(reader)
+      labels          <- reader.option(readDataFingerprint(reader))
+      planSeed        <- reader.long.map(Seed(_))
+      assignment      <- readDataFingerprint(reader)
+    yield new Resample4sPlanReceipt(
+      designAlgorithm,
+      digestAlgorithm,
+      design,
+      population,
+      labels,
+      planSeed,
+      assignment
+    )
 
   private def writeCrossFit(
       writer: BinaryWriter,
@@ -586,21 +581,20 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, CrossFitLineage] =
     for
-      resampler <- readProtocolFingerprint(reader)
-      seed <- reader.long.map(Seed(_))
+      resampler  <- readProtocolFingerprint(reader)
+      seed       <- reader.long.map(Seed(_))
       assignment <- readDataFingerprint(reader)
-      folds <- reader.vector(readFold(reader))
-      serving <- readPreparation(reader)
+      folds      <- reader.vector(readFold(reader))
+      serving    <- readPreparation(reader)
       resample4s <- reader.option(readResample4s(reader))
-    yield
-      new CrossFitLineage(
-        resampler,
-        seed,
-        assignment,
-        folds,
-        serving,
-        resample4s
-      )
+    yield new CrossFitLineage(
+      resampler,
+      seed,
+      assignment,
+      folds,
+      serving,
+      resample4s
+    )
 
   private def writeComponent(
       writer: BinaryWriter,
@@ -615,17 +609,16 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, ComponentDescriptor] =
     for
-      id <- reader.string
-      version <- reader.string
+      id         <- reader.string
+      version    <- reader.string
       parameters <- readAuditValue(reader)
-      backend <- readBackendFingerprint(reader)
-    yield
-      ComponentDescriptor(
-        ComponentId(id),
-        ComponentVersion(version),
-        parameters,
-        backend
-      )
+      backend    <- readBackendFingerprint(reader)
+    yield ComponentDescriptor(
+      ComponentId(id),
+      ComponentVersion(version),
+      parameters,
+      backend
+    )
 
   private def writeObservedRole(
       writer: BinaryWriter,
@@ -659,7 +652,7 @@ private[kernel] object AuditBinaryCodec:
       reader: BinaryReader
   ): Either[CodecError, ObservedSource] =
     for
-      role <- readObservedRole(reader)
+      role        <- readObservedRole(reader)
       fingerprint <- readDataFingerprint(reader)
     yield ObservedSource(role, fingerprint)
 
@@ -668,11 +661,9 @@ private[kernel] object AuditBinaryCodec:
       claim: RefitEvaluationClaim
   ): Unit =
     claim match
-      case RefitEvaluationClaim
-            .ArtifactNotEvaluatedOnAuthorizingValidation =>
+      case RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingValidation =>
         writer.byte(0)
-      case RefitEvaluationClaim
-            .ArtifactNotEvaluatedOnAuthorizingTest =>
+      case RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingTest =>
         writer.byte(1)
 
   private def readRefitClaim(
@@ -681,10 +672,8 @@ private[kernel] object AuditBinaryCodec:
     reader.enumeration(
       "refit claim",
       Vector(
-        RefitEvaluationClaim
-          .ArtifactNotEvaluatedOnAuthorizingValidation,
-        RefitEvaluationClaim
-          .ArtifactNotEvaluatedOnAuthorizingTest
+        RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingValidation,
+        RefitEvaluationClaim.ArtifactNotEvaluatedOnAuthorizingTest
       )
     )
 

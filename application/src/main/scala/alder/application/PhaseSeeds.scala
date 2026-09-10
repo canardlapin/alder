@@ -19,11 +19,11 @@ final class PhaseSeeds private (
   def apply(phase: ExperimentPhase): Seed =
     ReceiptHash.phaseSeed(root, plan, phase)
 
-  def split: Seed = apply(ExperimentPhase.Split)
-  def candidateFit: Seed = apply(ExperimentPhase.CandidateFit)
-  def validation: Seed = apply(ExperimentPhase.Validation)
-  def selectedRefit: Seed = apply(ExperimentPhase.SelectedRefit)
-  def test: Seed = apply(ExperimentPhase.Test)
+  def split: Seed           = apply(ExperimentPhase.Split)
+  def candidateFit: Seed    = apply(ExperimentPhase.CandidateFit)
+  def validation: Seed      = apply(ExperimentPhase.Validation)
+  def selectedRefit: Seed   = apply(ExperimentPhase.SelectedRefit)
+  def test: Seed            = apply(ExperimentPhase.Test)
   def deploymentRefit: Seed = apply(ExperimentPhase.DeploymentRefit)
 
 object PhaseSeeds:

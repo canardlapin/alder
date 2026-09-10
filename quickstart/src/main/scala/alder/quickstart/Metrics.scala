@@ -1,11 +1,7 @@
 package alder.quickstart
 
 import alder.kernel.Scored
-import alder.metrics.{
-  ObjectiveMetric,
-  RegressionMetrics,
-  RootMeanSquaredError
-}
+import alder.metrics.{ObjectiveMetric, RegressionMetrics, RootMeanSquaredError}
 
 /** Built-in metrics for the ordinary supervised path. */
 object Metrics:

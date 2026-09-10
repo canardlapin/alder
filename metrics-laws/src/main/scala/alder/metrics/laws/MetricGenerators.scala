@@ -24,6 +24,6 @@ object MetricGenerators:
       meta: M
   ): Gen[Scored[Double, Double, M]] =
     for
-      truth <- adversarialFiniteDouble
+      truth      <- adversarialFiniteDouble
       prediction <- adversarialFiniteDouble
     yield Scored(truth, prediction, meta)

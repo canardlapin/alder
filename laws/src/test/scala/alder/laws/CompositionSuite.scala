@@ -10,14 +10,15 @@ enum EncoderRunError derives CanEqual:
 final class EncoderState(val targetMean: Double, val stage: StagePath)
 
 /** Test encoder whose state and runtime failures retain the fit stage. */
-final class TargetMeanEncoder extends FoldEncoder[
+final class TargetMeanEncoder
+    extends FoldEncoder[
       Id,
       Double,
       Double,
       String,
       Double
     ]:
-  type State = EncoderState
+  type State    = EncoderState
   type FitError = Nothing
   type RunError = EncoderRunError
 
@@ -56,11 +57,10 @@ final class SummaryPipe(
   def run(value: Double): Either[Failure[Nothing], Double] =
     Right(value + targetSum)
 
-final class SummaryLearner
-    extends Learner[Id, Double, Double, String, Double]:
+final class SummaryLearner extends Learner[Id, Double, Double, String, Double]:
   type FitError = Nothing
   type RunError = Nothing
-  type Model = SummaryPipe
+  type Model    = SummaryPipe
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[Double, Double, String]]
@@ -117,13 +117,12 @@ class CompositionSuite extends munit.FunSuite:
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
-        val reusable
-            : Prepared[
-              Preparation.Reusable,
-              Use.Train,
-              lifted.Fitted,
-              Example[Double, Double, String]
-            ] = prepared
+        val reusable: Prepared[
+          Preparation.Reusable,
+          Use.Train,
+          lifted.Fitted,
+          Example[Double, Double, String]
+        ] = prepared
         val rows = TestData.rowsOf(reusable.rows)
         assertEquals(rows.map(_._1), Vector(0L, 1L, 2L))
         assertEquals(rows.map(_._2.target), Vector(10.0, 20.0, 30.0))
@@ -147,13 +146,12 @@ class CompositionSuite extends munit.FunSuite:
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
       case Right(prepared) =>
-        val reusable
-            : Prepared[
-              Preparation.Reusable,
-              Use.Train,
-              mapped.Fitted,
-              Example[Double, Double, String]
-            ] = prepared
+        val reusable: Prepared[
+          Preparation.Reusable,
+          Use.Train,
+          mapped.Fitted,
+          Example[Double, Double, String]
+        ] = prepared
         assertEquals(
           TestData.rowsOf(reusable.rows).map(_._2.input),
           Vector(-4.0, -2.0, 6.0)
@@ -171,7 +169,7 @@ class CompositionSuite extends munit.FunSuite:
       MeanShift[Id]
     ](MeanShift[Id]())
     val composed = MeanShift[Id]().andThen(second)
-    val result = composed.fit(examples)(using rootContext).value
+    val result   = composed.fit(examples)(using rootContext).value
 
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
@@ -189,7 +187,7 @@ class CompositionSuite extends munit.FunSuite:
   }
 
   test("Transform and FeatureMap association preserves normalized stages") {
-    val first = MeanShift[Id]()
+    val first  = MeanShift[Id]()
     val second = MeanShift[Id]()
     val feature = FeatureMap.inputOnly[
       Id,
@@ -199,9 +197,9 @@ class CompositionSuite extends munit.FunSuite:
       Double,
       MeanShift[Id]
     ](MeanShift[Id]())
-    val left = first.andThen(second).andThen(feature)
-    val right = first.andThen(second.andThen(feature))
-    val leftResult = left.fit(examples)(using rootContext).value
+    val left        = first.andThen(second).andThen(feature)
+    val right       = first.andThen(second.andThen(feature))
+    val leftResult  = left.fit(examples)(using rootContext).value
     val rightResult = right.fit(examples)(using rootContext).value
 
     (leftResult, rightResult) match
@@ -230,7 +228,7 @@ class CompositionSuite extends munit.FunSuite:
 
   test("Transform then Learner preserves supervised fields and is terminal") {
     val workflow = MeanShift[Id]().learnWith(new SummaryLearner)
-    val result = workflow.fit(examples)(using rootContext).value
+    val result   = workflow.fit(examples)(using rootContext).value
 
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
@@ -249,9 +247,9 @@ class CompositionSuite extends munit.FunSuite:
   }
 
   test("Transform workflow association preserves normalized stages") {
-    val first = MeanShift[Id]()
+    val first  = MeanShift[Id]()
     val second = MeanShift[Id]()
-    val left = first.andThen(second).learnWith(new SummaryLearner)
+    val left   = first.andThen(second).learnWith(new SummaryLearner)
     val right = first
       .andThen(
         FeatureMap.inputOnly[
@@ -264,7 +262,7 @@ class CompositionSuite extends munit.FunSuite:
         ](second)
       )
       .learnWith(new SummaryLearner)
-    val leftResult = left.fit(examples)(using rootContext).value
+    val leftResult  = left.fit(examples)(using rootContext).value
     val rightResult = right.fit(examples)(using rootContext).value
 
     (leftResult, rightResult) match
@@ -288,9 +286,9 @@ class CompositionSuite extends munit.FunSuite:
   }
 
   test("FoldEncoder.andThen retains state audit and runtime provenance") {
-    val encoder = new TargetMeanEncoder
+    val encoder  = new TargetMeanEncoder
     val composed = encoder.andThen(MeanShift[Id]())
-    val result = composed.fit(examples)(using rootContext).value
+    val result   = composed.fit(examples)(using rootContext).value
 
     result match
       case Left(failure) => fail(s"unexpected failure: $failure")
@@ -327,12 +325,12 @@ class CompositionSuite extends munit.FunSuite:
   }
 
   test("FoldEncoder association preserves paths, seeds, audit, and output") {
-    val encoder = new TargetMeanEncoder
-    val first = MeanShift[Id]()
-    val second = MeanShift[Id]()
-    val left = encoder.andThen(first).andThen(second)
-    val right = encoder.andThen(first.andThen(second))
-    val leftResult = left.fit(examples)(using rootContext).value
+    val encoder     = new TargetMeanEncoder
+    val first       = MeanShift[Id]()
+    val second      = MeanShift[Id]()
+    val left        = encoder.andThen(first).andThen(second)
+    val right       = encoder.andThen(first.andThen(second))
+    val leftResult  = left.fit(examples)(using rootContext).value
     val rightResult = right.fit(examples)(using rootContext).value
 
     (leftResult, rightResult) match

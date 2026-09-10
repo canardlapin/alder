@@ -3,7 +3,8 @@ package alder.quickstart
 import alder.data.*
 import alder.kernel.*
 
-/** Identified supervised datasets with `Unit` metadata for the ordinary path. */
+/** Identified supervised datasets with `Unit` metadata for the ordinary path.
+  */
 object Supervised:
 
   /** Builds unsplit examples from `(input, target)` pairs.

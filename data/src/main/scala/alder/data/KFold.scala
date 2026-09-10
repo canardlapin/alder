@@ -4,9 +4,9 @@ import alder.kernel.*
 
 /** Complete K-fold resampling with deterministic optional shuffling.
   *
-  * Each input row occurs in exactly one assessment partition. When shuffling
-  * is enabled, assignment is a stable function of the row ID and supplied
-  * seed, so input traversal order does not affect the plan.
+  * Each input row occurs in exactly one assessment partition. When shuffling is
+  * enabled, assignment is a stable function of the row ID and supplied seed, so
+  * input traversal order does not affect the plan.
   */
 final class KFold[A] private (
     val folds: Int,

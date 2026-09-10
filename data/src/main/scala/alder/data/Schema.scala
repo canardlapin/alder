@@ -15,14 +15,14 @@ object Schema:
   /** Summons the schema for `A`. */
   def apply[A](using schema: Schema[A]): Schema[A] = schema
 
-  given Schema[Double] = primitive("scala.Double")
-  given Schema[Float] = primitive("scala.Float")
-  given Schema[Long] = primitive("scala.Long")
-  given Schema[Int] = primitive("scala.Int")
-  given Schema[Short] = primitive("scala.Short")
-  given Schema[Byte] = primitive("scala.Byte")
+  given Schema[Double]  = primitive("scala.Double")
+  given Schema[Float]   = primitive("scala.Float")
+  given Schema[Long]    = primitive("scala.Long")
+  given Schema[Int]     = primitive("scala.Int")
+  given Schema[Short]   = primitive("scala.Short")
+  given Schema[Byte]    = primitive("scala.Byte")
   given Schema[Boolean] = primitive("scala.Boolean")
-  given Schema[String] = primitive("java.lang.String")
+  given Schema[String]  = primitive("java.lang.String")
 
   given [A](using element: Schema[A]): Schema[Option[A]] =
     fromDescriptor(s"option(${element.descriptor})")
@@ -66,7 +66,7 @@ object Schema:
           ) =>
         // Mirror labels are compiler-proven String singleton types. Scala 3.3
         // does not retain that bound through this erased tuple match.
-        val fieldName = constValue[label].asInstanceOf[String]
+        val fieldName   = constValue[label].asInstanceOf[String]
         val fieldSchema = summonInline[Schema[element]]
         fieldDescriptor(fieldName, fieldSchema.descriptor) +:
           productFields[labels, elements]
@@ -116,10 +116,10 @@ object Schema:
 
 private[data] object StableHash:
   private val offset = 0xcbf29ce484222325L
-  private val prime = 0x100000001b3L
+  private val prime  = 0x100000001b3L
 
   def fnv1a64(value: String): String =
-    var hash = offset
+    var hash  = offset
     var index = 0
     while index < value.length do
       val codeUnit = value.charAt(index).toInt
@@ -129,9 +129,9 @@ private[data] object StableHash:
     hex(hash)
 
   private def hex(value: Long): String =
-    val digits = "0123456789abcdef"
+    val digits  = "0123456789abcdef"
     val builder = new StringBuilder(16)
-    var shift = 60
+    var shift   = 60
     while shift >= 0 do
       val digit = ((value >>> shift) & 0x0fL).toInt
       builder.append(digits.charAt(digit))

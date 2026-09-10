@@ -12,7 +12,7 @@ final class ResamplingFold[+U <: Use.Fit, +A] private[alder] (
     private[alder] val assessment: NonEmptyData[U, A],
     val assignment: DataFingerprint
 ):
-  def analysisSize: Long = analysis.size
+  def analysisSize: Long   = analysis.size
   def assessmentSize: Long = assessment.size
 
 final class ResamplingPlan[+U <: Use.Fit, +A] private[alder] (
@@ -53,19 +53,16 @@ private[data] object ResamplingPlans:
     val valid =
       rowIds.size == rows.length &&
         assignmentById.size == assignments.length &&
-      assignments.length == rows.length &&
+        assignments.length == rows.length &&
         rowIds.forall(assignmentById.contains) &&
         assignments.forall(pair => pair._2 >= 0 && pair._2 < foldCount)
-    if !valid then
-      Left(DataError.InvalidResamplingAssignment)
+    if !valid then Left(DataError.InvalidResamplingAssignment)
     else
       val assignmentFingerprint =
         Fingerprints.assignment(data.fingerprint, seed, assignments)
       val folds = Vector.tabulate(foldCount) { foldIndex =>
         val (assessmentRows, analysisRows) =
-          rows.partition(row =>
-            assignmentById.get(row._1).contains(foldIndex)
-          )
+          rows.partition(row => assignmentById.get(row._1).contains(foldIndex))
         val analysisFingerprint = Fingerprints.partition(
           data.fingerprint,
           s"fold/$foldIndex/analysis",
@@ -94,21 +91,23 @@ private[data] object ResamplingPlans:
           assignmentFingerprint
         )
       }
-      folds.foldLeft(
-        Right(Vector.empty): Either[
-          DataError,
-          Vector[ResamplingFold[U, A]]
-        ]
-      )((result, fold) =>
-        for
-          accepted <- result
-          value <- fold
-        yield accepted :+ value
-      ).map(values =>
-        new ResamplingPlan(
-          values,
-          resampler,
-          assignmentFingerprint,
-          None
+      folds
+        .foldLeft(
+          Right(Vector.empty): Either[
+            DataError,
+            Vector[ResamplingFold[U, A]]
+          ]
+        )((result, fold) =>
+          for
+            accepted <- result
+            value    <- fold
+          yield accepted :+ value
         )
-      )
+        .map(values =>
+          new ResamplingPlan(
+            values,
+            resampler,
+            assignmentFingerprint,
+            None
+          )
+        )

@@ -27,8 +27,8 @@ object Ridge:
   ): RidgeRegression[Id, Dense[Standardized[A]], Unit] =
     lsqr(RidgeConfig(penalty, fitIntercept, tolerance))
 
-  /** Uses a previously validated ridge configuration with the concrete
-    * linop4s LSQR backend.
+  /** Uses a previously validated ridge configuration with the concrete linop4s
+    * LSQR backend.
     */
   def lsqr[A](config: RidgeConfig)(using
       FeatureView[A]

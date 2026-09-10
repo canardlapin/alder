@@ -23,8 +23,8 @@ final class EvaluationReceipt[
     private[alder] val authority: PromotionAuthority[U]
 )
 
-/** Held-out observations, their typed score, and the evidence required by
-  * later lifecycle transitions.
+/** Held-out observations, their typed score, and the evidence required by later
+  * lifecycle transitions.
   */
 final class ScoredEvaluation[
     U <: Use.Evaluation,

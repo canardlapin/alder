@@ -160,7 +160,9 @@ object ExperimentReport:
         report.components.map(_.descriptor.id.render).mkString(" -> ")
       val backends =
         report.components
-          .map(component => s"${component.backend.id}@${component.backend.version}")
+          .map(component =>
+            s"${component.backend.id}@${component.backend.version}"
+          )
           .mkString(", ")
       (Vector(s"Route: ${renderRoute(report.route)}") ++
         partitionLines ++

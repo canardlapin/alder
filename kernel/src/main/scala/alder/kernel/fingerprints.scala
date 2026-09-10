@@ -66,11 +66,11 @@ object PlanFingerprint:
   */
 private[alder] object AuditFingerprint:
   private val offset = 0xcbf29ce484222325L
-  private val prime = 0x100000001b3L
+  private val prime  = 0x100000001b3L
 
   def apply(audit: Audit): ProtocolFingerprint =
     val bytes = AuditBinaryCodec.encode(audit)
-    var hash = offset
+    var hash  = offset
     var index = 0
     while index < bytes.length do
       hash = (hash ^ (bytes(index).toLong & 0xffL)) * prime
@@ -83,9 +83,9 @@ private[alder] object AuditFingerprint:
     )
 
   private def hex(value: Long): String =
-    val digits = "0123456789abcdef"
+    val digits  = "0123456789abcdef"
     val builder = new StringBuilder(16)
-    var shift = 60
+    var shift   = 60
     while shift >= 0 do
       builder.append(
         digits.charAt(((value >>> shift) & 0x0fL).toInt)
@@ -180,7 +180,7 @@ object Seed:
     hash
 
   private def hashLong(initial: Long, value: Long): Long =
-    var hash = initial
+    var hash  = initial
     var shift = 56
     while shift >= 0 do
       hash = (hash ^ ((value >>> shift) & 0xffL)) * 0x100000001b3L

@@ -97,8 +97,8 @@ object ClassificationMetrics:
 
   /** Classification accuracy weighted from observation metadata.
     *
-    * Weights must be finite and non-negative, and their total must be
-    * positive. Summation is reproducible across partition shapes.
+    * Weights must be finite and non-negative, and their total must be positive.
+    * Summation is reproducible across partition shapes.
     */
   def weightedAccuracy[C: Eq, M](
       equalityPolicy: EqualityPolicyId,
@@ -119,7 +119,7 @@ object ClassificationMetrics:
           MetricVersion("1"),
           AuditValue.record(
             "equality-policy" -> AuditValue.text(equalityPolicy.value),
-            "weight-policy" -> AuditValue.text(weightPolicy.value)
+            "weight-policy"   -> AuditValue.text(weightPolicy.value)
           ),
           MetricNumericPolicy.Reproducible,
           Some(ObjectiveDescriptor(direction, "binary64-decimal-v1"))
@@ -134,8 +134,7 @@ object ClassificationMetrics:
         val weight = weightOf(scored.meta)
         val problems =
           if !weight.isFinite then Set(MetricProblem.weight(weight))
-          else if weight < 0.0 then
-            Set(MetricProblem.negativeWeight(weight))
+          else if weight < 0.0 then Set(MetricProblem.negativeWeight(weight))
           else MetricProblems.empty
         if problems.nonEmpty then
           new WeightedAccuracyAccumulator(
@@ -163,8 +162,7 @@ object ClassificationMetrics:
             if accumulated.count.signum == 0 then Left(MetricError.Empty)
             else
               val totalWeight = accumulated.totalWeight.result
-              if totalWeight == 0.0 then
-                Left(MetricError.ZeroTotalWeight)
+              if totalWeight == 0.0 then Left(MetricError.ZeroTotalWeight)
               else
                 val result =
                   accumulated.correctWeight.result / totalWeight

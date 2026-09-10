@@ -14,20 +14,17 @@ final class OffsetPipe(
   def run(value: Double): Either[Failure[Nothing], Double] =
     Right(value + offset)
 
-final class OffsetLearner
-    extends Learner[Id, Double, Double, Unit, Double]:
+final class OffsetLearner extends Learner[Id, Double, Double, Unit, Double]:
   type FitError = Nothing
   type RunError = Nothing
-  type Model = OffsetPipe
+  type Model    = OffsetPipe
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[Double, Double, Unit]]
-  )(using context: FitContext)
-      : FitResult[Id, Nothing, Trained[OffsetPipe]] =
+  )(using context: FitContext): FitResult[Id, Nothing, Trained[OffsetPipe]] =
     val mean =
-      data.data.foldRows((0.0, 0L)) {
-        case ((sum, count), _, example) =>
-          (sum + example.target, count + 1L)
+      data.data.foldRows((0.0, 0L)) { case ((sum, count), _, example) =>
+        (sum + example.target, count + 1L)
       } match
         case (sum, count) => sum / count.toDouble
     EitherT.rightT(
@@ -61,10 +58,10 @@ class PublishedTuneLawsSuite extends DisciplineSuite:
     "Boolean Space",
     new SpaceTests(
       new SpaceLaws[Boolean]:
-        def space: Space[Boolean] = booleanSpace
+        def space: Space[Boolean]      = booleanSpace
         def gridStrategy: GridStrategy = GridStrategy(positive(3))
-        def trials: PositiveInt = positive(100)
-        def seed: Seed = Seed(73L)
+        def trials: PositiveInt        = positive(100)
+        def seed: Seed                 = Seed(73L)
         def valid(value: Boolean): Boolean =
           value || !value
     ).all
@@ -99,7 +96,7 @@ class PublishedTuneLawsSuite extends DisciplineSuite:
               )
             ) match
               case Some(value) => value
-              case None => fail("study fixture must be nonempty")
+              case None        => fail("study fixture must be nonempty")
           )
         def candidates: Vector[Int] = studyCandidates
     ).all
@@ -141,18 +138,16 @@ class PublishedTuneLawsSuite extends DisciplineSuite:
     "Learner eraseModel",
     new TuningErasureTests(
       new TuningErasureLaws[Double, Nothing, Nothing, Double]:
-        def concrete
-            : Either[
-              Failure[Nothing],
-              Trained[? <: Pipe[Double, Nothing, Double]]
-            ] =
+        def concrete: Either[
+          Failure[Nothing],
+          Trained[? <: Pipe[Double, Nothing, Double]]
+        ] =
           learner.fit(training)(using context).value
 
-        def erased
-            : Either[
-              Failure[Nothing],
-              Trained[Pipe[Double, Nothing, Double]]
-            ] =
+        def erased: Either[
+          Failure[Nothing],
+          Trained[Pipe[Double, Nothing, Double]]
+        ] =
           learner.eraseModel.fit(training)(using context).value
 
         def inputs: Vector[Double] =

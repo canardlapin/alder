@@ -52,9 +52,9 @@ final class SpaceTests[A](
               laws.seed
             )
           first.length == second.length &&
-          first.zip(second).forall((left, right) =>
-            summon[Eq[A]].eqv(left, right)
-          )
+          first
+            .zip(second)
+            .forall((left, right) => summon[Eq[A]].eqv(left, right))
         }
     )
 
@@ -117,7 +117,7 @@ final class StudyTests[C, E](
               ) &&
               selection.audit.candidateCount ==
                 selection.trials.length &&
-              selection.audit.successfulTrials ==
+                selection.audit.successfulTrials ==
                 selection.trials.count(_.objective.isRight)
         }
     )

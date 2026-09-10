@@ -62,7 +62,7 @@ object ArtifactCodecs:
           value: Pipe.Chain[A, E1, B, E2, C, P1, P2]
       ): Either[CodecError, IArray[Byte]] =
         for
-          firstBytes <- first.encodeArtifact(value.first)
+          firstBytes  <- first.encodeArtifact(value.first)
           secondBytes <- second.encodeArtifact(value.second)
         yield
           val writer = new BinaryWriter
@@ -79,10 +79,10 @@ object ArtifactCodecs:
         val reader = new BinaryReader(bytes)
         val decoded =
           for
-            firstBytes <- reader.payload
+            firstBytes  <- reader.payload
             secondBytes <- reader.payload
-            firstPipe <- first.decodeArtifact(firstBytes)
-            secondPipe <- second.decodeArtifact(secondBytes)
+            firstPipe   <- first.decodeArtifact(firstBytes)
+            secondPipe  <- second.decodeArtifact(secondBytes)
           yield Pipe.Chain(firstPipe, secondPipe)
         decoded.flatMap(reader.finish)
 

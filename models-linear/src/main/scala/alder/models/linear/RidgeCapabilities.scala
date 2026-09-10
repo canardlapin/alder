@@ -33,16 +33,14 @@ given [X](using features: FeatureView[X]): Explain[RidgeModel[X], X] with
     features
       .read(input)
       .left
-      .map(error =>
-        ExplainError.NotExplainable(s"feature view failed: $error")
-      )
+      .map(error => ExplainError.NotExplainable(s"feature view failed: $error"))
       .map { values =>
         val solution = trained.artifact.solution
         val contributions = IArray.tabulate(values.length) { index =>
           values(index) * solution.coefficient(index)
         }
         var prediction = solution.intercept
-        var index = 0
+        var index      = 0
         while index < contributions.length do
           prediction += contributions(index)
           index += 1

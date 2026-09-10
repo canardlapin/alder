@@ -5,9 +5,9 @@ import cats.data.EitherT
 
 /** Leakage-aware supervised preprocessing. Its prepared rows are LearnerReady:
   * each row was prepared without its own target, so they may feed a terminal
-  * learner but never another preprocessing stage through the safe API (D4).
-  * The prepared rows are deliberately NOT required to equal replaying the
-  * final fitted pipe.
+  * learner but never another preprocessing stage through the safe API (D4). The
+  * prepared rows are deliberately NOT required to equal replaying the final
+  * fitted pipe.
   */
 trait FeatureMap[F[_], X, Y, M, Z]:
   type Scope <: Preparation.LearnerReady
@@ -89,10 +89,10 @@ final class InputOnlyFeatureMap[
     T <: Transform[F, X, Z]
 ](val transform: T)(using Monad[F])
     extends FeatureMap[F, X, Y, M, Z]:
-  type Scope = Preparation.Reusable
+  type Scope    = Preparation.Reusable
   type FitError = transform.FitError | PreparationError
   type RunError = transform.RunError
-  type Fitted = transform.Fitted
+  type Fitted   = transform.Fitted
 
   override private[alder] def stageCount: Int = transform.stageCount
 
@@ -167,10 +167,10 @@ final class MappedOutputFeatureMap[
     private val mapComponent: ComponentDescriptor
 )(using Monad[F])
     extends FeatureMap[F, X, Y, M, W]:
-  type Scope = featureMap.Scope
+  type Scope    = featureMap.Scope
   type FitError = featureMap.FitError
   type RunError = featureMap.RunError
-  type Fitted = Pipe.Mapped[X, featureMap.RunError, Z, W]
+  type Fitted   = Pipe.Mapped[X, featureMap.RunError, Z, W]
 
   override private[alder] def stageCount: Int = featureMap.stageCount
 

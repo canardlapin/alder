@@ -21,9 +21,9 @@ private[metrics] final class ReproducibleSum private (
 
 private[metrics] object ReproducibleSum:
   private val fractionMask = (1L << 52) - 1L
-  private val hiddenBit = 1L << 52
-  private val signMask = Long.MinValue
-  private val twoTo52 = BigInt(1) << 52
+  private val hiddenBit    = 1L << 52
+  private val signMask     = Long.MinValue
+  private val twoTo52      = BigInt(1) << 52
 
   val empty: ReproducibleSum = new ReproducibleSum(BigInt(0))
 
@@ -37,7 +37,7 @@ private[metrics] object ReproducibleSum:
       new ReproducibleSum(left.scaledInteger + right.scaledInteger)
 
   private def scaled(value: Double): BigInt =
-    val bits = java.lang.Double.doubleToRawLongBits(value)
+    val bits     = java.lang.Double.doubleToRawLongBits(value)
     val negative = (bits & signMask) != 0L
     val exponent = ((bits >>> 52) & 0x7ffL).toInt
     val fraction = bits & fractionMask
@@ -52,7 +52,7 @@ private[metrics] object ReproducibleSum:
   private def toDouble(value: BigInt): Double =
     if value.signum == 0 then 0.0
     else
-      val negative = value.signum < 0
+      val negative  = value.signum < 0
       val magnitude = value.abs
       val rawMagnitude =
         if magnitude < twoTo52 then magnitude.toLong
@@ -64,7 +64,7 @@ private[metrics] object ReproducibleSum:
 
   private def normalBits(magnitude: BigInt): Long =
     val bitLength = magnitude.bitLength
-    val shift = bitLength - 53
+    val shift     = bitLength - 53
     val truncated =
       if shift == 0 then magnitude
       else magnitude >> shift
@@ -72,12 +72,12 @@ private[metrics] object ReproducibleSum:
       if shift == 0 then truncated
       else
         val remainder = magnitude - (truncated << shift)
-        val halfway = BigInt(1) << (shift - 1)
+        val halfway   = BigInt(1) << (shift - 1)
         val roundUp =
           remainder > halfway ||
             (remainder == halfway && truncated.testBit(0))
         if roundUp then truncated + 1 else truncated
-    val carried = rounded.bitLength > 53
+    val carried     = rounded.bitLength > 53
     val significand = if carried then rounded >> 1 else rounded
     val exponent =
       bitLength - 1 - 1074 + (if carried then 1 else 0)

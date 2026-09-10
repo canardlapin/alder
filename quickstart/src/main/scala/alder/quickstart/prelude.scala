@@ -2,9 +2,9 @@ package alder.quickstart
 
 /** Curated prelude for the ordinary supervised workflow.
   *
-  * This is not a re-export of every Alder type. Escape to
-  * `alder.application`, `alder.data`, `alder.preprocess`, or
-  * `alder.models.linear` when you need the full surface.
+  * This is not a re-export of every Alder type. Escape to `alder.application`,
+  * `alder.data`, `alder.preprocess`, or `alder.models.linear` when you need the
+  * full surface.
   */
 export alder.application.{
   Blueprint,
@@ -16,13 +16,7 @@ export alder.application.{
   FittedComponent,
   SingleCandidate
 }
-export alder.data.{
-  Coordinates,
-  Dense,
-  FeatureView,
-  Schema,
-  ValidationSpec
-}
+export alder.data.{Coordinates, Dense, FeatureView, Schema, ValidationSpec}
 export alder.kernel.{Example, Seed, Trained}
 export alder.models.linear.{RidgePenalty, RidgeTolerance}
 export alder.preprocess.{Standardized, ZeroVariance}

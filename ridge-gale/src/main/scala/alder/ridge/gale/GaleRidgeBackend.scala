@@ -61,10 +61,10 @@ final class GaleRidgeBackend[F[_]](
         "hasDenseFactorizations" ->
           AuditValue.bool(report.hasDenseFactorizations),
         "hasSpectral" -> AuditValue.bool(report.hasSpectral),
-        "strategy" -> AuditValue.text(strategy.toString),
+        "strategy"    -> AuditValue.text(strategy.toString),
         "numericMode" -> AuditValue.text(numericMode.toString),
-        "intercept" -> AuditValue.text("weighted-centering"),
-        "weights" -> AuditValue.text("sqrt-row-materialization")
+        "intercept"   -> AuditValue.text("weighted-centering"),
+        "weights"     -> AuditValue.text("sqrt-row-materialization")
       )
     )
 
@@ -77,7 +77,10 @@ final class GaleRidgeBackend[F[_]](
   ): FitResult[F, RidgeBackendError, RidgeSolution] =
     val solved =
       if context.numericMode != numericMode then
-        Left(RidgeBackendError.NumericModeMismatch(numericMode, context.numericMode))
+        Left(
+          RidgeBackendError
+            .NumericModeMismatch(numericMode, context.numericMode)
+        )
       else
         RidgeProblem
           .materialize(data, features, weights)
@@ -98,7 +101,7 @@ final class GaleRidgeBackend[F[_]](
         then problem.rows + problem.columns
         else problem.rows
       val builder = DMat.newBuilder(rows, problem.columns)
-      var row = 0
+      var row     = 0
       while row < problem.rows do
         val scale = math.sqrt(problem.weights(row))
         val writer = new CoordinateWriter:
@@ -109,8 +112,7 @@ final class GaleRidgeBackend[F[_]](
               value: Double
           ): Either[alder.data.CoordinateError, Unit] =
             val centered =
-              if config.fitIntercept then
-                value - problem.featureMeans(column)
+              if config.fitIntercept then value - problem.featureMeans(column)
               else value
             builder(row, column) = scale * centered
             Right(())
@@ -130,7 +132,7 @@ final class GaleRidgeBackend[F[_]](
         row += 1
       if rows > problem.rows then
         val damping = math.sqrt(config.penalty)
-        var column = 0
+        var column  = 0
         while column < problem.columns do
           builder(problem.rows + column, column) = damping
           column += 1
@@ -154,8 +156,7 @@ final class GaleRidgeBackend[F[_]](
             normal
               .cholesky(using galeBackend)
               .flatMap(_.solve(rhs))
-      coefficients
-        .left
+      coefficients.left
         .map(error =>
           RidgeBackendError.SolverFailure(
             solverId,

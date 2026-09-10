@@ -8,11 +8,10 @@ import cats.data.EitherT
 import scala.compiletime.testing.typeCheckErrors
 
 class BlueprintSuite extends munit.FunSuite:
-  private final class Scale
-      extends Transform.Leaf[Id, Double, Double]:
+  private final class Scale extends Transform.Leaf[Id, Double, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Fitted = Pipe[Double, Nothing, Double]
+    type Fitted   = Pipe[Double, Nothing, Double]
 
     protected def descriptor: ComponentDescriptor =
       ComponentDescriptor(
@@ -33,11 +32,10 @@ class BlueprintSuite extends munit.FunSuite:
       val _ = data
       Right(Pipe.total(_ * 2.0))
 
-  private final class Shift
-      extends Transform.Leaf[Id, Double, Double]:
+  private final class Shift extends Transform.Leaf[Id, Double, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Fitted = Pipe[Double, Nothing, Double]
+    type Fitted   = Pipe[Double, Nothing, Double]
 
     protected def descriptor: ComponentDescriptor =
       ComponentDescriptor(
@@ -62,7 +60,7 @@ class BlueprintSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, Double, Unit]]
@@ -85,7 +83,7 @@ class BlueprintSuite extends munit.FunSuite:
       extends Transform.Leaf[Id, VisibilityValue, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Fitted = Pipe[VisibilityValue, Nothing, Double]
+    type Fitted   = Pipe[VisibilityValue, Nothing, Double]
 
     protected def descriptor: ComponentDescriptor =
       ComponentDescriptor(
@@ -109,7 +107,7 @@ class BlueprintSuite extends munit.FunSuite:
       extends Learner[Id, VisibilityValue, Double, String, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[VisibilityValue, Nothing, Double]
+    type Model    = Pipe[VisibilityValue, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[VisibilityValue, Double, String]]
@@ -136,7 +134,7 @@ class BlueprintSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, String, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Example[Double, Double, String]]
@@ -156,15 +154,16 @@ class BlueprintSuite extends munit.FunSuite:
 
   test("Empty.learn retains the supplied learner identity") {
     val learner = new BiasLearner
-    val facade = Blueprint.supervised[Double, Double].learn(learner)
+    val facade  = Blueprint.supervised[Double, Double].learn(learner)
     assert(facade.learner eq learner)
   }
 
   test("Empty.crossFit expands to FeatureMap.crossFitted") {
     val encoder = new VisibilityEncoder
-    val resampler = KFold[Example[Double, Double, String]](3, shuffle = false) match
-      case Right(value) => value
-      case Left(error)  => fail(s"unexpected kfold: $error")
+    val resampler =
+      KFold[Example[Double, Double, String]](3, shuffle = false) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected kfold: $error")
     val facade =
       Blueprint
         .apply[Id, Double, Double, String]
@@ -200,11 +199,12 @@ class BlueprintSuite extends munit.FunSuite:
   }
 
   test("TargetBlind.crossFit then learn fits with out-of-fold preparation") {
-    val scale = new Scale
+    val scale   = new Scale
     val encoder = new VisibilityEncoder
-    val resampler = KFold[Example[Double, Double, String]](3, shuffle = false) match
-      case Right(value) => value
-      case Left(error)  => fail(s"unexpected kfold: $error")
+    val resampler =
+      KFold[Example[Double, Double, String]](3, shuffle = false) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected kfold: $error")
     val facade =
       Blueprint
         .apply[Id, Double, Double, String]
@@ -237,12 +237,13 @@ class BlueprintSuite extends munit.FunSuite:
   }
 
   test("crossFit accepts FoldEncoder.andThen and matches the direct core") {
-    val encoder = new VisibilityEncoder
+    val encoder     = new VisibilityEncoder
     val postprocess = new ReadVisibility
-    val resampler = KFold[Example[Double, Double, String]](3, shuffle = false) match
-      case Right(value) => value
-      case Left(error)  => fail(s"unexpected kfold: $error")
-    val learner = new StringBiasLearner
+    val resampler =
+      KFold[Example[Double, Double, String]](3, shuffle = false) match
+        case Right(value) => value
+        case Left(error)  => fail(s"unexpected kfold: $error")
+    val learner  = new StringBiasLearner
     val combined = encoder.andThen(postprocess)
     val facade =
       Blueprint
@@ -258,8 +259,8 @@ class BlueprintSuite extends munit.FunSuite:
   }
 
   test("via.via.learn expands to transform.andThen.learnWith") {
-    val scale = new Scale
-    val shift = new Shift
+    val scale   = new Scale
+    val shift   = new Shift
     val learner = new BiasLearner
     val facade =
       Blueprint.supervised[Double, Double].via(scale).via(shift).learn(learner)

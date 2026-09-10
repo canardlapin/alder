@@ -29,7 +29,7 @@ object GroupedKFold:
             DataError,
             ResamplingPlan[U, Example[X, Y, M]]
           ] =
-            val rows = DataRows.collect(data.data)
+            val rows   = DataRows.collect(data.data)
             val groups = accumulateGroups(rows)
             if groups.length < folds then
               Left(DataError.TooFewGroups(folds, groups.length))
@@ -73,15 +73,15 @@ object GroupedKFold:
           Vector[(RowId, Example[X, Y, M])]
         ]
       ]
-    val byHash = mutable.HashMap.empty[Int, mutable.ArrayBuffer[Int]]
+    val byHash   = mutable.HashMap.empty[Int, mutable.ArrayBuffer[Int]]
     var position = 0
     while position < rows.length do
-      val row = rows(position)
+      val row      = rows(position)
       val key: Key = groupOf(row._2.meta)
-      val hash = keyHash.hash(key)
+      val hash     = keyHash.hash(key)
       val candidates =
         byHash.getOrElseUpdate(hash, mutable.ArrayBuffer.empty[Int])
-      var found = -1
+      var found          = -1
       var candidateIndex = 0
       while candidateIndex < candidates.length && found < 0 do
         val groupIndex = candidates(candidateIndex)
@@ -116,9 +116,9 @@ object GroupedKFold:
       )
     var groupIndex = 0
     while groupIndex < orderedGroups.length do
-      val group = orderedGroups(groupIndex)
-      var bestFold = 0
-      var bestSize = foldSizes(0)
+      val group     = orderedGroups(groupIndex)
+      var bestFold  = 0
+      var bestSize  = foldSizes(0)
       var foldIndex = 1
       while foldIndex < folds do
         val size = foldSizes(foldIndex)
@@ -130,7 +130,7 @@ object GroupedKFold:
       foldBuilders(bestFold) ++= group.rows
       groupIndex += 1
     val assignments = Vector.newBuilder[(RowId, Int)]
-    var fold = 0
+    var fold        = 0
     while fold < folds do
       val foldRows = foldBuilders(fold).result()
       var rowIndex = 0

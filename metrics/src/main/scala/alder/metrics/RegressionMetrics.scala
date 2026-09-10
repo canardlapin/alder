@@ -117,9 +117,8 @@ object RegressionMetrics:
 
   /** Reproducible root mean squared error weighted from observation metadata.
     *
-    * Weights must be finite and non-negative, and their total must be
-    * positive. A zero-weight observation is valid and contributes no squared
-    * error.
+    * Weights must be finite and non-negative, and their total must be positive.
+    * A zero-weight observation is valid and contributes no squared error.
     */
   def weightedRmse[M](
       weightPolicy: WeightPolicyId
@@ -171,8 +170,7 @@ object RegressionMetrics:
             if accumulated.count.signum == 0 then Left(MetricError.Empty)
             else
               val totalWeight = accumulated.totalWeight.result
-              if totalWeight == 0.0 then
-                Left(MetricError.ZeroTotalWeight)
+              if totalWeight == 0.0 then Left(MetricError.ZeroTotalWeight)
               else
                 rootMeanSquared(
                   accumulated.weightedSquaredError.result,
@@ -277,7 +275,7 @@ object RegressionMetrics:
       numerator: Double,
       denominator: Double
   ): Either[MetricError, RootMeanSquaredError] =
-    val mean = numerator / denominator
+    val mean   = numerator / denominator
     val result = math.sqrt(mean)
     if result.isFinite then Right(RootMeanSquaredError(result))
     else Left(MetricError.NonFiniteResult)

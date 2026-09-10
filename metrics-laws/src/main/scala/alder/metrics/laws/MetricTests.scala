@@ -18,9 +18,9 @@ final class MetricTests[A, S](metric: Metric[A, S]) extends Laws:
       "metric",
       None,
       "partition law" -> Prop.forAll { (values: Vector[A]) =>
-        val split = values.length / 2
-        val left = metric.accumulate(values.take(split))
-        val right = metric.accumulate(values.drop(split))
+        val split  = values.length / 2
+        val left   = metric.accumulate(values.take(split))
+        val right  = metric.accumulate(values.drop(split))
         val merged = metric.accumulator.combine(left, right)
         metric.finish(merged) === metric.evaluate(values)
       },
@@ -40,9 +40,9 @@ final class MetricTests[A, S](metric: Metric[A, S]) extends Laws:
         metric.finish(left) === metric.finish(accumulated)
       },
       "accumulator associativity" -> Prop.forAll { (values: Vector[A]) =>
-        val firstSplit = values.length / 3
+        val firstSplit  = values.length / 3
         val secondSplit = (values.length * 2) / 3
-        val first = metric.accumulate(values.take(firstSplit))
+        val first       = metric.accumulate(values.take(firstSplit))
         val second =
           metric.accumulate(
             values.slice(firstSplit, secondSplit)
@@ -61,10 +61,10 @@ final class MetricTests[A, S](metric: Metric[A, S]) extends Laws:
         metric.finish(left) === metric.finish(right)
       },
       "accumulator commutativity" -> Prop.forAll { (values: Vector[A]) =>
-        val split = values.length / 2
-        val left = metric.accumulate(values.take(split))
-        val right = metric.accumulate(values.drop(split))
-        val leftFirst = metric.accumulator.combine(left, right)
+        val split      = values.length / 2
+        val left       = metric.accumulate(values.take(split))
+        val right      = metric.accumulate(values.drop(split))
+        val leftFirst  = metric.accumulator.combine(left, right)
         val rightFirst = metric.accumulator.combine(right, left)
         metric.finish(leftFirst) === metric.finish(rightFirst)
       },
@@ -80,7 +80,7 @@ final class MetricTests[A, S](metric: Metric[A, S]) extends Laws:
     Arbitrary
       .arbitrary[Vector[A]]
       .flatMap(values =>
-        Gen.pick(values.length, values).map(permuted =>
-          values -> permuted.toVector
-        )
+        Gen
+          .pick(values.length, values)
+          .map(permuted => values -> permuted.toVector)
       )

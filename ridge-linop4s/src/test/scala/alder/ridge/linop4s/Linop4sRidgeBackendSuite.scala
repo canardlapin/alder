@@ -6,10 +6,7 @@ import alder.models.linear.*
 import alder.testkit.TestData
 import cats.Id
 
-final case class NativePoint(x: Double)
-    derives Coordinates,
-      Schema,
-      CanEqual
+final case class NativePoint(x: Double) derives Coordinates, Schema, CanEqual
 
 class Linop4sRidgeBackendSuite extends munit.FunSuite:
   private val context =

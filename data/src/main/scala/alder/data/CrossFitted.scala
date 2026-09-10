@@ -17,9 +17,9 @@ private final class EncodedFold[Z, Y, M](
 )
 
 extension (companion: FeatureMap.type)
-  /** Construct leakage-safe OOF preparation from an exactly-once resampler.
-    * The extension lives in alder-data so alder-kernel remains independent of
-    * the resampling implementation (D19).
+  /** Construct leakage-safe OOF preparation from an exactly-once resampler. The
+    * extension lives in alder-data so alder-kernel remains independent of the
+    * resampling implementation (D19).
     */
   def crossFitted[
       F[_],
@@ -47,10 +47,10 @@ final class CrossFittedFeatureMap[
     val resampler: CompleteResampler[Example[X, Y, M]]
 )(using Monad[F])
     extends FeatureMap[F, X, Y, M, Z]:
-  type Scope = Preparation.LearnerReady
+  type Scope    = Preparation.LearnerReady
   type FitError = DataError | encoder.FitError | encoder.RunError
   type RunError = encoder.RunError
-  type Fitted = EncoderServingPipe[X, encoder.RunError, Z]
+  type Fitted   = EncoderServingPipe[X, encoder.RunError, Z]
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Example[X, Y, M]]
@@ -94,8 +94,7 @@ final class CrossFittedFeatureMap[
       val trained = context.composite(
         artifact = pipe,
         trainedOn = data,
-        component =
-          AlderComponents.crossFitted(plan.resampler, plan.foldCount),
+        component = AlderComponents.crossFitted(plan.resampler, plan.foldCount),
         preparation = lineage,
         children = encoded.map(_.audit) :+ serving.audit
       )

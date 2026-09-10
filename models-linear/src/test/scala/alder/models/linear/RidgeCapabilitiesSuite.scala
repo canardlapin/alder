@@ -48,7 +48,7 @@ class RidgeCapabilitiesSuite extends FunSuite:
       extends Transform.Leaf[Id, Point, StandardPoint]:
     type FitError = Nothing
     type RunError = Nothing
-    type Fitted = Pipe[Point, Nothing, StandardPoint]
+    type Fitted   = Pipe[Point, Nothing, StandardPoint]
 
     protected def descriptor: ComponentDescriptor =
       ComponentDescriptor(
@@ -114,7 +114,10 @@ class RidgeCapabilitiesSuite extends FunSuite:
     assert(attribution.prediction.isFinite)
     assertEquals(attribution.prediction, prediction)
 
-    assertEquals(trained.artifact.solution.intercept, coefficients.intercept(trained))
+    assertEquals(
+      trained.artifact.solution.intercept,
+      coefficients.intercept(trained)
+    )
     assertEquals(
       coefficients.coefficient(trained, 0),
       coefficients.coefficients(trained)(0)
@@ -130,11 +133,14 @@ class RidgeCapabilitiesSuite extends FunSuite:
       case Left(error)  => fail(s"predictAll failed: $error")
       case Right(value) => value
     assertEquals(predictedAll.map(_._1.value), Vector(0L, 1L, 2L))
-    assertEquals(predictedAll.map(_._2), Vector(1.0, 2.0, 4.0).map(v =>
-      trained.predict(Point(v)) match
-        case Right(prediction) => prediction
-        case Left(error)       => fail(s"predict failed: $error")
-    ))
+    assertEquals(
+      predictedAll.map(_._2),
+      Vector(1.0, 2.0, 4.0).map(v =>
+        trained.predict(Point(v)) match
+          case Right(prediction) => prediction
+          case Left(error)       => fail(s"predict failed: $error")
+      )
+    )
     val _ = trainIds
   }
 

@@ -53,9 +53,10 @@ class StandardScalerSuite extends munit.FunSuite:
   test("centered scaler has zero mean and population variance one") {
     val original =
       data(Vector(Point(1.0, 4.0), Point(2.0, 4.0), Point(3.0, 4.0)))
-    val prepared = scaler(ZeroVariance.AsZero).fit(original)(using context).value match
-      case Left(error) => fail(s"unexpected fit error: $error")
-      case Right(value) => value
+    val prepared =
+      scaler(ZeroVariance.AsZero).fit(original)(using context).value match
+        case Left(error)  => fail(s"unexpected fit error: $error")
+        case Right(value) => value
     val rows = TestData.rowsOf(prepared.rows).map { (id, value) =>
       id -> value.values.toVector
     }
@@ -71,7 +72,9 @@ class StandardScalerSuite extends munit.FunSuite:
     assertEquals(y, Vector(0.0, 0.0, 0.0))
   }
 
-  test("synchronous constructor and prepared artifact accessor preserve behavior") {
+  test(
+    "synchronous constructor and prepared artifact accessor preserve behavior"
+  ) {
     val original =
       data(Vector(Point(1.0, 2.0), Point(3.0, 4.0)))
     val prepared =
@@ -116,9 +119,10 @@ class StandardScalerSuite extends munit.FunSuite:
       case other => fail(s"expected nonfinite fit failure, got $other")
 
     val valid = data(Vector(Point(1.0, 2.0), Point(3.0, 4.0)))
-    val fitted = scaler(ZeroVariance.AsZero).fit(valid)(using context).value match
-      case Left(error) => fail(s"unexpected fit error: $error")
-      case Right(value) => value.fitted.artifact
+    val fitted =
+      scaler(ZeroVariance.AsZero).fit(valid)(using context).value match
+        case Left(error)  => fail(s"unexpected fit error: $error")
+        case Right(value) => value.fitted.artifact
     fitted.run(Point(Double.PositiveInfinity, 3.0)) match
       case Left(Failure(_, ScaleRunError.NonFiniteInput(name, value))) =>
         assertEquals(name, "x")
@@ -135,14 +139,15 @@ class StandardScalerSuite extends munit.FunSuite:
           Point(6.0, 8.0)
         )
       )
-    val prepared = scaleOnly(ZeroVariance.Reject).fit(original)(using context).value match
-      case Left(error) => fail(s"unexpected fit error: $error")
-      case Right(value) => value
-    val rawRows = TestData.rowsOf(original).map(_._2)
+    val prepared =
+      scaleOnly(ZeroVariance.Reject).fit(original)(using context).value match
+        case Left(error)  => fail(s"unexpected fit error: $error")
+        case Right(value) => value
+    val rawRows    = TestData.rowsOf(original).map(_._2)
     val scaledRows = TestData.rowsOf(prepared.rows).map(_._2)
     rawRows.zip(scaledRows).foreach { (raw, scaled) =>
       val rawValues = Coordinates[Point].read(raw) match
-        case Left(error) => fail(s"unexpected raw coordinate error: $error")
+        case Left(error)  => fail(s"unexpected raw coordinate error: $error")
         case Right(value) => value
       rawValues.indices.foreach { index =>
         assertEquals(rawValues(index) == 0.0, scaled(index) == 0.0)
@@ -150,7 +155,9 @@ class StandardScalerSuite extends munit.FunSuite:
     }
   }
 
-  test("mixed Double/Int records standardize to Dense without InvalidIntegral") {
+  test(
+    "mixed Double/Int records standardize to Dense without InvalidIntegral"
+  ) {
     val houses =
       TestData.nonEmpty(
         Vector(

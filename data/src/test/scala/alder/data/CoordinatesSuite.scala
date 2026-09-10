@@ -23,18 +23,26 @@ class CoordinatesSuite extends munit.FunSuite:
 
   test("derived coordinates retain declaration order and round trip") {
     val coordinates = Coordinates[House]
-    val house = House(142.5, 3, 27.25f, 9007199254740992L)
+    val house       = House(142.5, 3, 27.25f, 9007199254740992L)
 
-    assertEquals(coordinates.names.toVector, Vector("areaM2", "bedrooms", "ageYears", "parcelId"))
+    assertEquals(
+      coordinates.names.toVector,
+      Vector("areaM2", "bedrooms", "ageYears", "parcelId")
+    )
     assertEquals(coordinates.size, 4)
     coordinates.read(house) match
       case Left(error) => fail(s"unexpected read error: $error")
       case Right(values) =>
-        assertEquals(values.toVector, Vector(142.5, 3.0, 27.25, 9007199254740992.0))
+        assertEquals(
+          values.toVector,
+          Vector(142.5, 3.0, 27.25, 9007199254740992.0)
+        )
         assertEquals(coordinates.build(values), Right(house))
   }
 
-  test("numeric product round trips over generated exactly representable values") {
+  test(
+    "numeric product round trips over generated exactly representable values"
+  ) {
     val coordinates = Coordinates[House]
     val property = Prop.forAll(
       Gen.choose(-1.0e12, 1.0e12),
@@ -42,7 +50,7 @@ class CoordinatesSuite extends munit.FunSuite:
       Gen.choose(-1000000, 1000000),
       Gen.choose(-9007199254740992L, 9007199254740992L)
     ) { (area, bedrooms, rawAge, parcelId) =>
-      val age = rawAge.toFloat
+      val age   = rawAge.toFloat
       val house = House(area, bedrooms, age, parcelId)
       coordinates.read(house).flatMap(coordinates.build) == Right(house)
     }
@@ -110,7 +118,7 @@ class CoordinatesSuite extends munit.FunSuite:
 
   test("writeTo materializes directly into a backend-owned destination") {
     val destination = new RecordingWriter(4)
-    val house = House(88.0, 2, 11.5f, 17L)
+    val house       = House(88.0, 2, 11.5f, 17L)
 
     assertEquals(Coordinates[House].writeTo(house, destination), Right(()))
     assertEquals(
@@ -172,7 +180,7 @@ val invalid = new FeatureView[Double]:
   }
 
   test("schema derivation is structural, policy tagged, and stable") {
-    val house = summon[Schema[House]]
+    val house    = summon[Schema[House]]
     val dwelling = summon[Schema[DwellingKind]]
 
     assertEquals(
@@ -192,8 +200,7 @@ val invalid = new FeatureView[Double]:
     assertEquals(dwelling.fingerprint.digest, "caf449572979ebd1")
   }
 
-  private final class RecordingWriter(val size: Int)
-      extends CoordinateWriter:
+  private final class RecordingWriter(val size: Int) extends CoordinateWriter:
     var writes: Vector[(Int, String, Double)] = Vector.empty
 
     def write(

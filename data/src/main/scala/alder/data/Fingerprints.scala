@@ -7,7 +7,7 @@ type ResamplerFingerprint = ProtocolFingerprint
 
 private[data] object Fingerprints:
   private val offset = 0xcbf29ce484222325L
-  private val prime = 0x100000001b3L
+  private val prime  = 0x100000001b3L
 
   def configuration(parts: String*): ResamplerFingerprint =
     new ProtocolFingerprint(
@@ -28,7 +28,8 @@ private[data] object Fingerprints:
         label
       )
     )
-    val digest = rows.foldLeft(initial)((hash, row) => hashLong(hash, row._1.value))
+    val digest =
+      rows.foldLeft(initial)((hash, row) => hashLong(hash, row._1.value))
     new DataFingerprint(
       FingerprintPolicy.ContentDigest("fnv1a64"),
       hex(digest)
@@ -86,7 +87,7 @@ private[data] object Fingerprints:
       parts: String*
   ): DataFingerprint =
     val initial = hashString(hashString(offset, parent.digest), label)
-    val digest = parts.foldLeft(initial)(hashString)
+    val digest  = parts.foldLeft(initial)(hashString)
     new DataFingerprint(
       FingerprintPolicy.Summary("alder.cross-fitted-derivation-fnv1a64"),
       hex(digest)
@@ -157,7 +158,7 @@ private[data] object Fingerprints:
     hashStrings(values.map(value => s"${value.length}:$value"))
 
   private def hashString(initial: Long, value: String): Long =
-    var hash = initial
+    var hash  = initial
     var index = 0
     while index < value.length do
       hash = (hash ^ value.charAt(index).toLong) * prime
@@ -165,7 +166,7 @@ private[data] object Fingerprints:
     hash
 
   private def hashLong(initial: Long, value: Long): Long =
-    var hash = initial
+    var hash  = initial
     var shift = 0
     while shift < 64 do
       hash = (hash ^ ((value >>> shift) & 0xffL)) * prime
@@ -200,9 +201,9 @@ private[data] object Fingerprints:
         s"fraction:${fraction.numerator}/${fraction.denominator}"
 
   private def hex(value: Long): String =
-    val digits = "0123456789abcdef"
+    val digits  = "0123456789abcdef"
     val builder = new StringBuilder(16)
-    var shift = 60
+    var shift   = 60
     while shift >= 0 do
       val digit = ((value >>> shift) & 0x0fL).toInt
       builder.append(digits.charAt(digit))

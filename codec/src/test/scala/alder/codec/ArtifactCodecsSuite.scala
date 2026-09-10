@@ -24,7 +24,7 @@ final class MeanShift(using cats.Applicative[Id])
     extends Transform[Id, Double, Double]:
   type FitError = ShiftError
   type RunError = ShiftError
-  type Fitted = ShiftPipe
+  type Fitted   = ShiftPipe
 
   def fit[U <: Use.Fit](
       data: NonEmptyData[U, Double]
@@ -34,9 +34,8 @@ final class MeanShift(using cats.Applicative[Id])
     Prepared[Preparation.Reusable, U, ShiftPipe, Double]
   ] =
     val (sum, count) =
-      data.data.foldRows((0.0, 0L)) {
-        case ((total, size), _, value) =>
-          (total + value, size + 1L)
+      data.data.foldRows((0.0, 0L)) { case ((total, size), _, value) =>
+        (total + value, size + 1L)
       }
     val pipe = new ShiftPipe(
       sum / count.toDouble,
@@ -71,9 +70,7 @@ class ArtifactCodecsSuite extends DisciplineSuite:
 
   private def encodeDouble(value: Double): IArray[Byte] =
     val bits = java.lang.Double.doubleToRawLongBits(value)
-    IArray.tabulate(8)(index =>
-      (bits >>> (56 - index * 8)).toByte
-    )
+    IArray.tabulate(8)(index => (bits >>> (56 - index * 8)).toByte)
 
   private def decodeDouble(
       bytes: IArray[Byte]
@@ -81,7 +78,7 @@ class ArtifactCodecsSuite extends DisciplineSuite:
     if bytes.length != 8 then
       Left(CodecError.Malformed("unexpected double payload"))
     else
-      var bits = 0L
+      var bits  = 0L
       var index = 0
       while index < bytes.length do
         bits = (bits << 8) | (bytes(index).toLong & 0xffL)
@@ -95,9 +92,7 @@ class ArtifactCodecsSuite extends DisciplineSuite:
     ArtifactCodecs.versioned(format("alder.codec.shift"))(
       pipe => Right(encodeDouble(pipe.shift)),
       bytes =>
-        decodeDouble(bytes).map(value =>
-          new ShiftPipe(value, StagePath.root)
-        )
+        decodeDouble(bytes).map(value => new ShiftPipe(value, StagePath.root))
     )
 
   private val context =
@@ -132,7 +127,7 @@ class ArtifactCodecsSuite extends DisciplineSuite:
     ShiftPipe
   ]
 
-  private val firstTransform = new MeanShift()
+  private val firstTransform  = new MeanShift()
   private val secondTransform = new MeanShift()
 
   private val trained: Trained[ShiftChain] =

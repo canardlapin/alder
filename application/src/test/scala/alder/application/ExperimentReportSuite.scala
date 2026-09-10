@@ -21,7 +21,7 @@ class ExperimentReportSuite extends munit.FunSuite:
       extends Learner[Id, Double, Double, Unit, Double]:
     type FitError = Nothing
     type RunError = Nothing
-    type Model = Pipe[Double, Nothing, Double]
+    type Model    = Pipe[Double, Nothing, Double]
 
     def fit[U <: Use.Fit](
         data: NonEmptyData[U, Observation]
@@ -29,10 +29,12 @@ class ExperimentReportSuite extends munit.FunSuite:
       EitherT.right(context.complete(Pipe.identity[Double], data, component))
 
   private val learner = new IdentityLearner
-  private val metric = RegressionMetrics.rmse[Unit]
+  private val metric  = RegressionMetrics.rmse[Unit]
 
-  private def source(count: Int, identity: String)
-      : Data[Use.Unsplit, Observation] =
+  private def source(
+      count: Int,
+      identity: String
+  ): Data[Use.Unsplit, Observation] =
     InMemoryData.unsplit(
       Vector.tabulate(count) { index =>
         val value = index.toDouble + 1.0
@@ -69,7 +71,10 @@ class ExperimentReportSuite extends munit.FunSuite:
     assertEquals(report.plan, validated.plan)
     assertEquals(report.seed, Seed(42L))
     assertEquals(report.candidate.descriptor.id.render, component.id.render)
-    assertEquals(report.components.map(_.descriptor.id.render), Vector(component.id.render))
+    assertEquals(
+      report.components.map(_.descriptor.id.render),
+      Vector(component.id.render)
+    )
     assertEquals(report.components.map(_.backend.id), Vector("report-test"))
     assertEquals(report.components.map(_.backend.version), Vector("1"))
 

@@ -8,8 +8,8 @@ final case class PolicyDescriptor(
 ):
   def asAuditValue: AuditValue =
     AuditValue.record(
-      "id" -> AuditValue.text(id),
-      "version" -> AuditValue.text(version),
+      "id"         -> AuditValue.text(id),
+      "version"    -> AuditValue.text(version),
       "parameters" -> parameters
     )
 
