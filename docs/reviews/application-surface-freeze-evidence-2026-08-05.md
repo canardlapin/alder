@@ -108,9 +108,13 @@ Executed on 2026-08-05 in the current working tree:
 | `git diff --check` | Passed. |
 | `jq empty PRD.json` | Passed; PRD SHA-256: `7aa1852a1d66aa11bc3fb3f0aef6093a3dfd29d9b7e973dcbed6987cb34e3e02`. |
 
-The repository's attempted `fmtCheck` alias resolves to an unavailable
-`scalafmtCheckAll` task. No formatting-gate success is claimed; formatting is
-not listed among Alder's required local release commands.
+At the time of this record the repository had no formatting gate: the
+attempted `fmtCheck` alias resolved to an unavailable `scalafmtCheckAll` task,
+so no formatting-gate success was claimed. The gate was subsequently built
+(sbt-scalafmt, `.scalafmt.conf`, and `fmt` / `fmtCheck` aliases) and the tree
+normalized against it; `fmtCheck` is now a required local release command. That
+normalization is a whitespace-only change and does not affect the test,
+coverage, or documentation counts recorded above.
 
 ## Remaining freeze gate
 

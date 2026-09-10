@@ -1,9 +1,9 @@
 # Current release status
 
 This is the authoritative status ledger for the current Alder checkout. It was
-last inspected on **2026-08-05** in the local application-surface working tree
-based on migration commit `f26563a`. It distinguishes files and commands
-observed locally from evidence that would require a remote service, an
+last inspected on **2026-08-05** in the local application-surface working tree,
+now recorded as merge commit `2640e0a` on `main`. It distinguishes files and
+commands observed locally from evidence that would require a remote service, an
 independent reviewer, or a published artifact.
 
 ## Current conclusion
@@ -20,7 +20,7 @@ owner-reviewed quickstart paraphrase gate.
 
 | Area | Current evidence | Consequence |
 | --- | --- | --- |
-| Git remote | `origin` is configured as `git@github-canardlapin:canardlapin/alder.git`; migration commit `f26563a` was merged to `main` through [PR #1](https://github.com/canardlapin/alder/pull/1). The later evidence correction is isolated in [draft PR #2](https://github.com/canardlapin/alder/pull/2). | The migration is merged and the evidence correction is under review; this inspection did not establish remote CI, branch protection, releases, or packages. |
+| Git remote | `origin` is configured as `git@github-canardlapin:canardlapin/alder.git`; migration commit `f26563a` was merged to `main` through [PR #1](https://github.com/canardlapin/alder/pull/1). The evidence correction and the application-surface reopening were merged to `main` through [PR #2](https://github.com/canardlapin/alder/pull/2) as merge commit `2640e0a`. | Both are merged; this inspection did not establish remote CI, branch protection, releases, or packages. |
 | Workflows | No `.github` workflow files are present in this checkout. | No repository-defined remote gate can be claimed from source. |
 | Publication | The build version is `0.1.0-SNAPSHOT`; the root aggregate and `alder-ridge-gale` are non-publishable. | No stable Alder artifact or immutable compatibility baseline is evidenced here. |
 | Dependencies | The build uses development composites for Resample4s, Gale, and linop4s; Gale remains a snapshot publication blocker. | A successful source build would not prove stable consumer POMs. |

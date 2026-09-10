@@ -5,7 +5,7 @@ A release review must not claim freeze while any gate lacks current evidence.
 
 | # | Gate | Owner evidence | Command / location |
 |---|---|---|---|
-| 1 | README first workflow: one curated import, direct `learnWith`, named experiment arguments, meaningful multi-row validation, rough size budget, and exact identity with compiled source | `README.md`, `site-docs/learn/workflow.md`, semantic quickstart source contract | `sbt -J-Xmx4G -Dsbt.task.cpus=1 quickstartJVM/test docs/tlSite` |
+| 1 | README first workflow: one curated import, direct `learnWith`, named experiment arguments, meaningful multi-row validation, a size budget targeting roughly twelve non-data lines and enforced at a ceiling of twenty, and exact identity with compiled source | `README.md`, `site-docs/learn/workflow.md`, semantic quickstart source contract | `sbt -J-Xmx4G -Dsbt.task.cpus=1 quickstartJVM/test docs/tlSite` |
 | 2 | Proof and representation vocabulary absent on the common path (`Id`, `Unit`, `Prepared`, `Use`, `FitContext`, `PhaseSeeds`, `EvaluationSources`, `.artifact`); tests do not require exact provisional constructor fragments | canonical Learn source + semantic quickstart source contract | `sbt -J-Xmx4G -Dsbt.task.cpus=1 quickstartJVM/test` |
 | 3 | Mixed Double/Int standardize+fit with explicit zero-variance policy, penalty, and real backend | Learn workflow `House` + cross-platform quickstart suite | `sbt -J-Xmx4G -Dsbt.task.cpus=1 docs/tlSite quickstartJVM/test quickstartJS/test quickstartNative/test` |
 | 4 | External `com.example` plugin Transform+Learner | `consumer-fixture` module | `sbt -J-Xmx4G -Dsbt.task.cpus=1 consumerFixtureJVM/test consumerFixtureJS/test consumerFixtureNative/test` |
@@ -21,6 +21,7 @@ A release review must not claim freeze while any gate lacks current evidence.
 ## Local release gate bundle
 
 ```text
+sbt -J-Xmx4G -Dsbt.task.cpus=1 fmtCheck
 sbt -J-Xmx4G -Dsbt.task.cpus=1 test
 sbt -J-Xmx4G -Dsbt.task.cpus=1 benchmarks/test
 sbt -J-Xmx4G -Dsbt.task.cpus=1 coverage applicationJVM/test coverageReport coverageOff
