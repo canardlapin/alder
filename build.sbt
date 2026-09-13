@@ -33,11 +33,20 @@ val catsV            = "2.13.0"
 val munitV           = "1.3.4"
 val disciplineMunitV = "2.0.0"
 val scalacheckV      = "1.18.1"
-val resample4sV      = "0.1.0-SNAPSHOT"
 
-// Development composite for the zero-runtime-dependency resampling protocol.
-// Stable Alder releases pin a published resample4s-core version instead.
-lazy val resample4sBuild      = file("../resample4s").toURI
+// Immutable source dependencies are the ordinary-build defaults. Explicit
+// properties select local checkouts only for coordinated provider work.
+lazy val resample4sRevision =
+  "6bc4172a966c92f1b06811eac64ac2bada9fef9b"
+lazy val resample4sBuild =
+  sys.props
+    .get("alder.resample4s.build")
+    .map(path => file(path).getCanonicalFile.toURI)
+    .getOrElse(
+      uri(
+        s"https://github.com/canardlapin/resample4s.git#$resample4sRevision"
+      )
+    )
 lazy val resample4sCoreJVM    = ProjectRef(resample4sBuild, "coreJVM")
 lazy val resample4sCoreJS     = ProjectRef(resample4sBuild, "coreJS")
 lazy val resample4sCoreNative = ProjectRef(resample4sBuild, "coreNative")
@@ -46,14 +55,27 @@ lazy val resample4sDesignsJS  = ProjectRef(resample4sBuild, "designsJS")
 lazy val resample4sDesignsNative =
   ProjectRef(resample4sBuild, "designsNative")
 
-// Development composites for the two independent ridge implementations.
-// ridge-gale remains non-publishable until Gale has a released compatible
-// version; source dependencies are deliberately a development-only bridge.
-lazy val galeBuild   = file("../gale").toURI
+lazy val galeRevision =
+  "099832ff15c8a4a8fcf3398c7b779fb4bbc12434"
+lazy val galeBuild =
+  sys.props
+    .get("alder.gale.build")
+    .map(path => file(path).getCanonicalFile.toURI)
+    .getOrElse(
+      uri(s"https://github.com/canardlapin/gale.git#$galeRevision")
+    )
 lazy val galeCoreJVM = ProjectRef(galeBuild, "coreJVM")
 lazy val galeCoreJS  = ProjectRef(galeBuild, "coreJS")
 
-lazy val linop4sBuild        = file("../linop4s").toURI
+lazy val linop4sRevision =
+  "fec77db060b130b3c609a43d07ff0bfb31088aae"
+lazy val linop4sBuild =
+  sys.props
+    .get("alder.linop4s.build")
+    .map(path => file(path).getCanonicalFile.toURI)
+    .getOrElse(
+      uri(s"https://github.com/canardlapin/linops4s.git#$linop4sRevision")
+    )
 lazy val linop4sKrylovJVM    = ProjectRef(linop4sBuild, "krylovJVM")
 lazy val linop4sKrylovJS     = ProjectRef(linop4sBuild, "krylovJS")
 lazy val linop4sKrylovNative = ProjectRef(linop4sBuild, "krylovNative")
@@ -211,48 +233,22 @@ lazy val data = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 lazy val dataJVM =
-  if (file("../resample4s").isDirectory)
-    data.jvm
-      .dependsOn(
-        resample4sCoreJVM,
-        resample4sDesignsJVM % "test->compile"
-      )
-      .settings(compatibilitySettings)
-  else
-    data.jvm
-      .settings(
-        libraryDependencies ++= Seq(
-          "io.github.canardlapin" %% "resample4s-core"    % resample4sV,
-          "io.github.canardlapin" %% "resample4s-designs" % resample4sV % Test
-        )
-      )
-      .settings(compatibilitySettings)
+  data.jvm
+    .dependsOn(
+      resample4sCoreJVM,
+      resample4sDesignsJVM % "test->compile"
+    )
+    .settings(compatibilitySettings)
 lazy val dataJS =
-  if (file("../resample4s").isDirectory)
-    data.js.dependsOn(
-      resample4sCoreJS,
-      resample4sDesignsJS % "test->compile"
-    )
-  else
-    data.js.settings(
-      libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "resample4s-core"    % resample4sV,
-        "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
-      )
-    )
+  data.js.dependsOn(
+    resample4sCoreJS,
+    resample4sDesignsJS % "test->compile"
+  )
 lazy val dataNative =
-  if (file("../resample4s").isDirectory)
-    data.native.dependsOn(
-      resample4sCoreNative,
-      resample4sDesignsNative % "test->compile"
-    )
-  else
-    data.native.settings(
-      libraryDependencies ++= Seq(
-        "io.github.canardlapin" %%% "resample4s-core"    % resample4sV,
-        "io.github.canardlapin" %%% "resample4s-designs" % resample4sV % Test
-      )
-    )
+  data.native.dependsOn(
+    resample4sCoreNative,
+    resample4sDesignsNative % "test->compile"
+  )
 
 /** Target-blind preprocessing with representation-branded outputs. */
 lazy val preprocess = crossProject(JVMPlatform, JSPlatform, NativePlatform)
