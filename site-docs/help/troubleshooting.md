@@ -39,9 +39,27 @@ a learner.
 **Cause:** ordinary resampling does not prove that every row appears in exactly
 one assessment partition.
 
-**Action:** use a `CompleteResampler`, such as `KFold`, `GroupedKFold`, or a
-receipt-verified exact Resample4s plan. Rolling-origin resampling is
-intentionally not complete.
+**Action:** use a `CompleteResampler`, such as `KFold` or `GroupedKFold`. For
+Resample4s inside a composed workflow, use
+`Resample4sResampler.fromDesign(exactOnceDesign)` so Alder binds the population
+and normalized stage seed when splitting. Use `fromCompiled` only when the
+compiled plan was created for that exact stage seed and population receipt.
+Rolling-origin resampling is intentionally not complete.
+
+## A precompiled Resample4s plan reports a seed mismatch
+
+**Symptom:** a receipt-verified plan works when a feature map is fitted alone
+but fails after `learnWith` or another composition with
+`Resample4sSeedMismatch`.
+
+**Cause:** Alder derives a private child-stage seed from the root plan and
+stable ordinal. A plan compiled from the root seed is not a plan for that child
+stage.
+
+**Action:** retain `fromCompiled` as the strict prebound route when this exact
+binding is intentional. Otherwise construct the complete resampler with
+`Resample4sResampler.fromDesign`; it compiles and receipts the design only when
+Alder supplies the actual stage context.
 
 ## A scaler reports a constant coordinate
 

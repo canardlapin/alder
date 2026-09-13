@@ -80,6 +80,14 @@ Plugin authors that only need the SPI should depend on `alder-kernel` (and
 `alder-data` when constructing cross-fitted feature maps), plus `alder-laws`
 and `alder-testkit` at test scope.
 
+When a cross-fitted workflow is driven by Resample4s, pass its typed
+`Design[Split[Selection], Coverage.ExactOnce]` to
+`Resample4sResampler.fromDesign`. Alder compiles it against the actual fitting
+population and framework-derived stage seed, so the adapter remains correct
+inside `learnWith` and longer compositions. `fromCompiled` is the stricter
+alternative for callers that already own the exact stage seed and population
+receipt; it deliberately rejects any later mismatch.
+
 ## Pre-release status
 
 The current checkout contains a cross-platform implementation and test suites.

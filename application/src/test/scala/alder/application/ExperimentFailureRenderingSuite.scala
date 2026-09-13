@@ -55,6 +55,12 @@ class ExperimentFailureRenderingSuite extends munit.FunSuite:
       DataError.Resample4sPopulationSizeMismatch(3, 4L),
       DataError.Resample4sSeedMismatch(1L, 2L),
       DataError.Resample4sPopulationFingerprintMismatch,
+      DataError.Resample4sDesignFailure(
+        resample4s.core.DesignError.TooManyFolds(4, 3)
+      ),
+      DataError.Resample4sDigestFailure(
+        resample4s.core.DigestError.ProviderFailure("unavailable")
+      ),
       DataError.InvalidResample4sPopulationFingerprint(
         FingerprintPolicy.Summary("invalid"),
         "population"

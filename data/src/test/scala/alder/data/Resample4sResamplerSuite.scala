@@ -2,6 +2,8 @@ package alder.data
 
 import alder.kernel.{Seed as AlderSeed, *}
 import alder.testkit.*
+import cats.Id
+import cats.data.EitherT
 import cats.kernel.Hash
 import org.scalacheck.{Gen, Prop, Test}
 import scala.compiletime.testing.typeCheckErrors
@@ -11,6 +13,64 @@ import resample4s.designs.{KFold as Resample4sKFold}
 final case class AdapterMeta(group: String)
 
 final class Resample4sResamplerSuite extends munit.FunSuite:
+  private final class Offset(amount: Double)
+      extends Transform[Id, Double, Double]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Fitted   = Pipe[Double, Nothing, Double]
+
+    def fit[U <: Use.Fit](
+        data: NonEmptyData[U, Double]
+    )(using context: FitContext): FitResult[
+      Id,
+      Nothing,
+      Prepared[Preparation.Reusable, U, Fitted, Double]
+    ] =
+      EitherT.fromEither(
+        context.completeTransform(
+          Pipe.total(_ + amount),
+          data,
+          ComponentDescriptor(
+            ComponentId("alder.test.offset"),
+            ComponentVersion("1"),
+            AuditValue.record("amount" -> AuditValue.decimal(amount)),
+            BackendFingerprint("test", "1", AuditValue.record())
+          )
+        )
+      )
+
+  private final class VisibilityModel(
+      val observed: Vector[(RowId, VisibilityValue)]
+  ) extends Pipe[VisibilityValue, Nothing, Double]:
+    def run(
+        value: VisibilityValue
+    ): Either[Failure[Nothing], Double] = Right(value.input)
+
+  private final class VisibilityLearner
+      extends Learner[Id, VisibilityValue, Double, String, Double]:
+    type FitError = Nothing
+    type RunError = Nothing
+    type Model    = VisibilityModel
+
+    def fit[U <: Use.Fit](
+        data: NonEmptyData[U, Example[VisibilityValue, Double, String]]
+    )(using context: FitContext): FitResult[Id, Nothing, Trained[Model]] =
+      val observed = data.data.foldRows(
+        Vector.empty[(RowId, VisibilityValue)]
+      )((rows, id, example) => rows :+ (id, example.input))
+      EitherT.right(
+        context.complete(
+          new VisibilityModel(observed),
+          data,
+          ComponentDescriptor(
+            ComponentId("alder.test.resample4s-visibility-learner"),
+            ComponentVersion("1"),
+            AuditValue.record(),
+            BackendFingerprint("test", "1", AuditValue.record())
+          )
+        )
+      )
+
   private given GroupOf[AdapterMeta] with
     type Key = String
     def apply(meta: AdapterMeta): String = meta.group
@@ -43,6 +103,16 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
       rows :+ (id.value, value)
     )
 
+  private def crossFitIn(
+      lineage: PreparationLineage
+  ): Option[CrossFitLineage] =
+    lineage.crossFit match
+      case present @ Some(_) => present
+      case None =>
+        lineage.children.iterator
+          .flatMap(child => crossFitIn(child).iterator)
+          .nextOption
+
   private def exactCompiled(
       size: Int,
       folds: Int,
@@ -70,6 +140,13 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
     ) match
       case Right(value) => value
       case Left(error)  => fail(s"unexpected receipt failure: $error")
+
+  private def deferred[A](folds: Int): CompleteResampler[A] =
+    Resample4sResampler.fromDesign[A](Resample4sKFold(folds))(using
+      DigestAlgorithm.fnv1a64
+    ) match
+      case Right(value) => value
+      case Left(error)  => fail(s"unexpected design failure: $error")
 
   private def plan[A](
       resampler: CompleteResampler[A],
@@ -168,6 +245,136 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
                 fail(s"expected summary population, got $policy")
   }
 
+  test(
+    "design adapter binds the normalized child seed inside a learned workflow"
+  ) {
+    val values = Vector.tabulate(12) { index =>
+      Example(index.toDouble, index.toDouble * 10.0, s"m$index")
+    }
+    val data      = train(values, "deferred-workflow")
+    val resampler = deferred[Example[Double, Double, String]](4)
+    val learner   = new VisibilityLearner
+    val workflow =
+      FeatureMap
+        .crossFitted(new VisibilityEncoder, resampler)
+        .learnWith(learner)
+    val rootSeed = AlderSeed(17L)
+    given FitContext =
+      FitContext.root(
+        rootSeed,
+        PlanFingerprint("resample4s-deferred-workflow"),
+        SchemaFingerprint("resample4s-example"),
+        NumericMode.Deterministic
+      )
+
+    workflow.fit(data).value match
+      case Left(failure) => fail(s"unexpected workflow failure: $failure")
+      case Right(trained) =>
+        val crossFit = trained.audit.preparation.crossFit match
+          case Some(value) => value
+          case None        => fail("expected cross-fit lineage")
+        assertNotEquals(crossFit.seed, rootSeed)
+        crossFit.resample4s match
+          case Some(receipt) =>
+            assertEquals(receipt.planSeed, crossFit.seed)
+          case None => fail("expected Resample4s receipt")
+        workflow.terminalModel(trained) match
+          case Left(error) => fail(s"unexpected terminal focus: $error")
+          case Right(terminal) =>
+            assertEquals(
+              terminal.artifact.observed.map(_._1.value),
+              Vector.range(0, values.length).map(_.toLong)
+            )
+            terminal.artifact.observed.foreach { (id, value) =>
+              assert(!value.fittedOn.contains(id))
+            }
+
+    val replay = workflow.fit(data).value match
+      case Left(failure) => fail(s"unexpected replay failure: $failure")
+      case Right(trained) =>
+        trained.audit.preparation.crossFit match
+          case Some(value) => value
+          case None        => fail("expected replay cross-fit lineage")
+    val first = workflow.fit(data).value match
+      case Left(failure) => fail(s"unexpected first failure: $failure")
+      case Right(trained) =>
+        trained.audit.preparation.crossFit match
+          case Some(value) => value
+          case None        => fail("expected first cross-fit lineage")
+    assertEquals(replay.seed, first.seed)
+    assertEquals(replay.assignment.policy, first.assignment.policy)
+    assertEquals(replay.assignment.digest, first.assignment.digest)
+  }
+
+  test("design adapter retains Resample4s compile failures") {
+    val data      = train(Vector.range(0, 3), "too-few-rows")
+    val resampler = deferred[Int](4)
+    assertEquals(
+      resampler.split(data, AlderSeed(5L)),
+      Left(
+        DataError.Resample4sDesignFailure(
+          DesignError.TooManyFolds(4, 3)
+        )
+      )
+    )
+  }
+
+  test(
+    "design adapter follows normalized stage seeds across parenthesized prefixes"
+  ) {
+    val values = Vector.tabulate(12) { index =>
+      Example(index.toDouble, index.toDouble * 10.0, s"m$index")
+    }
+    val data      = train(values, "deferred-parenthesized")
+    val resampler = deferred[Example[Double, Double, String]](4)
+    val first     = new Offset(1.0)
+    val second    = new Offset(2.0)
+    val feature =
+      FeatureMap.crossFitted(new VisibilityEncoder, resampler)
+    val left =
+      first.andThen(second).andThen(feature).learnWith(new VisibilityLearner)
+    val right =
+      first.andThen(second.andThen(feature)).learnWith(new VisibilityLearner)
+    given FitContext =
+      FitContext.root(
+        AlderSeed(29L),
+        PlanFingerprint("resample4s-parenthesized"),
+        SchemaFingerprint("resample4s-example"),
+        NumericMode.Deterministic
+      )
+
+    val leftFit = left.fit(data).value match
+      case Left(failure) => fail(s"unexpected left failure: $failure")
+      case Right(value)  => value
+    val rightFit = right.fit(data).value match
+      case Left(failure) => fail(s"unexpected right failure: $failure")
+      case Right(value)  => value
+    val leftCrossFit = crossFitIn(leftFit.audit.preparation) match
+      case Some(value) => value
+      case None        => fail("expected left cross-fit lineage")
+    val rightCrossFit = crossFitIn(rightFit.audit.preparation) match
+      case Some(value) => value
+      case None        => fail("expected right cross-fit lineage")
+    assertEquals(leftCrossFit.seed, rightCrossFit.seed)
+    assertEquals(
+      leftCrossFit.assignment.policy,
+      rightCrossFit.assignment.policy
+    )
+    assertEquals(
+      leftCrossFit.assignment.digest,
+      rightCrossFit.assignment.digest
+    )
+    leftCrossFit.resample4s match
+      case Some(receipt) => assertEquals(receipt.planSeed, leftCrossFit.seed)
+      case None          => fail("expected left Resample4s receipt")
+    left.terminalModel(leftFit) match
+      case Left(error) => fail(s"unexpected left terminal focus: $error")
+      case Right(terminal) =>
+        terminal.artifact.observed.foreach { (id, value) =>
+          assert(!value.fittedOn.contains(id))
+        }
+  }
+
   test("group metadata becomes canonical labels and remains group atomic") {
     val values = Vector.tabulate(12) { index =>
       Example(index, index, AdapterMeta(s"g${index / 3}"))
@@ -244,7 +451,7 @@ final class Resample4sResamplerSuite extends munit.FunSuite:
   }
 
   test(
-    "Holdout, Bootstrap, and repeated exact plans cannot mint completeness"
+    "only exact-once selection plans and designs can mint completeness"
   ) {
     val errors = typeCheckErrors(
       """import alder.data.*
@@ -267,6 +474,37 @@ def repeated(
 """
     )
     assertEquals(errors.length, 3)
+
+    val incompleteDesign = typeCheckErrors(
+      """import alder.data.*
+import resample4s.core.*
+def incomplete(
+  design: Design[Split[Selection], Coverage]
+)(using DigestAlgorithm): Either[DigestError, CompleteResampler[Int]] =
+  Resample4sResampler.fromDesign[Int](design)
+"""
+    )
+    val drawDesign = typeCheckErrors(
+      """import alder.data.*
+import resample4s.core.*
+def draw(
+  design: Design[Split[Draw], Coverage.ExactOnce]
+)(using DigestAlgorithm): Either[DigestError, CompleteResampler[Int]] =
+  Resample4sResampler.fromDesign[Int](design)
+"""
+    )
+    val repeatedDesign = typeCheckErrors(
+      """import alder.data.*
+import resample4s.core.*
+def repeated(
+  design: Design[Split[Selection], Coverage.Exact]
+)(using DigestAlgorithm): Either[DigestError, CompleteResampler[Int]] =
+  Resample4sResampler.fromDesign[Int](design)
+"""
+    )
+    assert(incompleteDesign.nonEmpty)
+    assert(drawDesign.nonEmpty)
+    assert(repeatedDesign.nonEmpty)
   }
 
   test("adapter invariants hold over generated sizes, folds, and seeds") {
@@ -277,7 +515,7 @@ def repeated(
     ) { (rowCount, selector, rawSeed) =>
       val foldCount = 2 + selector % (rowCount - 1)
       val data      = train(Vector.range(0, rowCount), s"generated-$rowCount")
-      val resampler = adapter(data, foldCount, rawSeed)
+      val resampler = deferred[Int](foldCount)
       val observed  = plan(resampler, data, rawSeed)
       val replay    = plan(resampler, data, rawSeed)
       val assessments =

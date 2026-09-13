@@ -19,6 +19,11 @@ Use this decision tree before writing an implementation:
    - Construct the public feature map with `FeatureMap.crossFitted` and a
      `CompleteResampler`. A plain `Resampler` is not enough because it does not
      prove exact assessment coverage.
+   - For a Resample4s design inside a composed workflow, construct that
+     capability with `Resample4sResampler.fromDesign`. It binds the design to
+     Alder's actual fitting population and normalized stage seed. Use
+     `fromCompiled` only when the caller intentionally owns the exact stage
+     seed, population fingerprint, compiled plan, and receipt.
    - Apply fitted, target-blind postprocessing with `FoldEncoder.andThen` before
      constructing the cross-fitted feature map.
 3. Is the component terminal, so that its fitted output is never used to fit a
@@ -76,6 +81,9 @@ Follow these rules:
   ordinals and derived seeds.
 - Do not derive a child seed or stage path yourself. The framework calls the
   internal `fitFrom` hook with the stage's stable ordinal.
+- Do not precompile a Resample4s cross-fit design from the root fit seed. A
+  composed feature map receives a framework-derived child seed; use
+  `Resample4sResampler.fromDesign` so compilation occurs at that boundary.
 - A target-blind `Transform` must return replayed `Reusable` rows. Alder's
   package-private replay factory performs the replay and preserves row IDs;
   external code cannot substitute cached training scores.

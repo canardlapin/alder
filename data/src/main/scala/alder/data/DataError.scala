@@ -31,6 +31,8 @@ enum DataError derives CanEqual:
   case Resample4sPopulationSizeMismatch(expected: Int, actual: Long)
   case Resample4sSeedMismatch(expected: Long, actual: Long)
   case Resample4sPopulationFingerprintMismatch
+  case Resample4sDesignFailure(error: resample4s.core.DesignError)
+  case Resample4sDigestFailure(error: resample4s.core.DigestError)
   case InvalidResample4sPopulationFingerprint(
       policy: FingerprintPolicy,
       digest: String

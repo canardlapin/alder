@@ -165,6 +165,10 @@ object ExperimentFailure:
         s"Resample4s seed $actual did not match expected $expected"
       case DataError.Resample4sPopulationFingerprintMismatch =>
         "Resample4s population fingerprint did not match the Alder data"
+      case DataError.Resample4sDesignFailure(error) =>
+        s"Resample4s design ${error.code.value} failed: ${error.message}"
+      case DataError.Resample4sDigestFailure(error) =>
+        "Resample4s digest failed: " + renderDigest(error)
       case DataError.InvalidResample4sPopulationFingerprint(policy, digest) =>
         s"Resample4s population fingerprint $policy:$digest is invalid"
       case DataError.InvalidRollingWindow(initial, assessment, step) =>
@@ -173,6 +177,17 @@ object ExperimentFailure:
       case DataError.NoRollingFolds(availableRows, initialSize) =>
         s"rolling window with initial size $initialSize produced no folds " +
           s"from $availableRows rows"
+
+  private def renderDigest(error: resample4s.core.DigestError): String =
+    error match
+      case resample4s.core.DigestError.InvalidAlgorithmId(value) =>
+        s"invalid algorithm id $value"
+      case resample4s.core.DigestError.EmptyDigestValue =>
+        "digest value was empty"
+      case resample4s.core.DigestError.InvalidCanonicalText(reason) =>
+        s"canonical text was invalid: $reason"
+      case resample4s.core.DigestError.ProviderFailure(message) =>
+        s"provider failure: $message"
 
   private def renderRankText(error: RankTextError): String =
     error match

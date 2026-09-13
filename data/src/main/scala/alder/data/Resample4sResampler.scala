@@ -12,6 +12,26 @@ import resample4s.core.*
   * split-time compatibility checks between a bound plan and Alder data.
   */
 object Resample4sResampler:
+  /** Bind an exact-once design at split time, when Alder owns the fitting
+    * population and normalized stage seed.
+    *
+    * This is the composition-safe constructor for cross-fitted workflows. The
+    * design fingerprint is fixed at construction, while compilation and the
+    * receipt are derived from the actual stage context on every split.
+    */
+  def fromDesign[A](
+      design: Design[Split[Selection], Coverage.ExactOnce]
+  )(using
+      algorithm: DigestAlgorithm
+  ): Either[DigestError, CompleteResampler[A]] =
+    design.fingerprint.map { fingerprint =>
+      new DeferredResample4sCompleteResampler(
+        design,
+        algorithm,
+        ReceiptMapping.protocol(fingerprint)
+      )
+    }
+
   /** Bind an exact-once plan and its verification receipt as a complete Alder
     * resampler.
     *
@@ -80,6 +100,38 @@ object Resample4sResampler:
         candidates += (accepted.length - 1)
       index += 1
     Labels.dense(IArray.unsafeFromArray(codes), rows.length)
+
+private final class DeferredResample4sCompleteResampler[A](
+    design: Design[Split[Selection], Coverage.ExactOnce],
+    algorithm: DigestAlgorithm,
+    val fingerprint: ResamplerFingerprint
+) extends CompleteResampler[A]:
+  private[alder] def split[U <: Use.Fit](
+      data: NonEmptyData[U, A],
+      seed: AlderSeed
+  ): Either[DataError, ResamplingPlan[U, A]] =
+    if data.size > Int.MaxValue.toLong then
+      Left(DataError.Resample4sPopulationTooLarge(data.size))
+    else
+      for
+        space <- IndexSpace
+          .of(data.size.toInt)
+          .left
+          .map(DataError.Resample4sDesignFailure.apply)
+        compiled <- design
+          .compile(space, resample4s.core.Seed.fromLong(seed.value))
+          .left
+          .map(DataError.Resample4sDesignFailure.apply)
+        population <- ReceiptMapping.population(data.fingerprint)
+        receipt <- compiled
+          .receipt(population)(using algorithm)
+          .left
+          .map(DataError.Resample4sDigestFailure.apply)
+        result <- new Resample4sCompleteResampler[A](
+          compiled.plan,
+          ReceiptMapping.render(receipt)
+        ).split(data, seed)
+      yield result
 
 private final class Resample4sCompleteResampler[A](
     plan: Plan[Split[Selection], Coverage.ExactOnce],
@@ -231,7 +283,7 @@ private object ReceiptMapping:
   ): Boolean =
     left.policy == right.policy && left.digest == right.digest
 
-  private def protocol(value: ContentDigest): ProtocolFingerprint =
+  def protocol(value: ContentDigest): ProtocolFingerprint =
     new ProtocolFingerprint(
       FingerprintPolicy.ContentDigest(value.algorithm.value),
       hex(value.value.toIArray)
