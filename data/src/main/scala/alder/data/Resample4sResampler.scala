@@ -28,9 +28,26 @@ object Resample4sResampler:
       new DeferredResample4sCompleteResampler(
         design,
         algorithm,
-        ReceiptMapping.protocol(fingerprint)
+        ReceiptMapping.protocol(fingerprint),
+        None,
+        None
       )
     }
+
+  /** Fix the ordered population identity while deriving the stage seed at
+    * split time. A foreign or reordered population is refused before rows are
+    * read. The caller owns the declared population identity policy.
+    */
+  def fromDesignForPopulation[A](
+      design: Design[Split[Selection], Coverage.ExactOnce],
+      population: DataFingerprint,
+      orderedRowIds: Vector[Long]
+  )(using algorithm: DigestAlgorithm): Either[DigestError, CompleteResampler[A]] =
+    require(orderedRowIds.nonEmpty && orderedRowIds.distinct.size == orderedRowIds.size, "bound population IDs must be nonempty and distinct")
+    design.fingerprint.map: fingerprint =>
+      new DeferredResample4sCompleteResampler(
+        design, algorithm, ReceiptMapping.protocol(fingerprint), Some(population), Some(orderedRowIds)
+      )
 
   /** Bind an exact-once plan and its verification receipt as a complete Alder
     * resampler.
@@ -104,13 +121,19 @@ object Resample4sResampler:
 private final class DeferredResample4sCompleteResampler[A](
     design: Design[Split[Selection], Coverage.ExactOnce],
     algorithm: DigestAlgorithm,
-    val fingerprint: ResamplerFingerprint
+    val fingerprint: ResamplerFingerprint,
+    expectedPopulation: Option[DataFingerprint],
+    expectedRowIds: Option[Vector[Long]]
 ) extends CompleteResampler[A]:
   private[alder] def split[U <: Use.Fit](
       data: NonEmptyData[U, A],
       seed: AlderSeed
   ): Either[DataError, ResamplingPlan[U, A]] =
-    if data.size > Int.MaxValue.toLong then
+    if expectedPopulation.exists(expected => expected.policy != data.fingerprint.policy || expected.digest != data.fingerprint.digest) then
+      Left(DataError.Resample4sPopulationFingerprintMismatch)
+    else if expectedRowIds.exists(expected => data.data.foldRows(Vector.empty[Long])((ids,id,_) => ids :+ id.value) != expected) then
+      Left(DataError.Resample4sPopulationFingerprintMismatch)
+    else if data.size > Int.MaxValue.toLong then
       Left(DataError.Resample4sPopulationTooLarge(data.size))
     else
       for
