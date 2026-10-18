@@ -56,7 +56,7 @@ lazy val resample4sDesignsNative =
   ProjectRef(resample4sBuild, "designsNative")
 
 lazy val galeRevision =
-  "099832ff15c8a4a8fcf3398c7b779fb4bbc12434"
+  "779ed3d8169cdd9f4eb9ab10b1ca9defadc27715"
 lazy val galeBuild =
   sys.props
     .get("alder.gale.build")
